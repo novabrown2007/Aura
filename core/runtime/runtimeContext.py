@@ -112,7 +112,7 @@ class RuntimeContext:
         # Config / Constants
         # ----------------------------
 
-        self.config = {}
+        self.config = None
         """Configuration dictionary loaded during startup."""
 
     # --------------------------------------------------

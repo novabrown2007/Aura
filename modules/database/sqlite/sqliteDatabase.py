@@ -13,20 +13,17 @@ class SQLiteDatabase:
     and stored in the RuntimeContext.
     """
 
-    def __init__(self, context, db_path: str = "aura.db"):
+    def __init__(self, context):
         """
         Initialize the SQLite database connection.
 
         Args:
             context (RuntimeContext):
                 Global runtime context.
-
-            db_path (str):
-                Path to the SQLite database file.
         """
 
         self.context = context
-        self.db_path = db_path
+        self.db_path = self.context.config.require("database.path")
 
         self.logger = None
         if context.logger:

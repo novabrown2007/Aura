@@ -50,10 +50,21 @@ class ConfigLoader:
             raise FileNotFoundError(f"Config file not found: {self.path}")
 
         with open(self.path, "r", encoding="utf-8") as file:
-            self.data = yaml.safe_load(file) or {}
+            loaded = yaml.safe_load(file)
+
+        if not isinstance(loaded, dict):
+            raise ValueError(f"Config root must be a dictionary: {self.path}")
+
+        self.data = loaded
+
+        # --------------------------------------------------
+        # Logging
+        # --------------------------------------------------
 
         if self.logger:
             self.logger.info(f"Configuration loaded from {self.path}")
+            keys = ", ".join(self.data.keys())
+            self.logger.debug(f"Config sections loaded: {keys}")
 
     # --------------------------------------------------
     # Access
@@ -64,28 +75,53 @@ class ConfigLoader:
         Retrieve a configuration value using dot notation.
 
         Args:
-            key (str):
+            :param key: (str):
                 Dot-separated configuration path.
 
                 Example:
                     "llm.model"
 
-            default:
+            :param default:
                 Value returned if the key does not exist.
 
         Returns:
             Any
         """
-        parts = key.split(".")
-        value = self.data
 
-        for part in parts:
+        value = self.data
+        for part in key.split("."):
             if not isinstance(value, dict):
                 return default
-            value = value.get(part)
-            if value is None:
+            if part not in value:
                 return default
+            value = value[part]
         return value
+
+    def require(self, key: str):
+        """
+        Retrieve a required configuration value.
+
+        Raises an error if the value does not exist.
+
+        Args:
+            key (str):
+                Dot-separated configuration path.
+
+        Returns:
+            Any
+
+        Raises:
+            KeyError:
+                If the configuration value is missing.
+        """
+
+        value = self.get(key)
+
+        if value is None:
+            raise KeyError(f"Missing required config value: {key}")
+
+        return value
+
 
     # --------------------------------------------------
     # Utility
@@ -101,7 +137,7 @@ class ConfigLoader:
         if self.logger:
             self.logger.info("Configuration reloaded")
 
-    def as_dict(self):
+    def asDict(self):
         """
         Return the full configuration dictionary.
         """

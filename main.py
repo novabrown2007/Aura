@@ -44,6 +44,8 @@ from modules.llm.memoryManager import MemoryManager
 
 from core.engine.engine import Engine
 
+from config.configLoader import ConfigLoader
+
 
 # --------------------------------------------------
 # Startup
@@ -95,6 +97,9 @@ def main():
 
     # Logger
     context.logger = AuraLogger()
+
+    # Config
+    context.config = ConfigLoader(context)
 
     # Threading
     context.threader = ThreadingManager(context)
