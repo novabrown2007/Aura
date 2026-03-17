@@ -130,6 +130,8 @@ Message:
 
             data = response.json()
             raw = data.get("response", "").strip()
+            if self.logger:
+                self.logger.debug(f"Memory extractor raw output: {raw}")
             if not raw:
                 return
 

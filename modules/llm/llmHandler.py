@@ -35,29 +35,22 @@ class LLMHandler:
         """
 
         self.context = context
-
         # Logger
         self.logger = None
         if context.logger:
             self.logger = context.logger.getChild("LLM")
-
         # Configuration
         config = context.config
-
         # Required configuration values
         self.endpoint = config.require("llm.endpoint")
         self.model = config.require("llm.model")
-
         # Optional configuration
         self.history_enabled = config.get("llm.history.enabled", True)
         self.history_limit = config.get("llm.history.limit", 25)
-
         self.memory_enabled = config.get("llm.memory.enabled", True)
-
         # Managers
         self.history = context.conversationHistory
         self.memory = context.memoryManager
-
         if self.logger:
             self.logger.info("Initialized")
 
@@ -65,7 +58,6 @@ class LLMHandler:
     # --------------------------------------------------
     # Prompt Construction
     # --------------------------------------------------
-
     def _buildPrompt(self, userInput: str) -> str:
         """
         Construct the prompt sent to the language model.
@@ -83,11 +75,9 @@ class LLMHandler:
         # --------------------------------
         # Long-term memory
         # --------------------------------
-
         memorySection = ""
-        if self.memory_enabled:
-            if self.memory_enabled and self.memory:
-                memoryData = self.memory.getMemory()
+        if self.memory_enabled and self.memory:
+            memoryData = self.memory.getMemory()
             if memoryData:
                 memorySection += "Known user information:\n"
                 for key, value in memoryData.items():
@@ -99,7 +89,6 @@ class LLMHandler:
         # --------------------------------
         # Conversation history
         # --------------------------------
-
         messages = []
         if self.history_enabled:
             messages = self.history.getRecentMessages(limit=self.history_limit)
@@ -108,7 +97,6 @@ class LLMHandler:
         # --------------------------------
         # System prompt
         # --------------------------------
-
         systemPrompt = f"""
 You are Aura, a helpful personal assistant similar to Jarvis.
 
@@ -135,6 +123,7 @@ Rules:
                     conversation += f"User: {content}\n"
                 elif role == "aura":
                     conversation += f"Aura: {content}\n"
+
         # Append latest user input
         conversation += f"\nUser: {userInput}\nAura:"
 
@@ -144,7 +133,6 @@ Rules:
     # --------------------------------------------------
     # Response Generation
     # --------------------------------------------------
-
     def generateResponse(self, userInput: str) -> str:
         """
         Generate a response from the language model.
@@ -159,7 +147,22 @@ Rules:
         """
 
         try:
+            # --------------------------------
+            # Learn long-term memory
+            # --------------------------------
+            if self.memory_enabled and self.memory:
+                try:
+                    self.memory.learnFromMessage(userInput)
+                except Exception as memoryError:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Memory extraction failed: {memoryError}"
+                        )
+
+
+            # --------------------------------
             # Build prompt
+            # --------------------------------
             prompt = self._buildPrompt(userInput)
             payload = {
                 "model": self.model,
@@ -167,7 +170,10 @@ Rules:
                 "stream": False
             }
 
+
+            # --------------------------------
             # Send request to LLM
+            # --------------------------------
             response = requests.post(self.endpoint, json=payload)
             if response.status_code != 200:
                 if self.logger:
