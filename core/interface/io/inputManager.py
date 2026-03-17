@@ -37,9 +37,28 @@ class InputManager:
                 The assistant response.
         """
 
+        # --------------------------------
+        # Debug Functions.
+        # --------------------------------
         if self.logger:
             self.logger.debug(f"Received input: {text}")
 
+        if "memory.clear()" in text.lower():
+            try:
+                memory = self.context.require("memoryManager")
+                memory.clear()
+                if self.logger:
+                    self.logger.warning("Memory cleared via user command")
+                return "Memory has been cleared."
+            except Exception as error:
+                if self.logger:
+                    self.logger.error(f"Memory clear failed: {error}")
+                return "Failed to clear memory."
+
+
+        # --------------------------------
+        # Normal Processing
+        # --------------------------------
         interpreter = self.context.require("interpreter")
         router = self.context.require("intentRouter")
 
