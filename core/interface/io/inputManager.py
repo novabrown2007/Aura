@@ -19,7 +19,7 @@ class InputManager:
         self.logger = context.logger.getChild("Input") if context.logger else None
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Input Processing

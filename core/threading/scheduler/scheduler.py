@@ -32,7 +32,7 @@ class Scheduler:
 
         self.logger = None
         if context.logger:
-            self.logger = context.logger.getChild("Scheduler")
+            self.logger = context.logger.getChild("Threadding.Scheduler")
 
         self.schedules: Dict[str, Schedule] = {}
         """Dictionary of schedules indexed by name."""
@@ -40,7 +40,7 @@ class Scheduler:
         self.running = False
 
         if self.logger:
-            self.logger.info(f"scheduler.py has been initialized.")
+            self.logger.info(f"Initialized.")
 
     # --------------------------------------------------
     # Schedule Management
@@ -113,7 +113,7 @@ class Scheduler:
         thread.start()
 
         if self.logger:
-            self.logger.info("Scheduler started")
+            self.logger.info("Scheduler started.")
 
     def stop(self):
         """
@@ -123,7 +123,7 @@ class Scheduler:
         self.running = False
 
         if self.logger:
-            self.logger.info("Scheduler stopped")
+            self.logger.info("Scheduler stopped.")
 
     def _runLoop(self, threadControl=None):
         """

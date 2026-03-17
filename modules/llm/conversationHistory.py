@@ -22,14 +22,14 @@ class ConversationHistory:
 
         self.logger = None
         if context.logger:
-            self.logger = context.logger.getChild("ConversationHistory")
+            self.logger = context.logger.getChild("LLM.ConversationHistory")
 
         self.database = context.database
 
         self._initializeDatabase()
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Database Setup

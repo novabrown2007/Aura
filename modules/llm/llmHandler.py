@@ -52,7 +52,7 @@ class LLMHandler:
         self.history = context.conversationHistory
         self.memory = context.memoryManager
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
 
     # --------------------------------------------------

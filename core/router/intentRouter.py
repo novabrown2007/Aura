@@ -19,7 +19,7 @@ class IntentRouter:
         self.logger = context.logger.getChild("Router") if context.logger else None
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Routing

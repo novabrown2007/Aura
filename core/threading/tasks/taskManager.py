@@ -26,13 +26,13 @@ class TaskManager:
         self.logger = None
 
         if context.logger:
-            self.logger = context.logger.getChild("Tasks")
+            self.logger = context.logger.getChild("Threading.Tasks")
 
         self.tasks: Dict[str, Task] = {}
         """Dictionary of tasks indexed by task name."""
 
         if self.logger:
-            self.logger.info(f"taskManager.py has been initialized.")
+            self.logger.info(f"Initialized.")
 
     # --------------------------------------------------
     # Task Submission

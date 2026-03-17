@@ -58,7 +58,7 @@ def startup(context):
 
     logger = context.logger.getChild("Main")
 
-    logger.info("Starting Aura")
+    logger.info("Starting Aura.")
 
     if context.scheduler:
         context.scheduler.start()
@@ -75,7 +75,7 @@ def shutdown(context):
 
     logger = context.logger.getChild("Main")
 
-    logger.info("Shutting down Aura")
+    logger.info("Shutting down Aura.")
 
     if context.scheduler:
         context.scheduler.stop()

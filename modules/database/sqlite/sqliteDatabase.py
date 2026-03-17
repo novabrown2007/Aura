@@ -32,7 +32,7 @@ class SQLiteDatabase:
         self.connection: Optional[sqlite3.Connection] = None
 
         if self.logger:
-            self.logger.info(f"sqliteDatabase.py has been initialized.")
+            self.logger.info(f"SQLite Initialized.")
 
     # --------------------------------------------------
     # Connection Management
@@ -50,7 +50,7 @@ class SQLiteDatabase:
         self.connection.row_factory = sqlite3.Row
 
         if self.logger:
-            self.logger.info(f"SQLite connected: {self.db_path}")
+            self.logger.info(f"SQLite connected: '{self.db_path}'.")
 
     def close(self):
         """
@@ -62,7 +62,7 @@ class SQLiteDatabase:
             self.connection = None
 
             if self.logger:
-                self.logger.info("SQLite connection closed")
+                self.logger.info("SQLite connection closed.")
 
     # --------------------------------------------------
     # Query Execution

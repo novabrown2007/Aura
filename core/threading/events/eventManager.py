@@ -35,13 +35,13 @@ class EventManager:
         self.logger = None
 
         if context.logger:
-            self.logger = context.logger.getChild("Events")
+            self.logger = context.logger.getChild("Threadding.Events")
 
         # # Dictionary mapping event names to lists of listener callbacks.
         self.listeners: Dict[str, List[Callable]] = {}
 
         if self.logger:
-            self.logger.info(f"eventManager.py has been initialized.")
+            self.logger.info(f"Initialized.")
     # --------------------------------------------------
     # Subscription
     # --------------------------------------------------

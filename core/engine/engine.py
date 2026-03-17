@@ -20,7 +20,7 @@ class Engine:
         self.logger = context.logger.getChild("Engine") if context.logger else None
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Runtime Loop

@@ -40,7 +40,7 @@ class MemoryManager:
 
         self.logger = None
         if context.logger:
-            self.logger = context.logger.getChild("Memory")
+            self.logger = context.logger.getChild("LLM.Memory")
 
         self.database = context.database
         self.config = context.config
@@ -52,7 +52,7 @@ class MemoryManager:
         self._initializeDatabase()
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Database Setup

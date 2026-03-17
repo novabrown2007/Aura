@@ -23,7 +23,7 @@ class Interpreter:
         self.logger = context.logger.getChild("Interpreter") if context.logger else None
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Interpretation

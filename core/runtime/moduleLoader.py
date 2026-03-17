@@ -39,7 +39,7 @@ class ModuleLoader:
         self.logger = context.logger.getChild("ModuleLoader") if context.logger else None
 
         if self.logger:
-            self.logger.info("Initialized")
+            self.logger.info("Initialized.")
 
     # --------------------------------------------------
     # Module Discovery
@@ -56,7 +56,7 @@ class ModuleLoader:
         """
 
         if self.logger:
-            self.logger.info("Loading modules")
+            self.logger.info("Loading modules.")
 
         import modules
 
