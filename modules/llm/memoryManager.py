@@ -60,21 +60,13 @@ class MemoryManager:
 
     def _initializeDatabase(self):
         """
-        Create the memory table if it does not exist.
+        Validate database availability for memory persistence.
+
+        Table creation is centralized in modules.database.databaseTableManager.
         """
 
-        if not self.database:
-            return
-        self.database.execute(
-            """
-            CREATE TABLE IF NOT EXISTS memory (
-                memory_key VARCHAR(255) PRIMARY KEY,
-                value TEXT,
-                importance INTEGER DEFAULT 1,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
+        if not self.database and self.logger:
+            self.logger.warning("MemoryManager started without a database.")
 
 
     # --------------------------------------------------

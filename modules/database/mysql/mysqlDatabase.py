@@ -3,6 +3,7 @@
 from typing import Any, Optional, Tuple
 
 import mysql.connector
+from modules.database.databaseTableManager import DatabaseTableManager
 
 
 class MySQLDatabase:
@@ -118,29 +119,8 @@ class MySQLDatabase:
         if self.logger:
             self.logger.info("Initializing database schema")
 
-        self.execute(
-            """
-            CREATE TABLE IF NOT EXISTS system_info (
-                `key` VARCHAR(255) PRIMARY KEY,
-                value TEXT
-            )
-            """
-        )
-
-        self.execute(
-            """
-            CREATE TABLE IF NOT EXISTS command_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                command_text TEXT NOT NULL,
-                command_root VARCHAR(128),
-                status VARCHAR(32) NOT NULL,
-                response_text TEXT,
-                error_text TEXT,
-                duration_ms INT,
-                executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
+        manager = DatabaseTableManager(self)
+        manager.createAllTables()
 
     def _normalizeQuery(self, query: str) -> str:
         """

@@ -39,22 +39,13 @@ class ConversationHistory:
 
     def _initializeDatabase(self):
         """
-        Create conversation history table if it does not exist.
+        Validate database availability for conversation history access.
+
+        Table creation is centralized in modules.database.databaseTableManager.
         """
 
-        if not self.database:
-            return
-
-        self.database.execute(
-            """
-            CREATE TABLE IF NOT EXISTS conversation_history (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                role VARCHAR(32) NOT NULL,
-                content TEXT NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
+        if not self.database and self.logger:
+            self.logger.warning("ConversationHistory started without a database.")
 
     # --------------------------------------------------
     # Message Management

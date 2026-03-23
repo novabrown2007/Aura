@@ -25,22 +25,13 @@ class Reminders:
 
     def createRemindersTable(self):
         """
-        Create the reminders table if it does not already exist.
+        Validate database availability for reminder persistence.
+
+        Table creation is centralized in modules.database.databaseTableManager.
         """
 
-        if not self.database:
-            return
-
-        self.database.execute(
-            """
-            CREATE TABLE IF NOT EXISTS reminders (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                remind_at DATETIME NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
+        if not self.database and self.logger:
+            self.logger.warning("Reminders started without a database.")
 
     def createReminder(self, title: str, remind_at: str = None):
         """
@@ -96,4 +87,3 @@ class Reminders:
             "DELETE FROM reminders WHERE id = ?",
             (reminder_id,),
         )
-
