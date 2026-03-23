@@ -314,7 +314,7 @@ class AuraWindowsApp:
             self.sidebarVisible = False
             return
 
-        self.sidebar.pack(side=RIGHT, fill="y", pady=0, padx=(12, 0))
+        self.sidebar.pack(side=LEFT, fill="y", pady=0, padx=(0, 12))
         self.sidebarVisible = True
 
     def run(self):
