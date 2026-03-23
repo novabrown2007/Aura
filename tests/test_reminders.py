@@ -130,7 +130,10 @@ class RemindersTests(unittest.TestCase):
             database=database,
             extra={
                 "eventManager": event_manager,
-                "scheduler": SimpleNamespace(getSchedule=lambda _name: None, addSchedule=lambda _schedule: None),
+                "scheduler": SimpleNamespace(
+                    getSchedule=lambda _name: None,
+                    addSchedule=lambda _schedule: None,
+                ),
             },
         )
         reminders = Reminders(context)
