@@ -1,0 +1,66 @@
+name: Sync Master To Interface Branches
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-sync-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create/Update sync PRs from master
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          SOURCE_BRANCH="master"
+          TARGET_BRANCHES=(
+            "aura/interface/windowsOS"
+            "aura/interface/macOS"
+            "aura/interface/linuxOS"
+            "aura/interface/chromeOS"
+            "aura/interface/androidOS"
+            "aura/interface/iOS"
+          )
+
+          for BASE in "${TARGET_BRANCHES[@]}"; do
+            echo "Processing: $BASE"
+
+            if ! gh api "repos/$REPO/branches/$BASE" > /dev/null 2>&1; then
+              echo "Branch not found, skipping: $BASE"
+              continue
+            fi
+
+            TITLE="Sync master -> $BASE"
+            BODY="Automated sync PR from master into $BASE."
+
+            EXISTING_PR=$(gh pr list \
+              --repo "$REPO" \
+              --base "$BASE" \
+              --head "$SOURCE_BRANCH" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty')
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "Open PR already exists: #$EXISTING_PR"
+              gh pr edit "$EXISTING_PR" --repo "$REPO" --title "$TITLE" --body "$BODY"
+            else
+              echo "Creating PR: master -> $BASE"
+              gh pr create \
+                --repo "$REPO" \
+                --base "$BASE" \
+                --head "$SOURCE_BRANCH" \
+                --title "$TITLE" \
+                --body "$BODY"
+            fi
+          done
+
