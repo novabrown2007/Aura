@@ -24,8 +24,6 @@ jobs:
           SOURCE_BRANCH="master"
           TARGET_BRANCHES=(
             "interface/windowsOS"
-            "interface/macOS"
-            "interface/linuxOS"
             "interface/chromeOS"
             "interface/androidOS"
             "interface/website"

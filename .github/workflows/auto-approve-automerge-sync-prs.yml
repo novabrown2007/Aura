@@ -9,11 +9,9 @@ on:
       - ready_for_review
     branches:
       - "interface/windowsOS"
-      - "interface/macOS"
-      - "interface/linuxOS"
       - "interface/chromeOS"
       - "interface/androidOS"
-      - "interface/iOS"
+      - "interface/website"
   workflow_dispatch:
 
 permissions:
