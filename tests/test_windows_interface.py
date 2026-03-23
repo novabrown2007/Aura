@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from tests.support.fakes import make_context
+from core.threading.events.events import Event
 
 
 class _FakeLogger:
@@ -172,6 +173,19 @@ class _FakeEventManager:
     def __init__(self, _context):
         """Store constructor compatibility with production manager."""
 
+        self.listeners = {}
+
+    def subscribe(self, event_name, callback):
+        """Record event subscriptions made by the Windows UI."""
+
+        self.listeners.setdefault(event_name, []).append(callback)
+
+    def emit(self, event):
+        """Dispatch fake events to subscribed callbacks."""
+
+        for callback in self.listeners.get(event.name, []):
+            callback(event)
+
 
 class _FakeTaskManager:
     """No-op task manager used during bootstrap tests."""
@@ -188,6 +202,7 @@ class _FakeScheduler:
 
         self.started = False
         self.stopped = False
+        self.schedules = {}
 
     def start(self):
         """Track scheduler startup calls."""
@@ -198,6 +213,16 @@ class _FakeScheduler:
         """Track scheduler shutdown calls."""
 
         self.stopped = True
+
+    def addSchedule(self, schedule):
+        """Store registered schedules by name."""
+
+        self.schedules[schedule.name] = schedule
+
+    def getSchedule(self, name):
+        """Return one registered schedule by name."""
+
+        return self.schedules.get(name)
 
 
 class _FakeDatabase:
@@ -310,6 +335,16 @@ class _FakeModuleLoader:
         self.loaded = True
 
 
+class _NoOpModuleLoader:
+    """Module loader stub that simulates dynamic module discovery failure."""
+
+    def __init__(self, _context):
+        """Initialize loader compatibility without loading anything."""
+
+    def loadModules(self):
+        """Skip all module registration work."""
+
+
 class _FakeRoot:
     """Tk root replacement used to test GUI logic without opening windows."""
 
@@ -337,6 +372,9 @@ class _FakeRoot:
     def configure(self, **_kwargs):
         """Accept root style configuration."""
 
+    def iconbitmap(self, **_kwargs):
+        """Accept window icon assignment."""
+
     def after(self, _delay, callback):
         """Track scheduled callbacks without executing them."""
 
@@ -361,15 +399,30 @@ class _FakeFrame:
 
     def __init__(self, _parent, **_kwargs):
         """Initialize frame placeholder."""
+        self.is_packed = False
+        self.is_placed = False
 
     def pack(self, **_kwargs):
         """Accept pack layout calls."""
+        self.is_packed = True
 
     def pack_propagate(self, _flag):
         """Accept propagation configuration calls."""
 
     def pack_forget(self):
         """Accept pack removal calls."""
+        self.is_packed = False
+
+    def place(self, **_kwargs):
+        """Accept absolute placement calls."""
+        self.is_placed = True
+
+    def place_forget(self):
+        """Accept placement removal calls."""
+        self.is_placed = False
+
+    def lift(self):
+        """Accept z-order adjustment calls."""
 
 
 class _FakeEntry:
@@ -419,6 +472,8 @@ class _FakeButton:
         self.text = text
         self.command = command
         self.state = "normal"
+        self.bg = _kwargs.get("bg")
+        self.fg = _kwargs.get("fg")
 
     def pack(self, **_kwargs):
         """Accept pack layout calls."""
@@ -430,6 +485,10 @@ class _FakeButton:
             self.state = kwargs["state"]
         if "text" in kwargs:
             self.text = kwargs["text"]
+        if "bg" in kwargs:
+            self.bg = kwargs["bg"]
+        if "fg" in kwargs:
+            self.fg = kwargs["fg"]
 
 
 class _FakeScrolledText:
@@ -455,6 +514,11 @@ class _FakeScrolledText:
         """Append text to transcript buffer."""
 
         self.content += text
+
+    def delete(self, _start, _end):
+        """Clear the transcript buffer."""
+
+        self.content = ""
 
     def see(self, _location):
         """Accept auto-scroll requests."""
@@ -662,6 +726,40 @@ class WindowsRuntimeBootstrapTests(unittest.TestCase):
         self.assertIn("database.user", context.missingConfigKeys)
         self.assertIn("database.password", context.missingConfigKeys)
 
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.registerRemindersModule")
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.registerCommandsModule")
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ModuleLoader", _NoOpModuleLoader)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.OutputManager", _FakeOutputManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.InputManager", _FakeInputManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.IntentRouter", _FakeIntentRouter)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.Interpreter", _FakeInterpreter)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.LLMHandler", _FakeLLMHandler)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ConversationHistory", _FakeConversationHistory)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.MemoryManager", _FakeMemoryManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.MySQLDatabase", _FakeDatabase)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.Scheduler", _FakeScheduler)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.TaskManager", _FakeTaskManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.EventManager", _FakeEventManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ThreadingManager", _FakeThreadingManager)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ConfigLoader", _FakeConfigLoader)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.AuraLogger", return_value=_FakeLogger())
+    def test_create_context_registers_critical_modules_when_loader_skips_them(
+        self,
+        _mock_logger,
+        mock_register_commands_module,
+        mock_register_reminders_module,
+    ):
+        """Ensure Windows bootstrap directly registers command/reminder modules when needed."""
+
+        from core.interface.desktopInterface.windows.windowsRuntimeBootstrap import (
+            createRuntimeContext,
+        )
+
+        context = createRuntimeContext()
+
+        mock_register_commands_module.assert_called_once_with(context)
+        mock_register_reminders_module.assert_called_once_with(context)
+
 
 class RunAuraWindowsEntrypointTests(unittest.TestCase):
     """Validate entrypoint lifecycle orchestration for the Windows runtime."""
@@ -808,6 +906,87 @@ class AuraWindowsAppTests(unittest.TestCase):
         self.assertFalse(app.isBusy)
         self.assertTrue(len(app.root.after_calls) >= 1)
 
+    def test_show_reminders_page_refreshes_list_and_marks_page_active(self):
+        """Ensure the reminders page loads data and becomes the active visible page."""
+
+        reminders = SimpleNamespace(
+            listReminders=lambda: [
+                {
+                    "id": 2,
+                    "title": "Pay rent",
+                    "remind_at": "2026-03-30 09:00",
+                    "created_at": "2026-03-23 18:00",
+                }
+            ]
+        )
+        context = make_context(
+            extra={
+                "inputManager": SimpleNamespace(process=lambda _text: "ok"),
+                "reminders": reminders,
+                "logger": _FakeLogger(),
+            }
+        )
+
+        app = self._build_app(context)
+        app._showRemindersPage()
+
+        self.assertEqual(app.activePage, "reminders")
+        self.assertTrue(app.remindersPage.is_packed)
+        self.assertFalse(app.chatPage.is_packed)
+        self.assertIn("Pay rent", app.remindersTranscript.content)
+
+    def test_add_reminder_calls_backend_and_refreshes_page(self):
+        """Ensure reminder creation uses the existing reminders manager API."""
+
+        created = []
+
+        reminders = SimpleNamespace(
+            createReminder=lambda title, remind_at=None: created.append((title, remind_at)),
+            listReminders=lambda: [],
+        )
+        context = make_context(
+            extra={
+                "inputManager": SimpleNamespace(process=lambda _text: "ok"),
+                "reminders": reminders,
+                "logger": _FakeLogger(),
+            }
+        )
+
+        app = self._build_app(context)
+        app.reminderTitleEntry.value = "Buy groceries"
+        app.reminderWhenEntry.value = "2026-03-24 17:00"
+
+        app._addReminder()
+
+        self.assertEqual(created, [("Buy groceries", "2026-03-24 17:00")])
+        self.assertEqual(app.reminderTitleEntry.value, "")
+        self.assertEqual(app.reminderWhenEntry.value, "")
+
+    def test_delete_reminder_calls_backend_and_refreshes_page(self):
+        """Ensure reminder deletion uses the existing reminders manager API."""
+
+        deleted = []
+
+        reminders = SimpleNamespace(
+            deleteReminder=lambda reminder_id: deleted.append(reminder_id),
+            listReminders=lambda: [],
+        )
+        context = make_context(
+            extra={
+                "inputManager": SimpleNamespace(process=lambda _text: "ok"),
+                "reminders": reminders,
+                "logger": _FakeLogger(),
+            }
+        )
+
+        app = self._build_app(context)
+        app.deleteReminderEntry.value = "7"
+
+        app._deleteReminder()
+
+        self.assertEqual(deleted, [7])
+        self.assertEqual(app.deleteReminderEntry.value, "")
+
     def test_shutdown_signal_schedules_close(self):
         """Ensure app schedules window close when runtime requests shutdown."""
 
@@ -845,6 +1024,32 @@ class AuraWindowsAppTests(unittest.TestCase):
         app._pollPendingResponses()
 
         app._showErrorPopup.assert_called_once()
+
+    def test_reminder_event_shows_popup_and_transcript_entry(self):
+        """Ensure emitted reminder events surface in the Windows app."""
+
+        event_manager = _FakeEventManager(None)
+        context = make_context(
+            extra={
+                "inputManager": SimpleNamespace(process=lambda _text: "ok"),
+                "eventManager": event_manager,
+                "logger": _FakeLogger(),
+            }
+        )
+
+        app = self._build_app(context)
+        app._showReminderPopup = MagicMock()
+
+        event_manager.emit(
+            Event(
+                "reminder_triggered",
+                {"title": "Stretch", "remind_at": "2026-03-23 17:28:00"},
+            )
+        )
+        app._pollPendingResponses()
+
+        self.assertIn("Reminder: Stretch (2026-03-23 17:28:00)", app.transcript.content)
+        app._showReminderPopup.assert_called_once()
 
     @patch("core.interface.desktopInterface.windows.auraWindowsApp.messagebox.askyesno", return_value=False)
     def test_busy_close_cancel_keeps_window_open(self, _mock_prompt):

@@ -22,6 +22,11 @@ def build():
 
     pyinstaller = shutil.which("pyinstaller")
     if not pyinstaller:
+        venv_pyinstaller = Path(sys.executable).resolve().parent / "pyinstaller.exe"
+        if venv_pyinstaller.exists():
+            pyinstaller = str(venv_pyinstaller)
+
+    if not pyinstaller:
         raise RuntimeError(
             "PyInstaller is not installed. Install it with: pip install pyinstaller"
         )
@@ -38,11 +43,16 @@ def build():
         "aura",
         "--windowed",
         "--onefile",
+        "--hidden-import",
+        "modules.commands",
+        "--hidden-import",
+        "modules.reminders",
         str(entrypoint),
     ]
 
     if icon_path.exists():
         command.extend(["--icon", str(icon_path)])
+        command.extend(["--add-data", f"{icon_path};assets\\icons"])
 
     result = subprocess.run(command, cwd=project_root, check=False)
     if result.returncode != 0:
@@ -56,4 +66,3 @@ if __name__ == "__main__":
     except Exception as error:
         print(f"Build failed: {error}")
         sys.exit(1)
-

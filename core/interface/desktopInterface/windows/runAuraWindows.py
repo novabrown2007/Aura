@@ -5,6 +5,7 @@ launches the Tkinter GUI. It is intended to be the target script when
 building `aura.exe`.
 """
 
+import ctypes
 import os
 import traceback
 
@@ -28,6 +29,18 @@ CONFIG_PROMPT_LABELS = {
     "llm.endpoint": "LLM Endpoint",
     "llm.model": "LLM Model",
 }
+
+APP_USER_MODEL_ID = "NovaBrown.Aura"
+
+
+def _applyWindowsAppIdentity():
+    """Assign a stable Windows AppUserModelID for taskbar/icon association."""
+
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception:
+        # Non-Windows environments or restricted shells can ignore this safely.
+        return
 
 
 def _promptForMissingConfigValues(missing_keys: list[str]):
@@ -103,6 +116,7 @@ def main():
         context = None
         startup_completed = False
         try:
+            _applyWindowsAppIdentity()
             context = createRuntimeContext()
             missing_keys = list(getattr(context, "missingConfigKeys", []))
 

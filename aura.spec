@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['core\\interface\\desktopInterface\\windows\\runAuraWindows.py'],
+    ['C:\\Users\\brown\\PycharmProjects\\aura\\core\\interface\\desktopInterface\\windows\\runAuraWindows.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('C:\\Users\\brown\\PycharmProjects\\aura\\assets\\icons\\aura.ico', 'assets\\icons')],
+    hiddenimports=['modules.commands', 'modules.reminders'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['C:\\Users\\brown\\PycharmProjects\\aura\\assets\\icons\\aura.ico'],
 )

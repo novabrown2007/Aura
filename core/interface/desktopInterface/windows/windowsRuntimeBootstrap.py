@@ -22,10 +22,12 @@ from core.threading.events.eventManager import EventManager
 from core.threading.scheduler.scheduler import Scheduler
 from core.threading.tasks.taskManager import TaskManager
 from core.threading.threadingManager import ThreadingManager
+from modules.commands import register as registerCommandsModule
 from modules.database.mysql.mysqlDatabase import MySQLDatabase
 from modules.llm.conversationHistory import ConversationHistory
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.memoryManager import MemoryManager
+from modules.reminders import register as registerRemindersModule
 
 REQUIRED_CONFIG_KEYS = (
     "llm.endpoint",
@@ -489,6 +491,37 @@ def _createLLMHandler(context: RuntimeContext):
         return DegradedLLMHandler(context, str(error))
 
 
+def _ensureCriticalModulesRegistered(context: RuntimeContext):
+    """Ensure command and reminders modules exist after startup.
+
+    Frozen Windows builds rely on dynamic module discovery, which can be
+    incomplete if PyInstaller omits plugin-style packages. This fallback
+    explicitly registers the command and reminders modules when needed.
+    """
+
+    logger = _getLogger(context)
+
+    if getattr(context, "commandHandler", None) is None:
+        try:
+            registerCommandsModule(context)
+            if logger:
+                logger.warning("Command module was registered via Windows fallback path.")
+        except Exception as error:
+            context.bootstrapWarnings.append(f"Command module fallback failed: {error}")
+            if logger:
+                logger.error(f"Command module fallback failed: {error}")
+
+    if getattr(context, "reminders", None) is None:
+        try:
+            registerRemindersModule(context)
+            if logger:
+                logger.warning("Reminders module was registered via Windows fallback path.")
+        except Exception as error:
+            context.bootstrapWarnings.append(f"Reminders module fallback failed: {error}")
+            if logger:
+                logger.error(f"Reminders module fallback failed: {error}")
+
+
 def createRuntimeContext() -> RuntimeContext:
     """Create and initialize the runtime context for the Windows GUI.
 
@@ -558,6 +591,8 @@ def createRuntimeContext() -> RuntimeContext:
         if logger:
             logger.error(f"Module loading failed. Continuing in reduced mode: {error}")
         context.bootstrapWarnings.append(f"Module loading failed: {error}")
+
+    _ensureCriticalModulesRegistered(context)
 
     # Runtime flags
     context.should_exit = False

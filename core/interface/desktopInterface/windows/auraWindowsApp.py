@@ -10,7 +10,9 @@ branch. It provides:
 
 from __future__ import annotations
 
+from pathlib import Path
 from queue import Empty, Queue
+import sys
 from threading import Thread
 from tkinter import (
     END,
@@ -47,6 +49,8 @@ USER_TEXT = "#f6d37a"
 ERROR_TEXT = "#ff8f8f"
 NAV_INACTIVE = "#192230"
 NAV_INACTIVE_ACTIVE = "#233244"
+WINDOW_ICON_RELATIVE_PATH = Path("assets") / "icons" / "aura.ico"
+PLACEHOLDER_TEXT = "Coming soon."
 
 
 class AuraWindowsApp:
@@ -70,6 +74,7 @@ class AuraWindowsApp:
         self.isBusy = False
         self.isClosing = False
         self.sidebarVisible = False
+        self.activePage = "chat"
 
         self.root = Tk()
         self.root.title("Aura Assistant")
@@ -77,8 +82,10 @@ class AuraWindowsApp:
         self.root.minsize(760, 500)
         self.root.configure(bg=WINDOW_BG)
         self.root.protocol("WM_DELETE_WINDOW", self._onWindowClose)
+        self._applyWindowIcon()
 
         self._buildLayout()
+        self._subscribeToReminderEvents()
         self._appendTranscript("Aura", "Windows interface initialized.")
         for warning in getattr(self.context, "bootstrapWarnings", []):
             self._appendTranscript("Aura", f"Startup warning: {warning}")
@@ -86,17 +93,38 @@ class AuraWindowsApp:
         if self.logger:
             self.logger.info("AuraWindowsApp initialized.")
 
+    def _applyWindowIcon(self):
+        """Apply the Windows app icon when the `.ico` asset is available."""
+
+        icon_path = self._resolveWindowIconPath()
+        if not icon_path.exists():
+            return
+
+        try:
+            self.root.iconbitmap(default=str(icon_path))
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Window icon load failed: {error}")
+
+    def _resolveWindowIconPath(self) -> Path:
+        """Resolve the icon path for both source and frozen executable modes."""
+
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            return Path(sys._MEIPASS) / WINDOW_ICON_RELATIVE_PATH
+
+        return Path(__file__).resolve().parents[4] / WINDOW_ICON_RELATIVE_PATH
+
     def _buildLayout(self):
         """Create and arrange all Tkinter widgets for the chat interface."""
 
-        shell = Frame(self.root, bg=WINDOW_BG)
-        shell.pack(fill=BOTH, expand=True)
+        self.shell = Frame(self.root, bg=WINDOW_BG)
+        self.shell.pack(fill=BOTH, expand=True)
 
-        self.contentFrame = Frame(shell, bg=WINDOW_BG)
+        self.contentFrame = Frame(self.shell, bg=WINDOW_BG)
         self.contentFrame.pack(side=LEFT, fill=BOTH, expand=True, pady=18, padx=18)
 
         self.sidebar = Frame(
-            shell,
+            self.shell,
             bg=SIDEBAR_BG,
             width=84,
             highlightbackground=BORDER,
@@ -123,14 +151,14 @@ class AuraWindowsApp:
         )
         self.chatNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
 
-        self.listNavButton = self._createSidebarButton(
+        self.remindersNavButton = self._createSidebarButton(
             self.sidebar,
-            icon="=",
-            label="List",
+            icon="R",
+            label="Reminders",
             active=False,
-            command=self._showListPage,
+            command=self._showRemindersPage,
         )
-        self.listNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
+        self.remindersNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
 
         self.calendarNavButton = self._createSidebarButton(
             self.sidebar,
@@ -151,20 +179,10 @@ class AuraWindowsApp:
             fg=TEXT_PRIMARY,
             font=("Segoe UI Semibold", 18),
         )
-        title_label.pack(side=LEFT)
-
-        subtitle_label = Label(
-            header,
-            text="Windows desktop interface",
-            bg=WINDOW_BG,
-            fg=TEXT_MUTED,
-            font=("Segoe UI", 10),
-        )
-        subtitle_label.pack(side=RIGHT, pady=(6, 0))
 
         self.menuButton = Button(
             header,
-            text="|||",
+            text="≡",
             command=self._toggleSidebar,
             bg=NAV_INACTIVE,
             fg=TEXT_PRIMARY,
@@ -177,10 +195,45 @@ class AuraWindowsApp:
             pady=8,
             cursor="hand2",
         )
-        self.menuButton.pack(side=RIGHT, padx=(0, 10))
+        self.menuButton.pack(side=LEFT, padx=(0, 10))
+
+        title_label.pack(side=LEFT)
+
+        subtitle_label = Label(
+            header,
+            text="Windows desktop interface",
+            bg=WINDOW_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 10),
+        )
+        subtitle_label.pack(side=RIGHT, pady=(6, 0))
+
+        self.pageContainer = Frame(self.contentFrame, bg=WINDOW_BG)
+        self.pageContainer.pack(fill=BOTH, expand=True)
+
+        self.chatPage = Frame(self.pageContainer, bg=WINDOW_BG)
+        self.remindersPage = Frame(self.pageContainer, bg=WINDOW_BG)
+        self.calendarPage = Frame(self.pageContainer, bg=WINDOW_BG)
+
+        self._buildChatPage()
+        self._buildRemindersPage()
+        self._buildCalendarPage()
+        self._showPage("chat")
+
+    def _subscribeToReminderEvents(self):
+        """Subscribe the Windows UI to runtime reminder notifications."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None:
+            return
+
+        event_manager.subscribe("reminder_triggered", self._onReminderTriggered)
+
+    def _buildChatPage(self):
+        """Build the chat page widgets."""
 
         transcript_container = Frame(
-            self.contentFrame,
+            self.chatPage,
             bg=PANEL_BG,
             highlightbackground=BORDER,
             highlightthickness=1,
@@ -206,7 +259,7 @@ class AuraWindowsApp:
         self.transcript.pack(fill=BOTH, expand=True, padx=1, pady=1)
 
         input_container = Frame(
-            self.contentFrame,
+            self.chatPage,
             bg=PANEL_BG,
             highlightbackground=BORDER,
             highlightthickness=1,
@@ -245,6 +298,194 @@ class AuraWindowsApp:
             cursor="hand2",
         )
         self.sendButton.pack(side=RIGHT, padx=(12, 0))
+
+    def _buildRemindersPage(self):
+        """Build the reminders management page widgets."""
+
+        controls_container = Frame(
+            self.remindersPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        controls_container.pack(fill=X, padx=18, pady=(0, 10))
+
+        controls_inner = Frame(controls_container, bg=PANEL_BG)
+        controls_inner.pack(fill=X, padx=14, pady=14)
+
+        reminders_label = Label(
+            controls_inner,
+            text="Manage reminders",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 12),
+        )
+        reminders_label.pack(anchor="w", pady=(0, 10))
+
+        reminder_title_label = Label(
+            controls_inner,
+            text="Reminder title",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 10),
+        )
+        reminder_title_label.pack(anchor="w", pady=(0, 6))
+
+        self.reminderTitleEntry = Entry(
+            controls_inner,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderTitleEntry.pack(fill=X, pady=(0, 10), ipady=10)
+
+        reminder_when_label = Label(
+            controls_inner,
+            text="Remind at (optional, format: HH:MM DD/MM/YYYY or HH:MM)",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 10),
+        )
+        reminder_when_label.pack(anchor="w", pady=(0, 6))
+
+        self.reminderWhenEntry = Entry(
+            controls_inner,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderWhenEntry.pack(fill=X, pady=(0, 10), ipady=10)
+
+        reminder_actions = Frame(controls_inner, bg=PANEL_BG)
+        reminder_actions.pack(fill=X, pady=(0, 8))
+
+        self.addReminderButton = Button(
+            reminder_actions,
+            text="Add Reminder",
+            command=self._addReminder,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=16,
+            pady=8,
+            cursor="hand2",
+        )
+        self.addReminderButton.pack(side=LEFT)
+
+        self.refreshRemindersButton = Button(
+            reminder_actions,
+            text="Refresh",
+            command=self._refreshRemindersList,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 10),
+            padx=16,
+            pady=8,
+            cursor="hand2",
+        )
+        self.refreshRemindersButton.pack(side=LEFT, padx=(10, 0))
+
+        reminder_delete_row = Frame(controls_inner, bg=PANEL_BG)
+        reminder_delete_row.pack(fill=X)
+
+        delete_reminder_label = Label(
+            controls_inner,
+            text="Delete reminder by ID",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 10),
+        )
+        delete_reminder_label.pack(anchor="w", pady=(4, 6))
+
+        self.deleteReminderEntry = Entry(
+            reminder_delete_row,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.deleteReminderEntry.pack(side=LEFT, fill=X, expand=True, ipady=10)
+
+        self.deleteReminderButton = Button(
+            reminder_delete_row,
+            text="Delete",
+            command=self._deleteReminder,
+            bg="#4b2230",
+            fg="#ffd5de",
+            activebackground="#663142",
+            activeforeground="#ffe5eb",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=16,
+            pady=8,
+            cursor="hand2",
+        )
+        self.deleteReminderButton.pack(side=RIGHT, padx=(10, 0))
+
+        reminders_list_container = Frame(
+            self.remindersPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        reminders_list_container.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        self.remindersTranscript = ScrolledText(
+            reminders_list_container,
+            wrap="word",
+            state=DISABLED,
+            bg=TRANSCRIPT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            borderwidth=0,
+            padx=18,
+            pady=16,
+            font=("Consolas", 11),
+            selectbackground=ACCENT,
+            selectforeground="#08111d",
+        )
+        self.remindersTranscript.pack(fill=BOTH, expand=True, padx=1, pady=1)
+
+    def _buildCalendarPage(self):
+        """Build the calendar placeholder page."""
+
+        placeholder_container = Frame(
+            self.calendarPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        placeholder_container.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        placeholder_label = Label(
+            placeholder_container,
+            text=PLACEHOLDER_TEXT,
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 12),
+        )
+        placeholder_label.pack(pady=40)
 
     def _createSidebarButton(self, parent, icon: str, label: str, active: bool, command):
         """Create a sidebar navigation button with active/inactive styling.
@@ -293,7 +534,7 @@ class AuraWindowsApp:
 
         buttons = {
             "chat": self.chatNavButton,
-            "list": self.listNavButton,
+            "reminders": self.remindersNavButton,
             "calendar": self.calendarNavButton,
         }
 
@@ -306,15 +547,39 @@ class AuraWindowsApp:
                 activeforeground="#08111d" if is_active else TEXT_PRIMARY,
             )
 
+    def _showPage(self, page_name: str):
+        """Show one page and hide the others.
+
+        Args:
+            page_name (str):
+                Active page identifier.
+        """
+
+        pages = {
+            "chat": self.chatPage,
+            "reminders": self.remindersPage,
+            "calendar": self.calendarPage,
+        }
+
+        for name, page in pages.items():
+            if name == page_name:
+                page.pack(fill=BOTH, expand=True)
+            else:
+                page.pack_forget()
+
+        self.activePage = page_name
+        self._setActivePage(page_name)
+
     def _toggleSidebar(self):
         """Show or hide the navigation sidebar drawer."""
 
         if self.sidebarVisible:
-            self.sidebar.pack_forget()
+            self.sidebar.place_forget()
             self.sidebarVisible = False
             return
 
-        self.sidebar.pack(side=LEFT, fill="y", pady=0, padx=(0, 12))
+        self.sidebar.place(x=18, y=18, width=84, relheight=1.0, height=-36)
+        self.sidebar.lift()
         self.sidebarVisible = True
 
     def run(self):
@@ -335,20 +600,109 @@ class AuraWindowsApp:
         The chat surface is the only implemented page at the moment.
         """
 
-        self._setActivePage("chat")
-        self._toggleSidebar()
+        self._showPage("chat")
+        if self.sidebarVisible:
+            self._toggleSidebar()
 
-    def _showListPage(self):
-        """Activate the list placeholder button without changing content."""
+    def _showRemindersPage(self):
+        """Activate the reminders page and refresh its data from storage."""
 
-        self._setActivePage("list")
-        self._toggleSidebar()
+        self._showPage("reminders")
+        self._refreshRemindersList()
+        if self.sidebarVisible:
+            self._toggleSidebar()
 
     def _showCalendarPage(self):
         """Activate the calendar placeholder button without changing content."""
 
-        self._setActivePage("calendar")
-        self._toggleSidebar()
+        self._showPage("calendar")
+        if self.sidebarVisible:
+            self._toggleSidebar()
+
+    def _getRemindersManager(self):
+        """Return the reminders manager if it exists."""
+
+        return getattr(self.context, "reminders", None)
+
+    def _refreshRemindersList(self):
+        """Refresh the reminders page from the reminders backend."""
+
+        reminders = self._getRemindersManager()
+        if reminders is None:
+            content = "Reminders module is unavailable."
+        else:
+            try:
+                rows = reminders.listReminders()
+                if not rows:
+                    content = "No reminders found."
+                else:
+                    lines = ["------ REMINDERS ------"]
+                    for row in rows:
+                        reminder_id = row.get("id")
+                        title = row.get("title")
+                        remind_at = row.get("remind_at") or "unscheduled"
+                        created_at = row.get("created_at") or "unknown"
+                        lines.append(f"{reminder_id}: {title}")
+                        lines.append(f"  at: {remind_at}")
+                        lines.append(f"  created: {created_at}")
+                        lines.append("")
+                    content = "\n".join(lines).rstrip()
+            except Exception as error:
+                self._showErrorPopup(str(error))
+                content = f"Error loading reminders: {error}"
+
+        self.remindersTranscript.configure(state=NORMAL)
+        self.remindersTranscript.delete("1.0", END)
+        self.remindersTranscript.insert(END, content)
+        self.remindersTranscript.configure(state=DISABLED)
+
+    def _addReminder(self):
+        """Create a reminder from the reminders page input fields."""
+
+        title = self.reminderTitleEntry.get().strip()
+        remind_at = self.reminderWhenEntry.get().strip() or None
+        if not title:
+            self._showErrorPopup("Reminder title is required.")
+            return
+
+        reminders = self._getRemindersManager()
+        if reminders is None:
+            self._showErrorPopup("Reminders module is unavailable.")
+            return
+
+        try:
+            reminders.createReminder(title=title, remind_at=remind_at)
+            self.reminderTitleEntry.delete(0, END)
+            self.reminderWhenEntry.delete(0, END)
+            self._refreshRemindersList()
+        except Exception as error:
+            self._showErrorPopup(str(error))
+
+    def _deleteReminder(self):
+        """Delete a reminder using the ID entered on the reminders page."""
+
+        raw_id = self.deleteReminderEntry.get().strip()
+        if not raw_id:
+            self._showErrorPopup("Reminder ID is required.")
+            return
+
+        try:
+            reminder_id = int(raw_id)
+        except ValueError:
+            self._showErrorPopup("Reminder ID must be a number.")
+            return
+
+        reminders = self._getRemindersManager()
+        if reminders is None:
+            self._showErrorPopup("Reminders module is unavailable.")
+            return
+
+        try:
+            reminders.deleteReminder(reminder_id)
+            self.deleteReminderEntry.delete(0, END)
+            self._refreshRemindersList()
+        except Exception as error:
+            self._showErrorPopup(str(error))
 
     def _onSubmit(self):
         """Validate input, render user message, and dispatch processing thread."""
@@ -397,6 +751,9 @@ class AuraWindowsApp:
                     self._appendTranscript("Aura", payload)
                     self._setBusyState(False)
                     self._checkForShutdownSignal()
+                elif result_type == "reminder":
+                    self._appendTranscript("Reminder", payload)
+                    self._showReminderPopup(payload)
                 else:
                     self._appendTranscript("Aura", f"Error: {payload}")
                     self._showErrorPopup(payload)
@@ -424,6 +781,8 @@ class AuraWindowsApp:
         speaker_color = TEXT_PRIMARY
         if speaker == "You":
             speaker_color = USER_TEXT
+        elif speaker == "Reminder":
+            speaker_color = ACCENT_ACTIVE
         elif speaker == "Aura" and str(message).startswith("Error:"):
             speaker_color = ERROR_TEXT
 
@@ -431,6 +790,7 @@ class AuraWindowsApp:
         self.transcript.insert(END, f"{speaker}: ", speaker.lower())
         self.transcript.insert(END, f"{message}\n\n")
         self.transcript.tag_configure("you", foreground=USER_TEXT, font=("Segoe UI Semibold", 10))
+        self.transcript.tag_configure("reminder", foreground=ACCENT_ACTIVE, font=("Segoe UI Semibold", 10))
         self.transcript.tag_configure("aura", foreground=speaker_color, font=("Segoe UI Semibold", 10))
         self.transcript.configure(state=DISABLED)
         self.transcript.see(END)
@@ -514,3 +874,27 @@ class AuraWindowsApp:
             # Fallback to transcript/log only if popup rendering fails.
             if self.logger:
                 self.logger.error(f"Error popup failed: {error}")
+
+    def _onReminderTriggered(self, event):
+        """Queue reminder events onto the Tk thread for safe UI rendering."""
+
+        data = getattr(event, "data", {}) or {}
+        title = data.get("title", "Reminder")
+        remind_at = data.get("remind_at")
+        if remind_at:
+            message = f"{title} ({remind_at})"
+        else:
+            message = str(title)
+        self.pendingResponses.put(("reminder", message))
+
+    def _showReminderPopup(self, message: str):
+        """Display a modal popup when a reminder becomes due."""
+
+        if self.isClosing:
+            return
+
+        try:
+            messagebox.showinfo("Aura Reminder", str(message), parent=self.root)
+        except Exception as error:
+            if self.logger:
+                self.logger.error(f"Reminder popup failed: {error}")
