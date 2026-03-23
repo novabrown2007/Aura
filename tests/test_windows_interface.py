@@ -365,6 +365,12 @@ class _FakeFrame:
     def pack(self, **_kwargs):
         """Accept pack layout calls."""
 
+    def pack_propagate(self, _flag):
+        """Accept propagation configuration calls."""
+
+    def pack_forget(self):
+        """Accept pack removal calls."""
+
 
 class _FakeEntry:
     """Entry widget replacement that stores and returns plain text values."""

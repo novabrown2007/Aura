@@ -17,10 +17,10 @@ from tkinter import (
     DISABLED,
     NORMAL,
     BOTH,
+    TOP,
     LEFT,
     RIGHT,
     X,
-    Y,
     Tk,
     Button,
     Frame,
@@ -37,6 +37,7 @@ WINDOW_BG = "#0b0f14"
 PANEL_BG = "#121821"
 TRANSCRIPT_BG = "#0f141c"
 INPUT_BG = "#171f2b"
+SIDEBAR_BG = "#0d1219"
 TEXT_PRIMARY = "#e8eef7"
 TEXT_MUTED = "#93a1b5"
 ACCENT = "#3ea6ff"
@@ -44,6 +45,8 @@ ACCENT_ACTIVE = "#68bcff"
 BORDER = "#243042"
 USER_TEXT = "#f6d37a"
 ERROR_TEXT = "#ff8f8f"
+NAV_INACTIVE = "#192230"
+NAV_INACTIVE_ACTIVE = "#233244"
 
 
 class AuraWindowsApp:
@@ -66,6 +69,7 @@ class AuraWindowsApp:
         self.pendingResponses: Queue[tuple[str, str]] = Queue()
         self.isBusy = False
         self.isClosing = False
+        self.sidebarVisible = False
 
         self.root = Tk()
         self.root.title("Aura Assistant")
@@ -85,8 +89,60 @@ class AuraWindowsApp:
     def _buildLayout(self):
         """Create and arrange all Tkinter widgets for the chat interface."""
 
-        header = Frame(self.root, bg=WINDOW_BG)
-        header.pack(fill=X, padx=18, pady=(18, 10))
+        shell = Frame(self.root, bg=WINDOW_BG)
+        shell.pack(fill=BOTH, expand=True)
+
+        self.contentFrame = Frame(shell, bg=WINDOW_BG)
+        self.contentFrame.pack(side=LEFT, fill=BOTH, expand=True, pady=18, padx=18)
+
+        self.sidebar = Frame(
+            shell,
+            bg=SIDEBAR_BG,
+            width=84,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        self.sidebar.pack_propagate(False)
+
+        sidebar_title = Label(
+            self.sidebar,
+            text="A",
+            bg=SIDEBAR_BG,
+            fg=ACCENT,
+            font=("Segoe UI Semibold", 22),
+        )
+        sidebar_title.pack(pady=(18, 26))
+
+        self.chatNavButton = self._createSidebarButton(
+            self.sidebar,
+            icon="...",
+            label="Chat",
+            active=True,
+            command=self._showChatPage,
+        )
+        self.chatNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
+
+        self.listNavButton = self._createSidebarButton(
+            self.sidebar,
+            icon="=",
+            label="List",
+            active=False,
+            command=self._showListPage,
+        )
+        self.listNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
+
+        self.calendarNavButton = self._createSidebarButton(
+            self.sidebar,
+            icon="[]",
+            label="Calendar",
+            active=False,
+            command=self._showCalendarPage,
+        )
+        self.calendarNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
+
+        header = Frame(self.contentFrame, bg=WINDOW_BG)
+        header.pack(fill=X, pady=(0, 10))
 
         title_label = Label(
             header,
@@ -106,8 +162,25 @@ class AuraWindowsApp:
         )
         subtitle_label.pack(side=RIGHT, pady=(6, 0))
 
+        self.menuButton = Button(
+            header,
+            text="|||",
+            command=self._toggleSidebar,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=12,
+            pady=8,
+            cursor="hand2",
+        )
+        self.menuButton.pack(side=RIGHT, padx=(0, 10))
+
         transcript_container = Frame(
-            self.root,
+            self.contentFrame,
             bg=PANEL_BG,
             highlightbackground=BORDER,
             highlightthickness=1,
@@ -133,7 +206,7 @@ class AuraWindowsApp:
         self.transcript.pack(fill=BOTH, expand=True, padx=1, pady=1)
 
         input_container = Frame(
-            self.root,
+            self.contentFrame,
             bg=PANEL_BG,
             highlightbackground=BORDER,
             highlightthickness=1,
@@ -173,6 +246,77 @@ class AuraWindowsApp:
         )
         self.sendButton.pack(side=RIGHT, padx=(12, 0))
 
+    def _createSidebarButton(self, parent, icon: str, label: str, active: bool, command):
+        """Create a sidebar navigation button with active/inactive styling.
+
+        Args:
+            parent:
+                Parent Tk widget.
+            icon (str):
+                Short icon glyph or text marker.
+            label (str):
+                Button label.
+            active (bool):
+                Whether this button represents the current page.
+            command:
+                Callback executed when button is clicked.
+        """
+
+        bg = ACCENT if active else NAV_INACTIVE
+        fg = "#08111d" if active else TEXT_PRIMARY
+        active_bg = ACCENT_ACTIVE if active else NAV_INACTIVE_ACTIVE
+
+        return Button(
+            parent,
+            text=f"{icon}\n{label}",
+            command=command,
+            bg=bg,
+            fg=fg,
+            activebackground=active_bg,
+            activeforeground=fg,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=8,
+            pady=12,
+            cursor="hand2",
+            justify="center",
+        )
+
+    def _setActivePage(self, page_name: str):
+        """Update sidebar button styles for the selected page.
+
+        Args:
+            page_name (str):
+                Active page identifier.
+        """
+
+        buttons = {
+            "chat": self.chatNavButton,
+            "list": self.listNavButton,
+            "calendar": self.calendarNavButton,
+        }
+
+        for name, button in buttons.items():
+            is_active = name == page_name
+            button.configure(
+                bg=ACCENT if is_active else NAV_INACTIVE,
+                fg="#08111d" if is_active else TEXT_PRIMARY,
+                activebackground=ACCENT_ACTIVE if is_active else NAV_INACTIVE_ACTIVE,
+                activeforeground="#08111d" if is_active else TEXT_PRIMARY,
+            )
+
+    def _toggleSidebar(self):
+        """Show or hide the navigation sidebar drawer."""
+
+        if self.sidebarVisible:
+            self.sidebar.pack_forget()
+            self.sidebarVisible = False
+            return
+
+        self.sidebar.pack(side=RIGHT, fill="y", pady=0, padx=(12, 0))
+        self.sidebarVisible = True
+
     def run(self):
         """Start the Windows UI event loop."""
 
@@ -184,6 +328,27 @@ class AuraWindowsApp:
         """Handle Enter key submission from the input field."""
 
         self._onSubmit()
+
+    def _showChatPage(self):
+        """Activate the chat page in the sidebar.
+
+        The chat surface is the only implemented page at the moment.
+        """
+
+        self._setActivePage("chat")
+        self._toggleSidebar()
+
+    def _showListPage(self):
+        """Activate the list placeholder button without changing content."""
+
+        self._setActivePage("list")
+        self._toggleSidebar()
+
+    def _showCalendarPage(self):
+        """Activate the calendar placeholder button without changing content."""
+
+        self._setActivePage("calendar")
+        self._toggleSidebar()
 
     def _onSubmit(self):
         """Validate input, render user message, and dispatch processing thread."""
