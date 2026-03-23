@@ -43,6 +43,8 @@ class InMemoryDatabase:
         self._conversation_rows = []
         self._memory_rows = {}
         self._conversation_id = 0
+        self.connection = SimpleNamespace(is_connected=lambda: True)
+        self.database_name = "aura"
 
     def execute(self, query, params=()):
         normalized = " ".join(query.lower().split())
@@ -89,6 +91,9 @@ class InMemoryDatabase:
                 return {"value": row["value"]}
             return None
 
+        if normalized.startswith("select 1 as ok"):
+            return {"ok": 1}
+
         return None
 
     def fetchAll(self, query, params=()):
@@ -106,6 +111,13 @@ class InMemoryDatabase:
                 for row in self._memory_rows.values()
             ]
 
+        if "from information_schema.tables" in normalized:
+            return [
+                {"table_name": "conversation_history"},
+                {"table_name": "memory"},
+                {"table_name": "system_info"},
+            ]
+
         return []
 
 
@@ -117,7 +129,14 @@ def make_context(database=None, extra=None):
                 "model": "llama3.1:8b",
                 "history": {"enabled": True, "limit": 25},
                 "memory": {"enabled": True},
-            }
+            },
+            "database": {
+                "host": "localhost",
+                "port": 3306,
+                "name": "aura",
+                "user": "root",
+                "password": "pass",
+            },
         }
     )
 
@@ -127,6 +146,11 @@ def make_context(database=None, extra=None):
     context.database = database
     context.conversationHistory = None
     context.memoryManager = None
+    context.llm = None
+    context.modules = {}
+    context.threader = None
+    context.taskManager = None
+    context.scheduler = None
     context.commandHandler = None
     context.systemCommandHandler = None
     context.should_exit = False

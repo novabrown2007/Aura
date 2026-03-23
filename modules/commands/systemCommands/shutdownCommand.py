@@ -9,7 +9,7 @@ class ShutdownCommand(BaseCommand):
     """
 
     name = "shutdown"
-    help_message = "Shut down Aura."
+    help_message = "Shut down Aura. Use --force for immediate shutdown."
 
     def __init__(self, context):
         """
@@ -42,8 +42,11 @@ class ShutdownCommand(BaseCommand):
         Returns:
             str
         """
-        # Signal engine to stop
+        force = "--force" in [arg.lower() for arg in args]
+
         self.context.should_exit = True
         if self.logger:
-            self.logger.warning("Shutdown command executed")
+            self.logger.warning(f"Shutdown command executed (force={force})")
+        if force:
+            return "Force shutdown requested. Shutting down Aura..."
         return "Shutting down Aura..."

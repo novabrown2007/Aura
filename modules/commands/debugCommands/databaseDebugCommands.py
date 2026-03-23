@@ -9,6 +9,7 @@ class DatabaseDebugCommand(BaseCommand):
         /debug database
         /debug database status
         /debug database ping
+        /debug database schema
     """
 
     name = "database"
@@ -54,5 +55,31 @@ class DatabaseDebugCommand(BaseCommand):
                     self.logger.error(f"Database ping failed: {error}")
                 return f"Database ping failed: {error}"
 
-        return "Usage:\n/debug database\n/debug database status\n/debug database ping"
+        if action == "schema":
+            try:
+                database_name = getattr(database, "database_name", None)
+                if not database_name:
+                    return "Database schema: unavailable (database name not provided)."
 
+                rows = database.fetchAll(
+                    """
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = ?
+                    ORDER BY table_name
+                    """,
+                    (database_name,),
+                )
+                if not rows:
+                    return "Database schema: no tables found."
+
+                lines = ["------ DATABASE TABLES ------"]
+                for row in rows:
+                    lines.append(row["table_name"])
+                return "\n".join(lines)
+            except Exception as error:
+                if self.logger:
+                    self.logger.error(f"Database schema query failed: {error}")
+                return f"Database schema query failed: {error}"
+
+        return "Usage:\n/debug database\n/debug database status\n/debug database ping\n/debug database schema"
