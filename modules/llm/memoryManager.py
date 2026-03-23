@@ -9,7 +9,7 @@ Responsibilities
 - Store persistent user information
 - Retrieve stored memory
 - Automatically extract memory from conversation using the LLM
-- Persist memory across sessions using SQLite
+- Persist memory across sessions using the configured database
 """
 
 import json
@@ -68,7 +68,7 @@ class MemoryManager:
         self.database.execute(
             """
             CREATE TABLE IF NOT EXISTS memory (
-                key TEXT PRIMARY KEY,
+                memory_key VARCHAR(255) PRIMARY KEY,
                 value TEXT,
                 importance INTEGER DEFAULT 1,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -214,12 +214,11 @@ Message:
             return
         self.database.execute(
             """
-            INSERT INTO memory (key, value, importance)
+            INSERT INTO memory (memory_key, value, importance)
             VALUES (?, ?, ?)
-            ON CONFLICT(key)
-            DO UPDATE SET
-                value = excluded.value,
-                importance = excluded.importance,
+            ON DUPLICATE KEY UPDATE
+                value = VALUES(value),
+                importance = VALUES(importance),
                 updated_at = CURRENT_TIMESTAMP
             """,
             (key, value, importance)
@@ -239,11 +238,11 @@ Message:
         if not self.database:
             return {}
         rows = self.database.fetchAll(
-            "SELECT key, value FROM memory"
+            "SELECT memory_key, value FROM memory"
         )
         memory = {}
         for row in rows:
-            memory[row["key"]] = row["value"]
+            memory[row["memory_key"]] = row["value"]
         return memory
 
     def get(self, key: str):
@@ -260,7 +259,7 @@ Message:
         if not self.database:
             return None
         row = self.database.fetchOne(
-            "SELECT value FROM memory WHERE key = ?",
+            "SELECT value FROM memory WHERE memory_key = ?",
             (key,)
         )
         if row:
@@ -278,7 +277,7 @@ Message:
         if not self.database:
             return
         self.database.execute(
-            "DELETE FROM memory WHERE key = ?",
+            "DELETE FROM memory WHERE memory_key = ?",
             (key,)
         )
         if self.logger:

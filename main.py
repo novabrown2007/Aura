@@ -36,7 +36,7 @@ from core.router.interpreter import Interpreter
 from core.interface.io.inputManager import InputManager
 from core.interface.io.outputManager import OutputManager
 
-from modules.database.sqlite.sqliteDatabase import SQLiteDatabase
+from modules.database.mysql.mysqlDatabase import MySQLDatabase
 
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
@@ -108,7 +108,7 @@ def main():
     context.scheduler = Scheduler(context)
 
     # Database
-    context.database = SQLiteDatabase(context)
+    context.database = MySQLDatabase(context)
     context.database.connect()
     context.database.initialize()
 

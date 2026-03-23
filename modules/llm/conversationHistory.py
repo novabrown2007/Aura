@@ -46,8 +46,8 @@ class ConversationHistory:
         self.database.execute(
             """
             CREATE TABLE IF NOT EXISTS conversation_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                role TEXT NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                role VARCHAR(32) NOT NULL,
                 content TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )

@@ -10,7 +10,11 @@ llm:
     enabled: true
 
 database:
-  path: aura.db
+  host: localhost
+  port: 3306
+  name: aura
+  user: root
+  password: change_me
 
 threading:
   max_threads: 10

@@ -115,6 +115,6 @@ class AuraLogger:
 
         Example:
             logger = context.logger.get_child("Database")
-            logger.info("Connected to SQLite")
+            logger.info("Connected to database")
         """
         return self.logger.getChild(name)
