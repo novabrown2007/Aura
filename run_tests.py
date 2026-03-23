@@ -15,6 +15,7 @@ SUITES = {
     "llm": "tests.test_llm_handler",
     "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",
+    "windows_interface": "tests.test_windows_interface",
 }
 
 

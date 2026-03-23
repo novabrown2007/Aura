@@ -1,2 +1,8 @@
-"""Initialize the `core.interface.desktopInterface` package and expose package-level integration points."""
+"""Desktop interface package for Aura.
+
+This package contains desktop-specific interface implementations and
+bootstrap helpers. Platform variants (such as Windows) live in
+subpackages so each target can evolve independently without affecting
+the core runtime modules.
+"""
 

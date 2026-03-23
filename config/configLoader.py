@@ -16,7 +16,7 @@ class ConfigLoader:
         config.get("llm.history.limit")
     """
 
-    def __init__(self, context=None, path: str = "config/config.yml"):
+    def __init__(self, context=None, path: str = "config.yml"):
         """
         Initialize the configuration loader.
 

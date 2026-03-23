@@ -139,3 +139,9 @@ $env:DB_USER="root"
 $env:DB_PASSWORD="your_password"
 python run_tests.py --suite mysql_integration
 ```
+
+Primary runtime config file:
+
+```text
+config.yml
+```
