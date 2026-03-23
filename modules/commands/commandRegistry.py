@@ -66,6 +66,7 @@ class CommandRegistry:
         from modules.commands.configCommands.configValidateCommand import ConfigValidateCommand
         from modules.commands.debugCommands.databaseDebugCommands import DatabaseDebugCommand
         from modules.commands.debugCommands.llmDebugCommand import LLMDebugCommand
+        from modules.commands.debugCommands.logsDebugCommand import LogsDebugCommand
         from modules.commands.debugCommands.memoryDebugCommands import MemoryDebugCommand
         from modules.commands.debugCommands.runtimeDebugCommand import RuntimeDebugCommand
         from modules.commands.historyCommands.historyClearCommand import HistoryClearCommand
@@ -92,6 +93,7 @@ class CommandRegistry:
         ConfigValidateCommand(context)
         DatabaseDebugCommand(context)
         LLMDebugCommand(context)
+        LogsDebugCommand(context)
         MemoryDebugCommand(context)
         RuntimeDebugCommand(context)
         HistoryClearCommand(context)

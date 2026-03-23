@@ -112,6 +112,10 @@ class InMemoryDatabase:
             )
             return None
 
+        if normalized.startswith("delete from command_logs"):
+            self._command_logs.clear()
+            return None
+
         return None
 
     def fetchOne(self, query, params=()):
@@ -155,7 +159,32 @@ class InMemoryDatabase:
             ]
 
         if "from command_logs" in normalized:
-            return list(self._command_logs)
+            rows = list(self._command_logs)
+
+            if "where status in ('error', 'invalid')" in normalized:
+                rows = [row for row in rows if row.get("status") in {"error", "invalid"}]
+
+            if "where command_text like" in normalized:
+                like_1 = str(params[0]).strip("%").lower()
+                like_2 = str(params[1]).strip("%").lower()
+                like_3 = str(params[2]).strip("%").lower()
+
+                def _matches(row):
+                    text = str(row.get("command_text") or "").lower()
+                    response = str(row.get("response_text") or "").lower()
+                    error = str(row.get("error_text") or "").lower()
+                    return like_1 in text or like_2 in response or like_3 in error
+
+                rows = [row for row in rows if _matches(row)]
+
+            if "order by id desc" in normalized:
+                rows = list(reversed(rows))
+
+            if "limit ?" in normalized:
+                limit = int(params[-1]) if params else len(rows)
+                rows = rows[:limit]
+
+            return rows
 
         return []
 

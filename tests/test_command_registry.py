@@ -235,6 +235,26 @@ class CommandRegistryTests(unittest.TestCase):
         self.assertEqual(last_two[1]["command_text"], "/not-a-real-command")
         self.assertEqual(last_two[1]["status"], "invalid")
 
+    def test_debug_logs_command_tail_search_errors_and_clear(self):
+        """Validate that debug logs command supports tail/search/errors/clear workflows."""
+
+        self.context.commandHandler.handle("/status")
+        self.context.commandHandler.handle("/not-a-real-command")
+
+        tail_output = self.context.commandHandler.handle("/debug logs tail 5")
+        search_output = self.context.commandHandler.handle("/debug logs search status 5")
+        errors_output = self.context.commandHandler.handle("/debug logs errors 5")
+        clear_output = self.context.commandHandler.handle("/debug logs clear")
+        empty_tail = self.context.commandHandler.handle("/debug logs tail 5")
+
+        self.assertIn("COMMAND LOGS", tail_output)
+        self.assertIn("/status", tail_output)
+        self.assertIn("status", search_output.lower())
+        self.assertIn("/not-a-real-command", errors_output)
+        self.assertIn("invalid", errors_output.lower())
+        self.assertEqual(clear_output, "Command logs cleared.")
+        self.assertIn("/debug logs clear", empty_tail)
+
 
 if __name__ == "__main__":
     unittest.main()
