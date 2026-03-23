@@ -127,6 +127,21 @@ class MySQLDatabase:
             """
         )
 
+        self.execute(
+            """
+            CREATE TABLE IF NOT EXISTS command_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                command_text TEXT NOT NULL,
+                command_root VARCHAR(128),
+                status VARCHAR(32) NOT NULL,
+                response_text TEXT,
+                error_text TEXT,
+                duration_ms INT,
+                executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
     def _normalizeQuery(self, query: str) -> str:
         """
         Convert generic question-mark placeholders to MySQL placeholders.

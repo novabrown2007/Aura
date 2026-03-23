@@ -52,6 +52,7 @@ class InMemoryDatabase:
         """Initialize `InMemoryDatabase` with required dependencies and internal state."""
         self._conversation_rows = []
         self._memory_rows = {}
+        self._command_logs = []
         self._conversation_id = 0
         self.connection = SimpleNamespace(is_connected=lambda: True)
         self.database_name = "aura"
@@ -88,6 +89,27 @@ class InMemoryDatabase:
 
         if normalized.startswith("delete from memory"):
             self._memory_rows.clear()
+            return None
+
+        if "insert into command_logs" in normalized:
+            (
+                command_text,
+                command_root,
+                status,
+                response_text,
+                error_text,
+                duration_ms,
+            ) = params
+            self._command_logs.append(
+                {
+                    "command_text": command_text,
+                    "command_root": command_root,
+                    "status": status,
+                    "response_text": response_text,
+                    "error_text": error_text,
+                    "duration_ms": duration_ms,
+                }
+            )
             return None
 
         return None
@@ -128,8 +150,12 @@ class InMemoryDatabase:
             return [
                 {"table_name": "conversation_history"},
                 {"table_name": "memory"},
+                {"table_name": "command_logs"},
                 {"table_name": "system_info"},
             ]
+
+        if "from command_logs" in normalized:
+            return list(self._command_logs)
 
         return []
 

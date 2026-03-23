@@ -220,6 +220,21 @@ class CommandRegistryTests(unittest.TestCase):
         self.assertIsNotNone(context.memoryCommandHandler)
         self.assertIsNotNone(context.systemCommandHandler)
 
+    def test_command_execution_is_persisted_to_command_logs(self):
+        """Validate that command executions are persisted to database-backed command logs."""
+
+        self.context.commandHandler.handle("/status")
+        self.context.commandHandler.handle("/not-a-real-command")
+
+        logs = self.context.database._command_logs
+        self.assertGreaterEqual(len(logs), 2)
+
+        last_two = logs[-2:]
+        self.assertEqual(last_two[0]["command_text"], "/status")
+        self.assertEqual(last_two[0]["status"], "success")
+        self.assertEqual(last_two[1]["command_text"], "/not-a-real-command")
+        self.assertEqual(last_two[1]["status"], "invalid")
+
 
 if __name__ == "__main__":
     unittest.main()
