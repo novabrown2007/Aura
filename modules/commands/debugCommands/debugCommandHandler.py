@@ -74,6 +74,19 @@ class DebugCommandHandler:
 
 
     # --------------------------------------------------
+    # Access
+    # --------------------------------------------------
+    def getCommands(self):
+        """
+        Return all registered debug commands.
+
+        Returns:
+            list[BaseCommand]
+        """
+        return list(self.commands.values())
+
+
+    # --------------------------------------------------
     # Routing
     # --------------------------------------------------
     def handle(self, parts: list[str], original: str = "") -> str:

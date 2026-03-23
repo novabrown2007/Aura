@@ -5,6 +5,7 @@ import unittest
 
 SUITES = {
     "build": "tests.test_build_compile",
+    "command_registry": "tests.test_command_registry",
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
     "system_commands": "tests.test_system_commands",
@@ -51,4 +52,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

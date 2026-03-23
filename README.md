@@ -95,3 +95,33 @@ Unauthorized distribution or reproduction of any part of this software is strict
 ## Contact
 
 Project maintained by **Nova Brown**.
+
+---
+
+## Testing
+
+Run all tests:
+
+```bash
+python run_tests.py
+```
+
+Run individual suites:
+
+```bash
+python run_tests.py --suite build
+python run_tests.py --suite command_registry
+python run_tests.py --suite short_memory
+python run_tests.py --suite long_memory
+python run_tests.py --suite system_commands
+python run_tests.py --suite llm
+```
+
+Optional live LLM connectivity test:
+
+```bash
+$env:RUN_LIVE_LLM_TEST="true"
+$env:LLM_ENDPOINT="http://localhost:11434/api/generate"
+$env:LLM_MODEL="llama3.1:8b"
+python run_tests.py --suite llm
+```

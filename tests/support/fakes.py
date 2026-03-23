@@ -4,6 +4,7 @@ from types import SimpleNamespace
 class DictConfig:
     def __init__(self, data):
         self._data = data
+        self.reload_calls = 0
 
     def get(self, key, default=None):
         value = self._data
@@ -17,6 +18,19 @@ class DictConfig:
         value = self.get(key)
         if value is None:
             raise KeyError(f"Missing required config value: {key}")
+        return value
+
+    def reload(self):
+        self.reload_calls += 1
+
+
+class TestContext(SimpleNamespace):
+    def require(self, name):
+        if not hasattr(self, name):
+            raise AttributeError(f"{name} is not a valid context attribute.")
+        value = getattr(self, name)
+        if value is None:
+            raise RuntimeError(f"{name} has not been initialized.")
         return value
 
 
@@ -107,7 +121,7 @@ def make_context(database=None, extra=None):
         }
     )
 
-    context = SimpleNamespace()
+    context = TestContext()
     context.logger = None
     context.config = config
     context.database = database
@@ -122,4 +136,3 @@ def make_context(database=None, extra=None):
             setattr(context, key, value)
 
     return context
-
