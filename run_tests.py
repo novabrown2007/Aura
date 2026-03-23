@@ -1,3 +1,5 @@
+"""Core implementation for `run_tests` in the Aura assistant project."""
+
 import argparse
 import sys
 import unittest
@@ -14,6 +16,7 @@ SUITES = {
 
 
 def parse_args():
+    """Parse command-line arguments for selecting test execution behavior."""
     parser = argparse.ArgumentParser(
         description="Run Aura test suites."
     )
@@ -35,6 +38,7 @@ def parse_args():
 
 
 def main():
+    """Run the primary entrypoint logic for this script/module."""
     args = parse_args()
     loader = unittest.TestLoader()
 

@@ -1,3 +1,5 @@
+"""Command-system implementation for `databaseDebugCommands` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
@@ -16,6 +18,7 @@ class DatabaseDebugCommand(BaseCommand):
     help_message = "Inspect database status and connectivity."
 
     def __init__(self, context):
+        """Initialize `DatabaseDebugCommand` with required dependencies and internal state."""
         super().__init__(context)
         if context.logger:
             self.logger = context.logger.getChild("Commands.Debug.Database")
@@ -26,6 +29,7 @@ class DatabaseDebugCommand(BaseCommand):
             self.logger.info("Initialized.")
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         database = self.context.require("database")
         action = args[0].lower() if args else "status"
 

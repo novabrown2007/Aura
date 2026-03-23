@@ -1,3 +1,5 @@
+"""Command-system implementation for `memoryImportCommand` within Aura's CLI architecture."""
+
 import json
 from pathlib import Path
 
@@ -5,14 +7,17 @@ from modules.commands.baseCommand import BaseCommand
 
 
 class MemoryImportCommand(BaseCommand):
+    """Implements the `/memory-import` CLI command behavior and response generation."""
     name = "import"
     help_message = "Import memory from a JSON file."
 
     def __init__(self, context):
+        """Initialize `MemoryImportCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.memoryCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         if not args:
             return "Usage: /memory import <path>"
 

@@ -1,15 +1,20 @@
+"""Command-system implementation for `memorySetCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
 class MemorySetCommand(BaseCommand):
+    """Implements the `/memory-set` CLI command behavior and response generation."""
     name = "set"
     help_message = "Set a long-term memory key/value pair."
 
     def __init__(self, context):
+        """Initialize `MemorySetCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.memoryCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         if len(args) < 2:
             return 'Usage: /memory set <key> "<value>"'
 

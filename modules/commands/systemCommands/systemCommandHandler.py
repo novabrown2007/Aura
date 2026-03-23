@@ -1,3 +1,5 @@
+"""Command-system implementation for `systemCommandHandler` within Aura's CLI architecture."""
+
 class SystemCommandHandler:
     """
     Handler for all /system commands.

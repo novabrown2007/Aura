@@ -1,15 +1,20 @@
+"""Command-system implementation for `configSetCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
 class ConfigSetCommand(BaseCommand):
+    """Implements the `/config-set` CLI command behavior and response generation."""
     name = "set"
     help_message = "Set an in-memory config value by key path."
 
     def __init__(self, context):
+        """Initialize `ConfigSetCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.configCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         if len(args) < 2:
             return "Usage: /config set <key> <value>"
 

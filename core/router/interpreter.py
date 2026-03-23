@@ -1,3 +1,5 @@
+"""Core implementation for `interpreter` in the Aura assistant project."""
+
 from core.router.intent import Intent
 
 
@@ -10,6 +12,7 @@ class Interpreter:
     """
 
     def __init__(self, context):
+        """Initialize `Interpreter` with required dependencies and internal state."""
         self.context = context
         self.logger = context.logger.getChild("Interpreter") if context.logger else None
         if self.logger:

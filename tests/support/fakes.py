@@ -1,12 +1,17 @@
+"""Automated tests for `fakes` behavior and regression coverage."""
+
 from types import SimpleNamespace
 
 
 class DictConfig:
+    """Defines the `DictConfig` type used by Aura runtime components."""
     def __init__(self, data):
+        """Initialize `DictConfig` with required dependencies and internal state."""
         self._data = data
         self.reload_calls = 0
 
     def get(self, key, default=None):
+        """Return `get` data from the component's current state."""
         value = self._data
         for part in key.split("."):
             if not isinstance(value, dict) or part not in value:
@@ -15,17 +20,21 @@ class DictConfig:
         return value
 
     def require(self, key):
+        """Implement `require` as part of this component's public/internal behavior."""
         value = self.get(key)
         if value is None:
             raise KeyError(f"Missing required config value: {key}")
         return value
 
     def reload(self):
+        """Implement `reload` as part of this component's public/internal behavior."""
         self.reload_calls += 1
 
 
 class TestContext(SimpleNamespace):
+    """Defines the `TestContext` type used by Aura runtime components."""
     def require(self, name):
+        """Implement `require` as part of this component's public/internal behavior."""
         if not hasattr(self, name):
             raise AttributeError(f"{name} is not a valid context attribute.")
         value = getattr(self, name)
@@ -40,6 +49,7 @@ class InMemoryDatabase:
     """
 
     def __init__(self):
+        """Initialize `InMemoryDatabase` with required dependencies and internal state."""
         self._conversation_rows = []
         self._memory_rows = {}
         self._conversation_id = 0
@@ -47,6 +57,7 @@ class InMemoryDatabase:
         self.database_name = "aura"
 
     def execute(self, query, params=()):
+        """Execute the command using parsed arguments and return a user-facing message."""
         normalized = " ".join(query.lower().split())
 
         if "insert into conversation_history" in normalized:
@@ -82,6 +93,7 @@ class InMemoryDatabase:
         return None
 
     def fetchOne(self, query, params=()):
+        """Implement `fetchOne` as part of this component's public/internal behavior."""
         normalized = " ".join(query.lower().split())
 
         if normalized.startswith("select value from memory where memory_key"):
@@ -97,6 +109,7 @@ class InMemoryDatabase:
         return None
 
     def fetchAll(self, query, params=()):
+        """Implement `fetchAll` as part of this component's public/internal behavior."""
         normalized = " ".join(query.lower().split())
 
         if "from conversation_history" in normalized:
@@ -122,6 +135,7 @@ class InMemoryDatabase:
 
 
 def make_context(database=None, extra=None):
+    """Construct and return a configured helper object for tests/runtime wiring."""
     config = DictConfig(
         {
             "llm": {

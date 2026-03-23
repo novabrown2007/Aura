@@ -1,3 +1,5 @@
+"""Core implementation for `intent` in the Aura assistant project."""
+
 class Intent:
     """
     Represents a structured user intent.

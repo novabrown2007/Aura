@@ -1,3 +1,5 @@
+"""Command-system implementation for `shutdownCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 

@@ -1,10 +1,14 @@
+"""Automated tests for `test_build_compile` behavior and regression coverage."""
+
 import py_compile
 from pathlib import Path
 import unittest
 
 
 class BuildCompileTests(unittest.TestCase):
+    """Test cases covering `BuildCompileTests` behavior and expected command/runtime outcomes."""
     def test_python_files_compile(self):
+        """Validate that python files compile behaves as expected."""
         root = Path(__file__).resolve().parents[1]
         excludes = {"venv", "__pycache__", ".git", ".idea"}
         failures = []

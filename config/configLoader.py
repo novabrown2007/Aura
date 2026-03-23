@@ -1,3 +1,5 @@
+"""Core implementation for `configLoader` in the Aura assistant project."""
+
 import yaml
 from pathlib import Path
 

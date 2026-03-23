@@ -1,3 +1,5 @@
+"""Core implementation for `scheduler` in the Aura assistant project."""
+
 import time
 from typing import Dict, Optional
 from .schedule import Schedule

@@ -1,3 +1,5 @@
+"""Core implementation for `engine` in the Aura assistant project."""
+
 class Engine:
     """
     Core runtime controller for Aura.

@@ -1,3 +1,5 @@
+"""Command-system implementation for `runtimeDebugCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
@@ -10,10 +12,12 @@ class RuntimeDebugCommand(BaseCommand):
     help_message = "Runtime diagnostics (threads, tasks, scheduler)."
 
     def __init__(self, context):
+        """Initialize `RuntimeDebugCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.debugCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         context = self.context
 
         thread_count = 0

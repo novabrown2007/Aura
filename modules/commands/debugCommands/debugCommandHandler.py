@@ -1,3 +1,5 @@
+"""Command-system implementation for `debugCommandHandler` within Aura's CLI architecture."""
+
 class DebugCommandHandler:
     """
     Handler for all /debug commands.

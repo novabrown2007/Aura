@@ -1,3 +1,5 @@
+"""Command-system implementation for `llmDebugCommand` within Aura's CLI architecture."""
+
 import time
 
 import requests
@@ -14,10 +16,12 @@ class LLMDebugCommand(BaseCommand):
     help_message = "LLM diagnostics (ping)."
 
     def __init__(self, context):
+        """Initialize `LLMDebugCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.debugCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         action = args[0].lower() if args else "ping"
         if action != "ping":
             return "Usage: /debug llm ping"

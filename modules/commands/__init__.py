@@ -1,3 +1,5 @@
+"""Initialize the `modules.commands` package and expose package-level integration points."""
+
 from modules.commands.commandRegistry import CommandRegistry
 
 

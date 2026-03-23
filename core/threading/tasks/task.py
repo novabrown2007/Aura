@@ -1,3 +1,5 @@
+"""Core implementation for `task` in the Aura assistant project."""
+
 from typing import Callable, Optional
 
 

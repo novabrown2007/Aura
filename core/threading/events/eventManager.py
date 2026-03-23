@@ -1,3 +1,5 @@
+"""Core implementation for `eventManager` in the Aura assistant project."""
+
 from typing import Callable, Dict, List
 from .events import Event
 

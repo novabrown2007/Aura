@@ -1,3 +1,5 @@
+"""Command-system implementation for `configReloadCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
@@ -10,6 +12,7 @@ class ConfigReloadCommand(BaseCommand):
     help_message = "Reload configuration from config/config.yml."
 
     def __init__(self, context):
+        """Initialize `ConfigReloadCommand` with required dependencies and internal state."""
         super().__init__(context)
         if context.logger:
             self.logger = context.logger.getChild("Commands.Config.Reload")
@@ -20,6 +23,7 @@ class ConfigReloadCommand(BaseCommand):
             self.logger.info("Initialized.")
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         try:
             config = self.context.require("config")
             config.reload()

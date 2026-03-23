@@ -1,3 +1,5 @@
+"""Database integration logic for `mysqlDatabase` in Aura."""
+
 from typing import Any, Optional, Tuple
 
 import mysql.connector
@@ -17,6 +19,7 @@ class MySQLDatabase:
     """
 
     def __init__(self, context):
+        """Initialize `MySQLDatabase` with required dependencies and internal state."""
         self.context = context
 
         self.host = self.context.config.require("database.host")

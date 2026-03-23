@@ -1,3 +1,5 @@
+"""Core implementation for `runtimeContext` in the Aura assistant project."""
+
 class RuntimeContext:
     """
     Central runtime container for the Aura assistant.

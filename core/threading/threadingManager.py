@@ -1,3 +1,5 @@
+"""Core implementation for `threadingManager` in the Aura assistant project."""
+
 import threading
 from typing import Callable, Optional
 
@@ -11,6 +13,7 @@ class ThreadControl:
     """
 
     def __init__(self):
+        """Initialize `ThreadControl` with required dependencies and internal state."""
         self.pause_event = threading.Event()
         self.stop_event = threading.Event()
 

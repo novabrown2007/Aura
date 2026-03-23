@@ -1,3 +1,5 @@
+"""Core implementation for `intentRouter` in the Aura assistant project."""
+
 class IntentRouter:
     """
     Routes interpreted intents to the appropriate module.
@@ -9,6 +11,7 @@ class IntentRouter:
     """
 
     def __init__(self, context):
+        """Initialize `IntentRouter` with required dependencies and internal state."""
         self.context = context
         self.logger = context.logger.getChild("Router") if context.logger else None
         if self.logger:

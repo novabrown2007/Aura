@@ -1,3 +1,5 @@
+"""Core implementation for `logger` in the Aura assistant project."""
+
 import logging
 import sys
 

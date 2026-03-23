@@ -1,3 +1,5 @@
+"""Command-system implementation for `tasksCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
@@ -10,10 +12,12 @@ class TasksCommand(BaseCommand):
     help_message = "List or cancel tasks."
 
     def __init__(self, context):
+        """Initialize `TasksCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.systemCommandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         manager = self.context.require("taskManager")
 
         if not args:
@@ -54,5 +58,6 @@ class TasksCommand(BaseCommand):
 
     @staticmethod
     def _usage() -> str:
+        """Implement `_usage` as part of this component's public/internal behavior."""
         return "Usage:\n/system tasks list\n/system tasks cancel <id>"
 

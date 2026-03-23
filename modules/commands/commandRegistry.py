@@ -1,3 +1,5 @@
+"""Command-system implementation for `commandRegistry` within Aura's CLI architecture."""
+
 class CommandRegistry:
     """
     Initializes and registers all command handlers and commands.

@@ -1,3 +1,5 @@
+"""Command-system implementation for `commandHandler` within Aura's CLI architecture."""
+
 class CommandHandler:
     """
     Root command handler for Aura.

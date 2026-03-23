@@ -1,3 +1,5 @@
+"""Core implementation for `inputManager` in the Aura assistant project."""
+
 class InputManager:
     """
     Handles incoming user input for Aura.

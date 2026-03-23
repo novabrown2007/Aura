@@ -1,3 +1,5 @@
+"""Language-model integration code for `conversationHistory` in Aura."""
+
 class ConversationHistory:
     """
     Manages conversation history for Aura.

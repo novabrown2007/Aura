@@ -1,15 +1,20 @@
+"""Command-system implementation for `statusCommand` within Aura's CLI architecture."""
+
 from modules.commands.baseCommand import BaseCommand
 
 
 class StatusCommand(BaseCommand):
+    """Implements the `/status` CLI command behavior and response generation."""
     name = "status"
     help_message = "Show Aura runtime health summary."
 
     def __init__(self, context):
+        """Initialize `StatusCommand` with required dependencies and internal state."""
         super().__init__(context)
         context.commandHandler.registerCommand(self)
 
     def execute(self, args: list[str]) -> str:
+        """Execute the command using parsed arguments and return a user-facing message."""
         context = self.context
 
         db_connected = False

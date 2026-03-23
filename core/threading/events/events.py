@@ -1,3 +1,5 @@
+"""Core implementation for `events` in the Aura assistant project."""
+
 from typing import Optional
 
 

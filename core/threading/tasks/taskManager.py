@@ -1,3 +1,5 @@
+"""Core implementation for `taskManager` in the Aura assistant project."""
+
 from typing import Dict, Optional
 from .task import Task
 

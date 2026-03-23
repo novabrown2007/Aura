@@ -1,3 +1,5 @@
+"""Core implementation for `outputManager` in the Aura assistant project."""
+
 class OutputManager:
     """
     Handles outgoing responses from Aura.
