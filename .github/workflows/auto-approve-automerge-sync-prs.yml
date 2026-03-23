@@ -8,12 +8,12 @@ on:
       - synchronize
       - ready_for_review
     branches:
-      - "aura/interface/windowsOS"
-      - "aura/interface/macOS"
-      - "aura/interface/linuxOS"
-      - "aura/interface/chromeOS"
-      - "aura/interface/androidOS"
-      - "aura/interface/iOS"
+      - "interface/windowsOS"
+      - "interface/macOS"
+      - "interface/linuxOS"
+      - "interface/chromeOS"
+      - "interface/androidOS"
+      - "interface/iOS"
   workflow_dispatch:
 
 permissions:

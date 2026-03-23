@@ -23,12 +23,12 @@ jobs:
 
           SOURCE_BRANCH="master"
           TARGET_BRANCHES=(
-            "aura/interface/windowsOS"
-            "aura/interface/macOS"
-            "aura/interface/linuxOS"
-            "aura/interface/chromeOS"
-            "aura/interface/androidOS"
-            "aura/interface/iOS"
+            "interface/windowsOS"
+            "interface/macOS"
+            "interface/linuxOS"
+            "interface/chromeOS"
+            "interface/androidOS"
+            "interface/website"
           )
 
           for BASE in "${TARGET_BRANCHES[@]}"; do
