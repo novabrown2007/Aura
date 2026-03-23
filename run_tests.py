@@ -8,10 +8,12 @@ import unittest
 SUITES = {
     "build": "tests.test_build_compile",
     "command_registry": "tests.test_command_registry",
+    "runtime_smoke": "tests.test_runtime_smoke",
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
     "system_commands": "tests.test_system_commands",
     "llm": "tests.test_llm_handler",
+    "mysql_integration": "tests.test_mysql_integration",
 }
 
 

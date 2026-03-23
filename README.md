@@ -111,10 +111,12 @@ Run individual suites:
 ```bash
 python run_tests.py --suite build
 python run_tests.py --suite command_registry
+python run_tests.py --suite runtime_smoke
 python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory
 python run_tests.py --suite system_commands
 python run_tests.py --suite llm
+python run_tests.py --suite mysql_integration
 ```
 
 Optional live LLM connectivity test:
@@ -124,4 +126,16 @@ $env:RUN_LIVE_LLM_TEST="true"
 $env:LLM_ENDPOINT="http://localhost:11434/api/generate"
 $env:LLM_MODEL="llama3.1:8b"
 python run_tests.py --suite llm
+```
+
+Optional live MySQL integration test:
+
+```bash
+$env:RUN_LIVE_MYSQL_TEST="true"
+$env:DB_HOST="localhost"
+$env:DB_PORT="3306"
+$env:DB_NAME="aura"
+$env:DB_USER="root"
+$env:DB_PASSWORD="your_password"
+python run_tests.py --suite mysql_integration
 ```
