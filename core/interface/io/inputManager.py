@@ -1,5 +1,6 @@
 """Core implementation for `inputManager` in the Aura assistant project."""
 
+
 class InputManager:
     """
     Handles incoming user input for Aura.
@@ -30,6 +31,7 @@ class InputManager:
         self.logger = None
         if context.logger:
             self.logger = context.logger.getChild("Input")
+
         if self.logger:
             self.logger.info("Initialized.")
 
