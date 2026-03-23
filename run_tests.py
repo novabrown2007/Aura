@@ -13,6 +13,7 @@ SUITES = {
     "long_memory": "tests.test_memory_manager",
     "system_commands": "tests.test_system_commands",
     "llm": "tests.test_llm_handler",
+    "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",
 }
 

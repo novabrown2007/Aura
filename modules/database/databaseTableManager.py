@@ -92,8 +92,15 @@ class DatabaseTableManager:
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 remind_at DATETIME NULL,
+                delivered_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS delivered_at DATETIME NULL
             """
         )
 
