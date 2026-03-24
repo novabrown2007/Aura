@@ -10,6 +10,7 @@ from core.interface.io.inputManager import InputManager
 from core.interface.io.outputManager import OutputManager
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
+from core.runtime.datetimeUtils import DateTimeUtils
 from tests.support.fakes import InMemoryDatabase, make_context
 
 
@@ -68,6 +69,15 @@ class RuntimeSmokeTests(unittest.TestCase):
         worker.join(timeout=1.0)
 
         self.assertFalse(worker.is_alive())
+
+    def test_context_exposes_datetime_utility_as_dt_util(self):
+        """Ensure the shared datetime utility is available on the runtime context."""
+
+        self.assertIs(self.context.dtUtil, DateTimeUtils)
+        self.assertEqual(
+            self.context.dtUtil.toPreferredDate("2026-03-24"),
+            "24/03/2026",
+        )
 
 
 if __name__ == "__main__":
