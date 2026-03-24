@@ -1,13 +1,11 @@
-"""Reminder persistence and CRUD operations."""
+"""Reminder persistence and scheduled alert delivery for Aura."""
 
-from datetime import datetime
-from core.threading.events.events import Event
 from core.threading.scheduler.schedule import Schedule
 
 
 class Reminders:
     """
-    Reminder data layer for creating, listing, and deleting reminders.
+    Reminder data layer for creating, listing, deleting, and sending reminders.
     """
 
     def __init__(self, context):
@@ -59,33 +57,80 @@ class Reminders:
             )
         )
 
-    def createReminder(self, title: str, remind_at: str = None):
+    def createReminder(
+        self,
+        title: str,
+        content: str,
+        module_of_origin: str,
+        reminder_at: str = None,
+    ):
         """
         Insert a new reminder row.
 
         Args:
-            title (str):
+            title:
                 Reminder title/message.
-            remind_at (str | None):
-                Optional datetime string for reminder schedule.
+            content:
+                Reminder body content.
+            module_of_origin:
+                Name of the module or system that created the reminder.
+            reminder_at:
+                Optional scheduled datetime for sending the reminder.
         """
 
         if not self.database:
-            return
+            return None
 
-        normalized_remind_at = self._normalizeReminderDatetime(remind_at)
+        normalized_reminder_at = (
+            self.context.dtUtil.toStorageDateTime(reminder_at)
+            if reminder_at is not None
+            else None
+        )
 
-        self.database.execute(
+        cursor = self.database.execute(
             """
-            INSERT INTO reminders (title, remind_at)
-            VALUES (?, ?)
+            INSERT INTO reminders (title, content, reminder_at, module_of_origin)
+            VALUES (?, ?, ?, ?)
             """,
-            (title, normalized_remind_at),
+            (str(title), str(content), normalized_reminder_at, str(module_of_origin)),
+        )
+        last_row_id = getattr(cursor, "lastrowid", None)
+        if last_row_id is not None:
+            return int(last_row_id)
+
+        row = self.database.fetchOne(
+            """
+            SELECT id
+            FROM reminders
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+        if row is None:
+            return None
+        return int(row["id"])
+
+    def getReminder(self, reminder_id: int):
+        """
+        Return one reminder row by ID.
+        """
+
+        if not self.database:
+            return None
+
+        return self.database.fetchOne(
+            """
+            SELECT id, title, content, reminder_at, module_of_origin,
+                   notification_id, sent_at, created_at
+            FROM reminders
+            WHERE id = ?
+            """,
+            (int(reminder_id),),
         )
 
     def listReminders(self):
         """
-        Return all reminders ordered by creation time descending.
+        Return all reminders ordered by scheduled time and ID.
         """
 
         if not self.database:
@@ -93,9 +138,10 @@ class Reminders:
 
         return self.database.fetchAll(
             """
-            SELECT id, title, remind_at, delivered_at, created_at
+            SELECT id, title, content, reminder_at, module_of_origin,
+                   notification_id, sent_at, created_at
             FROM reminders
-            ORDER BY id DESC
+            ORDER BY reminder_at ASC, id ASC
             """
         )
 
@@ -118,11 +164,11 @@ class Reminders:
 
     def processDueReminders(self):
         """
-        Find due reminders, mark them as delivered, and emit reminder events.
+        Find due reminders and send them through the notifications module.
 
         Returns:
             list[dict]:
-                Due reminder rows that were emitted during this poll cycle.
+                Due reminder rows that were sent during this poll cycle.
         """
 
         if not self.database:
@@ -130,114 +176,46 @@ class Reminders:
 
         rows = self.database.fetchAll(
             """
-            SELECT id, title, remind_at, delivered_at, created_at
+            SELECT id, title, content, reminder_at, module_of_origin,
+                   notification_id, sent_at, created_at
             FROM reminders
-            WHERE remind_at IS NOT NULL
-              AND delivered_at IS NULL
-              AND remind_at <= NOW()
-            ORDER BY remind_at ASC, id ASC
+            WHERE reminder_at IS NOT NULL
+              AND sent_at IS NULL
+              AND reminder_at <= NOW()
+            ORDER BY reminder_at ASC, id ASC
             """
         )
 
         for row in rows:
-            reminder_id = row.get("id")
-            self.database.execute(
-                """
-                UPDATE reminders
-                SET delivered_at = NOW()
-                WHERE id = ?
-                """,
-                (reminder_id,),
-            )
-
-            if getattr(self.context, "eventManager", None):
-                self.context.eventManager.emit(
-                    Event(
-                        "reminder_triggered",
-                        {
-                            "id": reminder_id,
-                            "title": row.get("title"),
-                            "remind_at": row.get("remind_at"),
-                            "created_at": row.get("created_at"),
-                        },
-                    )
-                )
+            self.sendReminder(int(row["id"]))
 
         return rows
 
-    def _normalizeReminderDatetime(self, remind_at: str = None):
+    def sendReminder(self, reminder_id: int):
         """
-        Normalize reminder datetime input into MySQL DATETIME format.
-
-        Accepted examples:
-        - `17:00 24/03/2026`
-        - `1700 24/03/2026`
-        - `17:00`
-        - `1700`
-
-        Args:
-            remind_at (str | None):
-                Raw reminder datetime string from commands or UI.
-
-        Returns:
-            str | None:
-                Datetime formatted as `YYYY-MM-DD HH:MM:SS`, or `None`
-                when no reminder time was provided.
-
-        Raises:
-            ValueError:
-                If the input cannot be parsed into a valid datetime.
+        Turn one reminder into a notification and trigger notification sending.
         """
 
-        if remind_at is None:
-            return None
+        reminder = self.getReminder(reminder_id)
+        if reminder is None:
+            raise ValueError(f"Reminder does not exist: {reminder_id}")
 
-        raw_value = str(remind_at).strip()
-        if raw_value == "":
-            return None
+        notifications = self.context.require("notifications")
+        notification_id = notifications.createNotification(
+            reminder["module_of_origin"],
+            reminder["title"],
+            reminder.get("content") or "",
+            self.context.dtUtil.toPreferredDateTime(reminder["reminder_at"]),
+        )
+        notifications.sendNotification(notification_id)
 
-        parts = raw_value.split()
-        if len(parts) not in {1, 2}:
-            raise ValueError(
-                "Invalid reminder date/time. Use HH:MM DD/MM/YYYY "
-                "(example: 17:00 24/03/2026)."
-            )
+        self.database.execute(
+            """
+            UPDATE reminders
+            SET notification_id = ?, sent_at = NOW()
+            WHERE id = ?
+            """,
+            (notification_id, int(reminder_id)),
+        )
 
-        time_part = parts[0]
-        date_part = parts[1] if len(parts) == 2 else None
-        time_digits = "".join(character for character in time_part if character.isdigit())
-
-        if len(time_digits) == 4:
-            normalized_time = f"{time_digits[0:2]}:{time_digits[2:4]}:00"
-        elif len(time_digits) == 6:
-            normalized_time = f"{time_digits[0:2]}:{time_digits[2:4]}:{time_digits[4:6]}"
-        else:
-            raise ValueError(
-                "Invalid reminder time. Use HH:MM "
-                "(example: 17:00)."
-            )
-
-        if date_part is None:
-            normalized_date = datetime.now().strftime("%Y-%m-%d")
-        else:
-            date_digits = "".join(character for character in date_part if character.isdigit())
-            if len(date_digits) != 8:
-                raise ValueError(
-                    "Invalid reminder date. Use DD/MM/YYYY "
-                    "(example: 24/03/2026)."
-                )
-            normalized_date = (
-                f"{date_digits[4:8]}-{date_digits[2:4]}-{date_digits[0:2]}"
-            )
-
-        normalized_datetime = f"{normalized_date} {normalized_time}"
-
-        try:
-            parsed = datetime.strptime(normalized_datetime, "%Y-%m-%d %H:%M:%S")
-        except ValueError as error:
-            raise ValueError(
-                "Invalid reminder date/time. Use HH:MM DD/MM/YYYY "
-                "(example: 17:00 24/03/2026)."
-            ) from error
-
-        return parsed.strftime("%Y-%m-%d %H:%M:%S")
+        return notification_id

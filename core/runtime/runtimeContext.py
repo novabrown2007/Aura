@@ -39,6 +39,12 @@ class RuntimeContext:
         self.logger = None
         """Global logging system used across Aura."""
 
+        self.dtUtil = None
+        """Shared datetime formatting utility used across runtime modules."""
+
+        self.system = None
+        """System lifecycle module used for shutdown, restart, and reload actions."""
+
         # ----------------------------
         # Threading / Async Systems
         # ----------------------------
@@ -116,6 +122,12 @@ class RuntimeContext:
 
         self.config = None
         """Configuration dictionary loaded during startup."""
+
+        self.should_exit = False
+        """Signal used by interfaces and modules to stop the active runtime loop."""
+
+        self.restart_requested = False
+        """Signal used to request a full runtime restart after shutdown completes."""
 
     # --------------------------------------------------
     # Module Management
