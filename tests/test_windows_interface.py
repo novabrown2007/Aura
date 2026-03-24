@@ -407,6 +407,83 @@ class _ImmediateThread:
             self.target(*self.args)
 
 
+class _FakeNotifications:
+    """Notification service stub used by Windows UI tests."""
+
+    def __init__(self):
+        """Initialize notification rows and deletion tracking."""
+
+        self.rows = [
+            {
+                "id": 1,
+                "title": "Older",
+                "content": "Older content",
+                "notification_at": "2026-03-24 09:00:00",
+            },
+            {
+                "id": 2,
+                "title": "Newest",
+                "content": "Newest content",
+                "notification_at": "2026-03-24 10:00:00",
+            },
+        ]
+        self.deleted_ids = []
+
+    def listNotifications(self):
+        """Return the current notification rows."""
+
+        return [dict(row) for row in self.rows]
+
+    def deleteNotification(self, notification_id):
+        """Delete one notification row and record the request."""
+
+        self.deleted_ids.append(notification_id)
+        self.rows = [row for row in self.rows if row["id"] != notification_id]
+
+
+class _FakeReminders:
+    """Reminder service stub used by Windows UI tests."""
+
+    def __init__(self):
+        """Initialize reminder rows and creation tracking."""
+
+        self.rows = [
+            {
+                "id": 1,
+                "title": "Morning meds",
+                "content": "Take with water",
+                "reminder_at": "2026-03-24 08:00:00",
+            },
+            {
+                "id": 2,
+                "title": "Dentist",
+                "content": "Bring insurance card",
+                "reminder_at": "2026-03-24 13:30:00",
+            },
+        ]
+        self.created = []
+
+    def listReminders(self):
+        """Return the current reminder rows."""
+
+        return [dict(row) for row in self.rows]
+
+    def createReminder(self, title, content, module_of_origin, reminder_at=None):
+        """Store one reminder row and return its ID."""
+
+        reminder_id = len(self.rows) + 1
+        self.created.append((title, content, module_of_origin, reminder_at))
+        self.rows.append(
+            {
+                "id": reminder_id,
+                "title": title,
+                "content": content,
+                "reminder_at": "2026-03-25 14:45:00",
+            }
+        )
+        return reminder_id
+
+
 class WindowsRuntimeBootstrapTests(unittest.TestCase):
     """Test the lifecycle helpers used by the Windows bootstrap layer."""
 
@@ -492,6 +569,8 @@ class AuraWindowsAppTests(unittest.TestCase):
         logger = _FakeChildLogger()
         context = make_context(extra={"logger": logger})
         context.inputManager = SimpleNamespace()
+        context.notifications = _FakeNotifications()
+        context.reminders = _FakeReminders()
         context.should_exit = False
         return context
 
@@ -557,6 +636,101 @@ class AuraWindowsAppTests(unittest.TestCase):
         app._showCalendarPage()
         self.assertEqual(app.activePage, "calendar")
         self.assertFalse(app.sidebarVisible)
+
+    def test_reminders_page_lists_existing_reminders(self):
+        """Reminder page should render the currently scheduled reminder rows."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app._showRemindersPage()
+
+        self.assertEqual(app.activePage, "reminders")
+        self.assertEqual(len(app.renderedReminderItems), 2)
+        self.assertEqual(app.renderedReminderItems[0]["row"]["title"], "Morning meds")
+        self.assertEqual(app.renderedReminderItems[1]["row"]["title"], "Dentist")
+
+    def test_header_contains_placeholder_notification_and_profile_buttons(self):
+        """The header should expose right-side placeholder action buttons."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+
+        self.assertEqual(app.notificationButton.text, "N")
+        self.assertEqual(app.profileButton.text, "P")
+        self.assertTrue(app.notificationButton.pack_calls)
+        self.assertTrue(app.profileButton.pack_calls)
+
+    def test_notification_button_toggles_persistent_overlay(self):
+        """Notification button should show and hide one shared overlay panel."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+
+        self.assertFalse(app.notificationsVisible)
+
+        app._onNotificationPressed()
+        self.assertTrue(app.notificationsVisible)
+        self.assertTrue(app.notificationsOverlay.place_calls)
+        self.assertTrue(app.notificationsListContainer.pack_calls)
+        self.assertEqual(app.renderedNotificationItems[0]["row"]["title"], "Newest")
+        self.assertEqual(app.renderedNotificationItems[1]["row"]["title"], "Older")
+
+        app._showCalendarPage()
+        self.assertTrue(app.notificationsVisible)
+
+        app._onNotificationPressed()
+        self.assertFalse(app.notificationsVisible)
+        self.assertIn(("forget", {}), app.notificationsOverlay.place_calls)
+
+    def test_notification_delete_button_removes_row_and_refreshes_overlay(self):
+        """Deleting one notification should remove it from the backend and rendered list."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app._onNotificationPressed()
+
+        app._deleteNotification(2)
+
+        self.assertEqual(context.notifications.deleted_ids, [2])
+        self.assertEqual(len(app.renderedNotificationItems), 1)
+        self.assertEqual(app.renderedNotificationItems[0]["row"]["title"], "Older")
+
+    def test_reminder_create_overlay_creates_reminder_and_refreshes_list(self):
+        """Reminder composer should create a reminder and refresh the rendered list."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app._showRemindersPage()
+
+        self.assertFalse(app.reminderComposerVisible)
+
+        app._toggleReminderComposer()
+        self.assertTrue(app.reminderComposerVisible)
+
+        app.reminderTitleEntry.value = "Pick up package"
+        app.reminderDescriptionEntry.value = "Front desk"
+        app.reminderDateEntry.value = "25/03/2026"
+        app.reminderTimeEntry.value = "14:45"
+
+        app._createReminderFromComposer()
+
+        self.assertEqual(
+            context.reminders.created,
+            [("Pick up package", "Front desk", "windows", "14:45 25/03/2026")],
+        )
+        self.assertFalse(app.reminderComposerVisible)
+        self.assertEqual(len(app.renderedReminderItems), 3)
+        self.assertEqual(app.renderedReminderItems[-1]["row"]["title"], "Pick up package")
 
     def test_processing_error_shows_popup(self):
         """Worker failures should display an error popup and reset busy state."""

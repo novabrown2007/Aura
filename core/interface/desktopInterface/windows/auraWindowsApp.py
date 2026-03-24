@@ -37,7 +37,11 @@ class AuraWindowsApp:
         self.isBusy = False
         self.isClosing = False
         self.sidebarVisible = False
+        self.notificationsVisible = False
+        self.reminderComposerVisible = False
         self.activePage = "chat"
+        self.renderedNotificationItems = []
+        self.renderedReminderItems = []
 
         self.root = Tk()
         self.root.title("Aura")
@@ -116,6 +120,45 @@ class AuraWindowsApp:
             font=("Segoe UI Semibold", 18),
         ).pack(side=LEFT)
 
+        headerActions = Frame(header, bg=WINDOW_BG)
+        headerActions.pack(side="right")
+
+        self.profileButton = Button(
+            headerActions,
+            text="P",
+            command=self._onProfilePressed,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=10,
+            pady=8,
+            cursor="hand2",
+            width=3,
+        )
+        self.profileButton.pack(side="right")
+
+        self.notificationButton = Button(
+            headerActions,
+            text="N",
+            command=self._onNotificationPressed,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=10,
+            pady=8,
+            cursor="hand2",
+            width=3,
+        )
+        self.notificationButton.pack(side="right", padx=(0, 8))
+
         self.pageContainer = Frame(self.contentFrame, bg=WINDOW_BG)
         self.pageContainer.pack(fill=BOTH, expand=True)
 
@@ -124,16 +167,14 @@ class AuraWindowsApp:
         self.calendarPage = Frame(self.pageContainer, bg=WINDOW_BG)
 
         self._buildChatPage()
-        self._buildPlaceholderPage(
-            self.remindersPage,
-            "Reminders",
-            "This branch does not implement reminders UI yet.",
-        )
+        self._buildRemindersPage()
         self._buildPlaceholderPage(
             self.calendarPage,
             "Calendar",
             "This branch does not implement calendar UI yet.",
         )
+        self._buildNotificationsOverlay()
+        self._buildReminderComposerOverlay()
         self._showPage("chat")
 
     def _buildChatPage(self):
@@ -232,6 +273,245 @@ class AuraWindowsApp:
             font=("Segoe UI", 11),
         ).pack()
 
+    def _buildRemindersPage(self):
+        """Build the reminders page with a list and create action."""
+
+        container = Frame(
+            self.remindersPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        container.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        header = Frame(container, bg=PANEL_BG)
+        header.pack(fill=X, padx=18, pady=(18, 12))
+
+        Label(
+            header,
+            text="Reminders",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(side=LEFT)
+
+        self.createReminderButton = Button(
+            header,
+            text="New Reminder",
+            command=self._toggleReminderComposer,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=8,
+            cursor="hand2",
+        )
+        self.createReminderButton.pack(side="right")
+
+        self.remindersListContainer = Frame(
+            container,
+            bg=PANEL_BG,
+        )
+        self.remindersListContainer.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        self.remindersItemsFrame = Frame(self.remindersListContainer, bg=PANEL_BG)
+        self.remindersItemsFrame.pack(fill=BOTH, expand=True)
+
+        self.remindersEmptyLabel = Label(
+            self.remindersItemsFrame,
+            text="No reminders scheduled yet.",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 11),
+        )
+        self.remindersEmptyLabel.pack(padx=18, pady=24)
+
+    def _buildReminderComposerOverlay(self):
+        """Build the in-window reminder creation overlay."""
+
+        self.reminderComposerOverlay = Frame(
+            self.contentFrame,
+            bg="#0a1017",
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+
+        panel = Frame(
+            self.reminderComposerOverlay,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        panel.place(relx=0.5, rely=0.5, anchor="center", width=460, height=360)
+        self.reminderComposerPanel = panel
+
+        Label(
+            panel,
+            text="Create Reminder",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(anchor="w", padx=18, pady=(18, 12))
+
+        Label(panel, text="Title", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=18)
+        self.reminderTitleEntry = Entry(
+            panel,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderTitleEntry.pack(fill=X, padx=18, pady=(4, 12), ipady=8)
+
+        Label(panel, text="Description", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=18)
+        self.reminderDescriptionEntry = Entry(
+            panel,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderDescriptionEntry.pack(fill=X, padx=18, pady=(4, 12), ipady=8)
+
+        date_time_row = Frame(panel, bg=PANEL_BG)
+        date_time_row.pack(fill=X, padx=18, pady=(0, 12))
+
+        date_column = Frame(date_time_row, bg=PANEL_BG)
+        date_column.pack(side=LEFT, fill=X, expand=True)
+        Label(date_column, text="Date", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        self.reminderDateEntry = Entry(
+            date_column,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderDateEntry.pack(fill=X, pady=(4, 0), ipady=8)
+
+        time_column = Frame(date_time_row, bg=PANEL_BG)
+        time_column.pack(side=LEFT, fill=X, expand=True, padx=(12, 0))
+        Label(time_column, text="Time", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        self.reminderTimeEntry = Entry(
+            time_column,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.reminderTimeEntry.pack(fill=X, pady=(4, 0), ipady=8)
+
+        button_row = Frame(panel, bg=PANEL_BG)
+        button_row.pack(fill=X, padx=18, pady=(18, 18))
+
+        self.cancelReminderButton = Button(
+            button_row,
+            text="Cancel",
+            command=self._toggleReminderComposer,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=8,
+            cursor="hand2",
+        )
+        self.cancelReminderButton.pack(side=LEFT)
+
+        self.confirmReminderButton = Button(
+            button_row,
+            text="Create",
+            command=self._createReminderFromComposer,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=16,
+            pady=8,
+            cursor="hand2",
+        )
+        self.confirmReminderButton.pack(side="right")
+
+    def _buildNotificationsOverlay(self):
+        """Build the persistent notifications overlay and content holder."""
+
+        self.notificationsOverlay = Frame(
+            self.contentFrame,
+            bg="#0a1017",
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+
+        header = Frame(self.notificationsOverlay, bg="#0a1017")
+        header.pack(fill=X, padx=18, pady=(16, 10))
+
+        Label(
+            header,
+            text="Notifications",
+            bg="#0a1017",
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(side=LEFT)
+
+        self.closeNotificationsButton = Button(
+            header,
+            text="Close",
+            command=self._toggleNotificationsOverlay,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 9),
+            padx=12,
+            pady=6,
+            cursor="hand2",
+        )
+        self.closeNotificationsButton.pack(side="right")
+
+        self.notificationsListContainer = Frame(
+            self.notificationsOverlay,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        self.notificationsListContainer.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        self.notificationsItemsFrame = Frame(self.notificationsListContainer, bg=PANEL_BG)
+        self.notificationsItemsFrame.pack(fill=BOTH, expand=True, padx=14, pady=14)
+
+        self.notificationsEmptyLabel = Label(
+            self.notificationsItemsFrame,
+            text="No notifications to display yet.",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 11),
+        )
+        self.notificationsEmptyLabel.pack(padx=18, pady=24)
+
     def _createSidebarButton(self, icon: str, label: str, command):
         """Create a styled sidebar button."""
 
@@ -281,6 +561,8 @@ class AuraWindowsApp:
 
         self.activePage = page_name
         self._setActivePage(page_name)
+        if page_name == "reminders":
+            self._refreshRemindersList()
 
     def _setActivePage(self, page_name: str):
         """Update sidebar button styles for the active page."""
@@ -320,6 +602,267 @@ class AuraWindowsApp:
         self._showPage("calendar")
         if self.sidebarVisible:
             self._toggleSidebar()
+
+    def _onNotificationPressed(self):
+        """Handle notification-button presses."""
+
+        self._toggleNotificationsOverlay()
+
+    def _toggleNotificationsOverlay(self):
+        """Show or hide the notifications overlay."""
+
+        if self.notificationsVisible:
+            self.notificationsOverlay.place_forget()
+            self.notificationsVisible = False
+            return
+
+        self._refreshNotificationsOverlay()
+        self.notificationsOverlay.place(relx=0.0, rely=0.0, relwidth=1.0, relheight=1.0)
+        self.notificationsOverlay.lift()
+        self.notificationsVisible = True
+
+    def _refreshNotificationsOverlay(self):
+        """Reload persisted notifications and repaint the overlay list."""
+
+        notifications_service = getattr(self.context, "notifications", None)
+        rows = []
+        if notifications_service is not None and hasattr(notifications_service, "listNotifications"):
+            rows = notifications_service.listNotifications()
+        self._renderNotificationRows(rows)
+
+    def _renderNotificationRows(self, rows):
+        """Render notifications in newest-first order."""
+
+        for item in self.renderedNotificationItems:
+            item["container"].destroy()
+        self.renderedNotificationItems = []
+
+        ordered_rows = sorted(
+            [dict(row) for row in rows],
+            key=lambda row: (str(row.get("notification_at") or ""), int(row.get("id") or 0)),
+            reverse=True,
+        )
+
+        if not ordered_rows:
+            self.notificationsEmptyLabel.pack(padx=18, pady=24)
+            return
+
+        self.notificationsEmptyLabel.pack_forget()
+
+        for row in ordered_rows:
+            card = Frame(
+                self.notificationsItemsFrame,
+                bg=TRANSCRIPT_BG,
+                highlightbackground=BORDER,
+                highlightthickness=1,
+                bd=0,
+            )
+            card.pack(fill=X, pady=(0, 10))
+
+            top_row = Frame(card, bg=TRANSCRIPT_BG)
+            top_row.pack(fill=X, padx=12, pady=(12, 6))
+
+            Label(
+                top_row,
+                text=str(row.get("title") or "Untitled notification"),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_PRIMARY,
+                font=("Segoe UI Semibold", 11),
+            ).pack(side=LEFT)
+
+            Button(
+                top_row,
+                text="x",
+                command=lambda notification_id=int(row.get("id") or 0): self._deleteNotification(notification_id),
+                bg=NAV_INACTIVE,
+                fg=TEXT_PRIMARY,
+                activebackground=NAV_INACTIVE_ACTIVE,
+                activeforeground=TEXT_PRIMARY,
+                relief="flat",
+                bd=0,
+                font=("Segoe UI Semibold", 9),
+                padx=8,
+                pady=3,
+                cursor="hand2",
+            ).pack(side="right")
+
+            Label(
+                card,
+                text=self._formatNotificationTimestamp(row.get("notification_at")),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_MUTED,
+                font=("Segoe UI", 9),
+            ).pack(anchor="w", padx=12)
+
+            Label(
+                card,
+                text=str(row.get("content") or ""),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_PRIMARY,
+                font=("Segoe UI", 10),
+                justify="left",
+                wraplength=520,
+            ).pack(anchor="w", fill=X, padx=12, pady=(6, 12))
+
+            self.renderedNotificationItems.append({"row": row, "container": card})
+
+    def _formatNotificationTimestamp(self, timestamp_value):
+        """Convert one stored notification timestamp into the preferred display format."""
+
+        if not timestamp_value:
+            return "Unscheduled"
+
+        dt_util = getattr(self.context, "dtUtil", None)
+        if dt_util is None or not hasattr(dt_util, "toPreferredDateTime"):
+            return str(timestamp_value)
+
+        try:
+            return dt_util.toPreferredDateTime(str(timestamp_value))
+        except Exception:
+            return str(timestamp_value)
+
+    def _deleteNotification(self, notification_id: int):
+        """Delete one notification and refresh the overlay list."""
+
+        if notification_id <= 0:
+            return
+
+        notifications_service = self.context.require("notifications")
+        notifications_service.deleteNotification(notification_id)
+        self._refreshNotificationsOverlay()
+
+    def _onProfilePressed(self):
+        """Handle profile-button presses."""
+
+        return None
+
+    def _toggleReminderComposer(self):
+        """Show or hide the reminder creation overlay."""
+
+        if self.reminderComposerVisible:
+            self.reminderComposerOverlay.place_forget()
+            self.reminderComposerVisible = False
+            return
+
+        self.reminderComposerOverlay.place(relx=0.0, rely=0.0, relwidth=1.0, relheight=1.0)
+        self.reminderComposerOverlay.lift()
+        self.reminderComposerVisible = True
+        self.reminderTitleEntry.focus_set()
+
+    def _createReminderFromComposer(self):
+        """Create one reminder from the composer overlay inputs."""
+
+        title = self.reminderTitleEntry.get().strip()
+        content = self.reminderDescriptionEntry.get().strip()
+        date_value = self.reminderDateEntry.get().strip()
+        time_value = self.reminderTimeEntry.get().strip()
+
+        if not title:
+            self._showErrorPopup("Reminder title is required.")
+            return
+        if not date_value or not time_value:
+            self._showErrorPopup("Reminder date and time are required.")
+            return
+
+        try:
+            reminder_at = f"{time_value} {date_value}"
+            reminders_service = self.context.require("reminders")
+            reminders_service.createReminder(
+                title=title,
+                content=content,
+                module_of_origin="windows",
+                reminder_at=reminder_at,
+            )
+        except Exception as error:
+            self._showErrorPopup(str(error))
+            return
+
+        self.reminderTitleEntry.delete(0, END)
+        self.reminderDescriptionEntry.delete(0, END)
+        self.reminderDateEntry.delete(0, END)
+        self.reminderTimeEntry.delete(0, END)
+        self._toggleReminderComposer()
+        self._refreshRemindersList()
+
+    def _refreshRemindersList(self):
+        """Reload persisted reminders and repaint the reminders page."""
+
+        reminders_service = getattr(self.context, "reminders", None)
+        rows = []
+        if reminders_service is not None and hasattr(reminders_service, "listReminders"):
+            rows = reminders_service.listReminders()
+        self._renderReminderRows(rows)
+
+    def _renderReminderRows(self, rows):
+        """Render the reminders page list."""
+
+        for item in self.renderedReminderItems:
+            item["container"].destroy()
+        self.renderedReminderItems = []
+
+        ordered_rows = sorted(
+            [dict(row) for row in rows],
+            key=lambda row: (str(row.get("reminder_at") or ""), int(row.get("id") or 0)),
+        )
+
+        if not ordered_rows:
+            self.remindersEmptyLabel.pack(padx=18, pady=24)
+            return
+
+        self.remindersEmptyLabel.pack_forget()
+
+        for row in ordered_rows:
+            card = Frame(
+                self.remindersItemsFrame,
+                bg=TRANSCRIPT_BG,
+                highlightbackground=BORDER,
+                highlightthickness=1,
+                bd=0,
+            )
+            card.pack(fill=X, pady=(0, 10))
+
+            Label(
+                card,
+                text=str(row.get("title") or "Untitled reminder"),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_PRIMARY,
+                font=("Segoe UI Semibold", 11),
+            ).pack(anchor="w", padx=12, pady=(12, 4))
+
+            Label(
+                card,
+                text=self._formatReminderTimestamp(row.get("reminder_at")),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_MUTED,
+                font=("Segoe UI", 9),
+            ).pack(anchor="w", padx=12)
+
+            Label(
+                card,
+                text=str(row.get("content") or ""),
+                bg=TRANSCRIPT_BG,
+                fg=TEXT_PRIMARY,
+                font=("Segoe UI", 10),
+                justify="left",
+                wraplength=560,
+            ).pack(anchor="w", fill=X, padx=12, pady=(6, 12))
+
+            self.renderedReminderItems.append({"row": row, "container": card})
+
+    def _formatReminderTimestamp(self, timestamp_value):
+        """Convert one stored reminder timestamp into the preferred display format."""
+
+        if not timestamp_value:
+            return "Unscheduled"
+
+        dt_util = getattr(self.context, "dtUtil", None)
+        if dt_util is None or not hasattr(dt_util, "toPreferredDateTime"):
+            return str(timestamp_value)
+
+        try:
+            return dt_util.toPreferredDateTime(str(timestamp_value))
+        except Exception:
+            return str(timestamp_value)
 
     def run(self):
         """Start the Tk event loop."""
