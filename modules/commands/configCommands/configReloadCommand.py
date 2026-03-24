@@ -9,7 +9,7 @@ class ConfigReloadCommand(BaseCommand):
     """
 
     name = "reload"
-    help_message = "Reload configuration from config/config.yml."
+    help_message = "Reload configuration from config.yml."
 
     def __init__(self, context):
         """Initialize `ConfigReloadCommand` with required dependencies and internal state."""

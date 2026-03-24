@@ -1,7 +1,6 @@
 """Reminder persistence and CRUD operations."""
 
 from datetime import datetime
-
 from core.threading.events.events import Event
 from core.threading.scheduler.schedule import Schedule
 
