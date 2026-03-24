@@ -167,13 +167,21 @@ class NotificationsTests(unittest.TestCase):
 
         self.assertEqual(database.notifications, [])
 
-    def test_execute_notification_is_a_master_branch_placeholder(self):
-        """Execution should remain unimplemented on master for interface branches to override."""
+    def test_execute_notification_prints_and_marks_delivered(self):
+        """CLI execution should print the notification and mark it delivered."""
 
-        notifications, _database = self._create_notifications()
+        notifications, database = self._create_notifications()
+        notifications.createNotification("system", "Server Restart", "The runtime will restart tonight.", "22:15 24/03/2026")
 
-        with self.assertRaises(NotImplementedError):
-            notifications.executeNotification(1)
+        with patch("builtins.print") as mock_print, \
+                patch("modules.notifications.notifications.datetime") as mock_datetime:
+            mock_datetime.utcnow.return_value.strftime.return_value = "2026-03-24 22:15:30"
+            row = notifications.executeNotification(1)
+
+        mock_print.assert_called_once_with("[NOTIFICATION] Server Restart\nThe runtime will restart tonight.")
+        self.assertEqual(row["id"], 1)
+        self.assertEqual(database.notifications[0]["status"], "delivered")
+        self.assertEqual(database.notifications[0]["delivered_at"], "2026-03-24 22:15:30")
 
 
 if __name__ == "__main__":

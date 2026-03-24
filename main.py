@@ -36,6 +36,7 @@ from core.router.interpreter import Interpreter
 
 from core.interface.io.inputManager import InputManager
 from core.interface.io.outputManager import OutputManager
+from core.interface.cliInterface import CliInterface
 
 from modules.database.mysql.mysqlDatabase import MySQLDatabase
 
@@ -148,7 +149,8 @@ def main():
         startup(context)
 
         try:
-            context.engine.run()
+            cli = CliInterface(context)
+            cli.run()
         finally:
             shutdown(context)
             if context.logger:

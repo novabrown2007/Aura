@@ -119,20 +119,24 @@ class MainLifecycleTests(unittest.TestCase):
         """Main should bootstrap a fresh runtime context after a restart request."""
 
         first_context = SimpleNamespace(
-            engine=SimpleNamespace(run=lambda: setattr(first_context, "restart_requested", True) or setattr(first_context, "should_exit", True)),
             logger=_RecordingLogger(),
             restart_requested=False,
             should_exit=False,
         )
         second_context = SimpleNamespace(
-            engine=SimpleNamespace(run=lambda: setattr(second_context, "should_exit", True)),
             logger=_RecordingLogger(),
             restart_requested=False,
             should_exit=False,
         )
 
         with patch.object(main, "buildRuntimeContext", side_effect=[first_context, second_context]) as build_context:
-            with patch.object(main, "startup") as startup_runtime, patch.object(main, "shutdown") as shutdown_runtime:
+            with patch.object(main, "startup") as startup_runtime, \
+                    patch.object(main, "shutdown") as shutdown_runtime, \
+                    patch.object(main, "CliInterface") as cli_interface_class:
+                cli_interface_class.side_effect = [
+                    SimpleNamespace(run=lambda: setattr(first_context, "restart_requested", True)),
+                    SimpleNamespace(run=lambda: setattr(second_context, "should_exit", True)),
+                ]
                 main.main()
 
         self.assertEqual(build_context.call_count, 2)

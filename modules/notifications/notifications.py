@@ -177,30 +177,28 @@ class Notifications:
 
     def executeNotification(self, notification_id: int):
         """
-        Placeholder execution hook for interface branches.
+        Execute one notification through the CLI interface.
 
-        Interface-specific branches should override or wrap this behavior with
-        the appropriate delivery mechanism for desktop, web, mobile, or API
-        notification handling.
+        The CLI branch delivers notifications directly to stdout so scheduled
+        reminders and alert-producing modules remain visible without a separate
+        desktop or mobile notification layer.
         """
+        notification = self.getNotification(notification_id)
+        if notification is None:
+            raise ValueError(f"Notification does not exist: {notification_id}")
 
-        raise NotImplementedError(
-            "Notification execution is interface-specific and is not implemented on master."
+        print(
+            f"[NOTIFICATION] {notification.get('title') or ''}\n"
+            f"{notification.get('content') or ''}"
         )
+        self.markDelivered(notification_id)
+        return notification
 
     def sendNotification(self, notification_id: int):
         """
-        Safe send wrapper used by modules that treat notifications as alerts.
-
-        On `master`, notification delivery is interface-specific, so this
-        method degrades to a no-op when execution has not been implemented by
-        an interface branch yet.
+        Send one notification through the active branch delivery behavior.
         """
-
-        try:
-            return self.executeNotification(notification_id)
-        except NotImplementedError:
-            return None
+        return self.executeNotification(notification_id)
 
     def markDelivered(self, notification_id: int):
         """

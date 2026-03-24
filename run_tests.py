@@ -12,7 +12,7 @@ SUITES = {
     "datetime_utils": "tests.test_datetime_utils",
     "notifications": "tests.test_notifications",
     "system": "tests.test_system",
-    "windows_interface": "tests.test_windows_interface",
+    "cli_interface": "tests.test_cli_interface",
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
     "calendar": "tests.test_calendar",
