@@ -9,6 +9,7 @@ SUITES = {
     "build": "tests.test_build_compile",
     "runtime_smoke": "tests.test_runtime_smoke",
     "logger": "tests.test_logger",
+    "windows_interface": "tests.test_windows_interface",
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
     "calendar": "tests.test_calendar",
