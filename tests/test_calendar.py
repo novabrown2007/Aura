@@ -64,12 +64,13 @@ class _CalendarDatabase:
                 }
             )
             self.next_calendar_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": self.next_calendar_id - 1})()
 
         if "insert into calendar_events" in normalized:
+            event_id = self.next_event_id
             self.events.append(
                 {
-                    "id": self.next_event_id,
+                    "id": event_id,
                     "calendar_id": params[0],
                     "title": params[1],
                     "description": params[2],
@@ -93,12 +94,13 @@ class _CalendarDatabase:
                 }
             )
             self.next_event_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": event_id})()
 
         if "insert into calendar_tasks" in normalized:
+            task_id = self.next_task_id
             self.tasks.append(
                 {
-                    "id": self.next_task_id,
+                    "id": task_id,
                     "calendar_id": params[0],
                     "linked_event_id": params[1],
                     "title": params[2],
@@ -118,12 +120,13 @@ class _CalendarDatabase:
                 }
             )
             self.next_task_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": task_id})()
 
         if "insert into calendar_reminders" in normalized:
+            reminder_id = self.next_reminder_id
             self.reminders.append(
                 {
-                    "id": self.next_reminder_id,
+                    "id": reminder_id,
                     "calendar_id": params[0],
                     "event_id": params[1],
                     "task_id": params[2],
@@ -141,7 +144,7 @@ class _CalendarDatabase:
                 }
             )
             self.next_reminder_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": reminder_id})()
 
         if "insert into calendar_event_exceptions" in normalized:
             self.exceptions.append(
@@ -162,7 +165,7 @@ class _CalendarDatabase:
                 }
             )
             self.next_exception_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": self.next_exception_id - 1})()
 
         if "insert into calendar_task_exceptions" in normalized:
             self.task_exceptions.append(
@@ -182,7 +185,7 @@ class _CalendarDatabase:
                 }
             )
             self.next_task_exception_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": self.next_task_exception_id - 1})()
 
         if "insert into calendar_reminder_exceptions" in normalized:
             self.reminder_exceptions.append(
@@ -199,7 +202,7 @@ class _CalendarDatabase:
                 }
             )
             self.next_reminder_exception_id += 1
-            return
+            return type("Cursor", (), {"lastrowid": self.next_reminder_exception_id - 1})()
 
         if normalized.startswith("update calendar_reminders set delivered_at = now()"):
             reminder_id = params[0]
@@ -280,13 +283,28 @@ class _CalendarDatabase:
             row_id = params[0]
             return self._find_by_id(self.events, row_id)
 
+        if "from calendar_events" in normalized and "order by id desc" in normalized:
+            if not self.events:
+                return None
+            return {"id": self.events[-1]["id"]}
+
         if "from calendar_tasks" in normalized and "where id = ?" in normalized:
             row_id = params[0]
             return self._find_by_id(self.tasks, row_id)
 
+        if "from calendar_tasks" in normalized and "order by id desc" in normalized:
+            if not self.tasks:
+                return None
+            return {"id": self.tasks[-1]["id"]}
+
         if "from calendar_reminders" in normalized and "where id = ?" in normalized:
             row_id = params[0]
             return self._find_by_id(self.reminders, row_id)
+
+        if "from calendar_reminders" in normalized and "order by id desc" in normalized:
+            if not self.reminders:
+                return None
+            return {"id": self.reminders[-1]["id"]}
 
         return None
 
@@ -383,6 +401,28 @@ class _RecordingEventManager:
         self.emitted.append(event)
 
 
+class _RecordingReminderModule:
+    """Reminder module stub that records calendar reminder queue requests."""
+
+    def __init__(self):
+        """Initialize captured reminder queue calls."""
+
+        self.created = []
+
+    def createReminder(self, title, content, module_of_origin, reminder_at):
+        """Record one queued reminder."""
+
+        self.created.append(
+            {
+                "title": title,
+                "content": content,
+                "module_of_origin": module_of_origin,
+                "reminder_at": reminder_at,
+            }
+        )
+        return len(self.created)
+
+
 class _RecordingScheduler:
     """Scheduler stub that stores registered schedules by name."""
 
@@ -411,16 +451,17 @@ class CalendarTests(unittest.TestCase):
         database = _CalendarDatabase()
         scheduler = _RecordingScheduler()
         event_manager = _RecordingEventManager()
+        reminders = _RecordingReminderModule()
         context = make_context(
             database=database,
-            extra={"scheduler": scheduler, "eventManager": event_manager},
+            extra={"scheduler": scheduler, "eventManager": event_manager, "reminders": reminders},
         )
-        return Calendar(context), database, scheduler, event_manager
+        return Calendar(context), database, scheduler, event_manager, reminders
 
     def test_initialization_ensures_default_calendar_and_schedule(self):
         """Ensure the calendar module registers its reminder polling schedule."""
 
-        calendar, _database, scheduler, _event_manager = self._build_calendar()
+        calendar, _database, scheduler, _event_manager, _reminders = self._build_calendar()
 
         self.assertEqual(calendar.getDefaultCalendarId(), 1)
         self.assertIn("calendar_poll_due_reminders", scheduler.schedules)
@@ -428,7 +469,7 @@ class CalendarTests(unittest.TestCase):
     def test_create_event_persists_utc_storage_and_localized_reads(self):
         """Ensure events store UTC timestamps while reads stay in the event timezone."""
 
-        calendar, database, _scheduler, _event_manager = self._build_calendar()
+        calendar, database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Team sync",
@@ -455,7 +496,7 @@ class CalendarTests(unittest.TestCase):
     def test_list_events_for_range_expands_recurring_series(self):
         """Ensure recurring events expand into concrete instances for range views."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Standup",
@@ -474,7 +515,7 @@ class CalendarTests(unittest.TestCase):
     def test_search_events_filters_by_attendee_and_text(self):
         """Ensure event search supports attendee and text matching."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Planning meeting",
@@ -493,10 +534,53 @@ class CalendarTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["title"], "Planning meeting")
 
+    def test_create_event_queues_shared_reminders_from_notification_preferences(self):
+        """Event notification preferences should queue reminder rows through the reminders module."""
+
+        calendar, _database, _scheduler, _event_manager, reminders = self._build_calendar()
+
+        event_id = calendar.createEvent(
+            title="Planning meeting",
+            start_at="24/03/2026 10:00",
+            end_at="24/03/2026 11:00",
+            description="Bring roadmap.",
+            notification_preferences={"minutes_before": [30], "reminders": ["09:15 24/03/2026"]},
+        )
+
+        self.assertEqual(event_id, 1)
+        self.assertEqual(len(reminders.created), 2)
+        self.assertEqual(reminders.created[0]["module_of_origin"], "calendar:event:1")
+        self.assertEqual(reminders.created[0]["reminder_at"], "09:15 24/03/2026")
+        self.assertEqual(reminders.created[1]["reminder_at"], "09:30 24/03/2026")
+
+    def test_create_calendar_event_reminder_mirrors_to_shared_reminders(self):
+        """Direct event-linked calendar reminders should also queue through the reminders module."""
+
+        calendar, _database, _scheduler, _event_manager, reminders = self._build_calendar()
+
+        calendar.createEvent(
+            title="Demo",
+            start_at="24/03/2026 13:00",
+            end_at="24/03/2026 14:00",
+            description="Demo prep.",
+        )
+        reminder_id = calendar.createReminder(
+            title="Demo reminder",
+            remind_at="24/03/2026 12:30",
+            event_id=1,
+            notes="Leave now.",
+        )
+
+        self.assertEqual(reminder_id, 1)
+        self.assertEqual(len(reminders.created), 1)
+        self.assertEqual(reminders.created[0]["module_of_origin"], "calendar:event:1")
+        self.assertEqual(reminders.created[0]["content"], "Leave now.")
+        self.assertEqual(reminders.created[0]["reminder_at"], "12:30 24/03/2026")
+
     def test_cancel_occurrence_skips_one_generated_recurring_instance(self):
         """Ensure recurrence cancellation exceptions suppress one occurrence."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Standup",
@@ -518,7 +602,7 @@ class CalendarTests(unittest.TestCase):
     def test_update_occurrence_overrides_one_generated_instance(self):
         """Ensure recurrence override exceptions change one generated occurrence only."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Standup",
@@ -550,7 +634,7 @@ class CalendarTests(unittest.TestCase):
     def test_task_occurrence_exception_overrides_one_generated_instance(self):
         """Ensure recurring tasks support one-instance override exceptions."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createTask(
             title="Daily writeup",
@@ -579,7 +663,7 @@ class CalendarTests(unittest.TestCase):
     def test_reminder_occurrence_exception_can_cancel_one_instance(self):
         """Ensure recurring reminders support one-instance cancellation exceptions."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createReminder(
             title="Drink water",
@@ -600,7 +684,7 @@ class CalendarTests(unittest.TestCase):
     def test_update_event_series_following_splits_series(self):
         """Ensure following-scope updates stop the old series and create a new one."""
 
-        calendar, database, _scheduler, _event_manager = self._build_calendar()
+        calendar, database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(
             title="Standup",
@@ -623,7 +707,7 @@ class CalendarTests(unittest.TestCase):
     def test_update_task_series_following_splits_series(self):
         """Ensure following-scope task updates stop the old series and create a new one."""
 
-        calendar, database, _scheduler, _event_manager = self._build_calendar()
+        calendar, database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createTask(
             title="Daily writeup",
@@ -646,7 +730,7 @@ class CalendarTests(unittest.TestCase):
     def test_update_reminder_series_following_splits_series(self):
         """Ensure following-scope reminder updates stop the old series and create a new one."""
 
-        calendar, database, _scheduler, _event_manager = self._build_calendar()
+        calendar, database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createReminder(
             title="Hydrate",
@@ -669,7 +753,7 @@ class CalendarTests(unittest.TestCase):
     def test_timezone_conversion_handles_dst_spring_forward(self):
         """Ensure timezone conversion respects DST transitions using real timezone data."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         converted = calendar.convertDateTimeBetweenTimezones(
             "2026-03-08 01:30",
@@ -682,7 +766,7 @@ class CalendarTests(unittest.TestCase):
     def test_timezone_conversion_handles_dst_fall_back(self):
         """Ensure timezone conversion respects late-year DST offsets."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         converted = calendar.convertDateTimeBetweenTimezones(
             "2026-11-02 09:00",
@@ -695,7 +779,7 @@ class CalendarTests(unittest.TestCase):
     def test_search_tasks_filters_by_status_and_priority(self):
         """Ensure task search supports status and priority filters."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createTask(title="Pay rent", due_at="2026-03-25 12:00", priority="high")
         calendar.createTask(title="Water plants", due_at="2026-03-25 18:00", priority="low")
@@ -709,7 +793,7 @@ class CalendarTests(unittest.TestCase):
     def test_create_and_process_calendar_reminder(self):
         """Ensure calendar reminders emit events and mark delivery state."""
 
-        calendar, database, _scheduler, event_manager = self._build_calendar()
+        calendar, database, _scheduler, event_manager, _reminders = self._build_calendar()
 
         calendar.createReminder(title="Leave now", remind_at="2026-03-23 17:28")
         rows = calendar.processDueReminders()
@@ -722,7 +806,7 @@ class CalendarTests(unittest.TestCase):
     def test_build_day_view_groups_events_tasks_and_reminders(self):
         """Ensure day view returns events, tasks, and reminders together."""
 
-        calendar, _database, _scheduler, _event_manager = self._build_calendar()
+        calendar, _database, _scheduler, _event_manager, _reminders = self._build_calendar()
 
         calendar.createEvent(title="Meeting", start_at="2026-03-24 09:00", end_at="2026-03-24 10:00")
         calendar.createTask(title="Call bank", due_at="2026-03-24 15:00")

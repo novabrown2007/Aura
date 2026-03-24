@@ -22,6 +22,7 @@ Lifecycle Flow:
 """
 
 from core.runtime.runtimeContext import RuntimeContext
+from core.runtime.datetimeUtils import DateTimeUtils
 from core.runtime.logger import AuraLogger
 from core.runtime.moduleLoader import ModuleLoader
 
@@ -88,15 +89,18 @@ def shutdown(context):
 # Main Entry Point
 # --------------------------------------------------
 
-def main():
+def buildRuntimeContext():
     """
-    Initialize Aura and start the assistant runtime.
+    Build and return a fully initialized Aura runtime context.
     """
 
     context = RuntimeContext()
 
     # Logger
     context.logger = AuraLogger()
+
+    # Shared Utilities
+    context.dtUtil = DateTimeUtils
 
     # Config
     context.config = ConfigLoader(context)
@@ -131,13 +135,27 @@ def main():
 
     # Engine
     context.engine = Engine(context)
+    return context
 
-    startup(context)
 
-    try:
-        context.engine.run()
-    finally:
-        shutdown(context)
+def main():
+    """
+    Initialize Aura and keep running until no restart is requested.
+    """
+
+    while True:
+        context = buildRuntimeContext()
+        startup(context)
+
+        try:
+            context.engine.run()
+        finally:
+            shutdown(context)
+            if context.logger:
+                context.logger.close()
+
+        if not getattr(context, "restart_requested", False):
+            break
 
 
 if __name__ == "__main__":
