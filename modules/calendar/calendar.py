@@ -212,7 +212,7 @@ class Calendar:
             allow_date_only=all_day,
         )
 
-        self.database.execute(
+        cursor = self.database.execute(
             """
             INSERT INTO calendar_events (
                 calendar_id, title, description, location, attendees, start_at, end_at, all_day,
@@ -243,6 +243,16 @@ class Calendar:
                 normalized_recurrence["recurrence_count"],
             ),
         )
+        event_id = self._resolveInsertedRowId(cursor, "calendar_events")
+        self._queueEventRemindersFromPreferences(
+            event_id=event_id,
+            title=title,
+            description=description,
+            start_at=normalized_start_at,
+            timezone=event_timezone,
+            notification_preferences=notification_preferences,
+        )
+        return event_id
 
     def listEventsForRange(self, start_at: str, end_at: str, calendar_id: Optional[int] = None):
         """
@@ -934,7 +944,7 @@ class Calendar:
             source_timezone=reminder_timezone,
         )
 
-        self.database.execute(
+        cursor = self.database.execute(
             """
             INSERT INTO calendar_reminders (
                 calendar_id, event_id, task_id, title, notes, timezone, notification_preferences,
@@ -957,6 +967,16 @@ class Calendar:
                 normalized_recurrence["recurrence_count"],
             ),
         )
+        reminder_id = self._resolveInsertedRowId(cursor, "calendar_reminders")
+        self._queueReminderForEvent(
+            event_id=event_id,
+            title=title,
+            content=notes,
+            remind_at=normalized_remind_at,
+            timezone=reminder_timezone,
+            recurrence_type=normalized_recurrence["recurrence_type"],
+        )
+        return reminder_id
 
     def listReminders(self, calendar_id: Optional[int] = None, include_delivered: bool = True):
         """
@@ -1637,6 +1657,126 @@ class Calendar:
             "recurrence_count": fields.get("recurrence_count", reminder.get("recurrence_count")),
         }
         self.createReminder(**cloned_fields)
+
+    def _queueEventRemindersFromPreferences(
+        self,
+        event_id: Optional[int],
+        title: str,
+        description: Optional[str],
+        start_at: str,
+        timezone: str,
+        notification_preferences: Optional[dict],
+    ):
+        """
+        Queue event reminders through the shared reminders module.
+
+        Supported preference keys:
+        - `reminders`: list of explicit reminder datetimes
+        - `reminder_timestamps`: alias for explicit reminder datetimes
+        - `minutes_before`: list of integer minute offsets before the event
+        """
+
+        if event_id is None or not isinstance(notification_preferences, dict):
+            return
+
+        explicit_values = list(notification_preferences.get("reminders") or [])
+        explicit_values.extend(list(notification_preferences.get("reminder_timestamps") or []))
+        minutes_before = list(notification_preferences.get("minutes_before") or [])
+
+        for reminder_value in explicit_values:
+            self._queueReminderForEvent(
+                event_id=event_id,
+                title=title,
+                content=description,
+                remind_at=str(reminder_value),
+                timezone=timezone,
+            )
+
+        for offset_minutes in minutes_before:
+            try:
+                minutes_value = int(offset_minutes)
+            except (TypeError, ValueError):
+                continue
+
+            reminder_time = self._buildReminderTimeBeforeEvent(
+                start_at=start_at,
+                timezone=timezone,
+                minutes_before=minutes_value,
+            )
+            self._queueReminderForEvent(
+                event_id=event_id,
+                title=title,
+                content=description,
+                remind_at=reminder_time,
+                timezone=timezone,
+            )
+
+    def _queueReminderForEvent(
+        self,
+        event_id: Optional[int],
+        title: str,
+        content: Optional[str],
+        remind_at: str,
+        timezone: str,
+        recurrence_type: Optional[str] = None,
+    ):
+        """
+        Mirror one event reminder into the shared reminders module.
+
+        Only single-instance reminders are mirrored on `master`. Recurring
+        calendar reminders remain owned by the calendar module.
+        """
+
+        if event_id is None or recurrence_type:
+            return
+
+        reminders = getattr(self.context, "reminders", None)
+        if reminders is None:
+            return
+
+        reminder_display_time = remind_at
+        if "-" in str(remind_at) and ":" in str(remind_at):
+            reminder_display_time = self.context.dtUtil.toPreferredDateTime(
+                self._convertStoredDateTimeToDisplay(remind_at, timezone)
+            )
+
+        reminders.createReminder(
+            title=str(title),
+            content=str(content or title),
+            module_of_origin=f"calendar:event:{int(event_id)}",
+            reminder_at=reminder_display_time,
+        )
+
+    def _buildReminderTimeBeforeEvent(self, start_at: str, timezone: str, minutes_before: int) -> str:
+        """
+        Build a reminder datetime by subtracting minutes from an event start.
+        """
+
+        display_start = self._convertStoredDateTimeToDisplay(start_at, timezone)
+        event_start = self._parseDateTime(str(display_start))
+        reminder_time = event_start - timedelta(minutes=int(minutes_before))
+        return reminder_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    def _resolveInsertedRowId(self, cursor, table_name: str) -> Optional[int]:
+        """
+        Return the inserted row ID using cursor metadata or a simple fallback query.
+        """
+
+        last_row_id = getattr(cursor, "lastrowid", None)
+        if last_row_id is not None:
+            return int(last_row_id)
+
+        row = self.database.fetchOne(
+            f"""
+            SELECT id
+            FROM {table_name}
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+        if row is None:
+            return None
+        return int(row["id"])
 
     def _resolveCalendarId(self, calendar_id: Optional[int]) -> int:
         """

@@ -138,10 +138,43 @@ class DatabaseTableManager:
             CREATE TABLE IF NOT EXISTS reminders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
-                remind_at DATETIME NULL,
-                delivered_at DATETIME NULL,
+                content TEXT,
+                reminder_at DATETIME NULL,
+                module_of_origin VARCHAR(128) NOT NULL,
+                notification_id INT NULL,
+                sent_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS content TEXT
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS reminder_at DATETIME NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS module_of_origin VARCHAR(128) NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS notification_id INT NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS sent_at DATETIME NULL
             """
         )
 

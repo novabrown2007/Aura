@@ -188,6 +188,20 @@ class Notifications:
             "Notification execution is interface-specific and is not implemented on master."
         )
 
+    def sendNotification(self, notification_id: int):
+        """
+        Safe send wrapper used by modules that treat notifications as alerts.
+
+        On `master`, notification delivery is interface-specific, so this
+        method degrades to a no-op when execution has not been implemented by
+        an interface branch yet.
+        """
+
+        try:
+            return self.executeNotification(notification_id)
+        except NotImplementedError:
+            return None
+
     def markDelivered(self, notification_id: int):
         """
         Mark one notification as delivered.
