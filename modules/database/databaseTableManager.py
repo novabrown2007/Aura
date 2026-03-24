@@ -28,6 +28,7 @@ class DatabaseTableManager:
         self.createCommandLogsTable()
         self.createConversationHistoryTable()
         self.createMemoryTable()
+        self.createNotificationsTable()
         self.createRemindersTable()
         self.createCalendarCalendarsTable()
         self.createCalendarEventsTable()
@@ -91,6 +92,45 @@ class DatabaseTableManager:
             """
         )
 
+    def createNotificationsTable(self):
+        """Create the notifications table."""
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT,
+                notification_at DATETIME NOT NULL,
+                source_module VARCHAR(128) NOT NULL,
+                status VARCHAR(32) DEFAULT 'pending',
+                delivered_at DATETIME NULL,
+                read_at DATETIME NULL,
+                dismissed_at DATETIME NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP
+            )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS content TEXT
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS notification_at DATETIME NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS source_module VARCHAR(128) NULL
+            """
+        )
+
     def createRemindersTable(self):
         """Create the reminders table."""
         self.database.execute(
@@ -98,10 +138,43 @@ class DatabaseTableManager:
             CREATE TABLE IF NOT EXISTS reminders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
-                remind_at DATETIME NULL,
-                delivered_at DATETIME NULL,
+                content TEXT,
+                reminder_at DATETIME NULL,
+                module_of_origin VARCHAR(128) NOT NULL,
+                notification_id INT NULL,
+                sent_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS content TEXT
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS reminder_at DATETIME NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS module_of_origin VARCHAR(128) NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS notification_id INT NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE reminders
+            ADD COLUMN IF NOT EXISTS sent_at DATETIME NULL
             """
         )
 

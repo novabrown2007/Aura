@@ -1,6 +1,7 @@
 """Automated tests for `fakes` behavior and regression coverage."""
 
 from types import SimpleNamespace
+from core.runtime.datetimeUtils import DateTimeUtils
 
 
 class DictConfig:
@@ -211,6 +212,7 @@ def make_context(database=None, extra=None):
 
     context = TestContext()
     context.logger = None
+    context.dtUtil = DateTimeUtils
     context.config = config
     context.database = database
     context.conversationHistory = None
