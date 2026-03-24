@@ -1,122 +1,102 @@
-"""Core implementation for `logger` in the Aura assistant project."""
+"""File-backed runtime logger for Aura."""
 
 import logging
-import sys
+import os
+from datetime import datetime
+from pathlib import Path
 
 
 class AuraLogger:
     """
-    Central logging system for the Aura assistant.
+    Provide Aura-wide logging through a per-run file in the `logs` directory.
 
-    This class wraps Python's built-in logging module to provide a consistent
-    logging interface across the entire application. It supports console logging,
-    optional file logging, and hierarchical child loggers for modules.
-
-    The logger is intended to be initialized once by the engine and then stored
-    in the RuntimeContext so it can be accessed throughout the system.
-
-    Example:
-        context.logger = AuraLogger(level=logging.DEBUG)
-
-        logger = context.logger.get_child("Engine")
-        logger.info("Engine started")
+    On initialization, the logger ensures a `logs` directory exists in the
+    current project root, creates a new timestamped log file for the current
+    process, and routes all log levels into that file.
     """
 
-    def __init__(self, name="Aura", level=logging.INFO, log_to_file=False, file_path="aura.log"):
+    def __init__(self, name="Aura", level=logging.INFO, logs_dir="logs"):
         """
-        Initialize the Aura logging system.
+        Initialize Aura's file-backed logger.
 
         Args:
-            name (str): Root logger name.
-            level (int): Logging level (e.g., logging.INFO, logging.DEBUG).
-            log_to_file (bool): Whether logs should also be written to a file.
-            file_path (str): Path to the log file if file logging is enabled.
+            name (str):
+                Root logger name.
+            level (int):
+                Logging level for the root logger.
+            logs_dir (str):
+                Directory used to store run-specific log files.
         """
+
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
+        self.logger.propagate = False
 
-        # Prevent duplicate handlers if the logger is initialized multiple times
-        if not self.logger.handlers:
+        self.logsDirectory = Path(logs_dir)
+        self.logsDirectory.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+        self.logFilePath = self.logsDirectory / f"aura_{timestamp}_{os.getpid()}.log"
 
-            formatter = logging.Formatter(
-                "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-                "%Y-%m-%d %H:%M:%S",
-            )
+        formatter = logging.Formatter(
+            "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        )
 
-            # Console output handler
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setFormatter(formatter)
-            self.logger.addHandler(console_handler)
+        self._clearHandlers()
 
-            # Optional file logging
-            if log_to_file:
-                file_handler = logging.FileHandler(file_path)
-                file_handler.setFormatter(formatter)
-                self.logger.addHandler(file_handler)
+        file_handler = logging.FileHandler(self.logFilePath, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
 
-            if self.logger:
-                self.logger.info(f"logger.py has been initialized.")
+        self.logger.info("logger.py has been initialized.")
+
+    def _clearHandlers(self):
+        """
+        Remove and close any existing handlers before creating a fresh run log.
+        """
+
+        for handler in list(self.logger.handlers):
+            self.logger.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:
+                pass
+
+    def close(self):
+        """
+        Close all active logger handlers for clean shutdown and test cleanup.
+        """
+
+        self._clearHandlers()
 
     def debug(self, message: str):
-        """
-        Log a debug message.
+        """Log a debug message."""
 
-        Args:
-            message (str): The debug message to log.
-        """
         self.logger.debug(message)
 
     def info(self, message: str):
-        """
-        Log an informational message.
+        """Log an informational message."""
 
-        Args:
-            message (str): The informational message to log.
-        """
         self.logger.info(message)
 
     def warning(self, message: str):
-        """
-        Log a warning message.
+        """Log a warning message."""
 
-        Args:
-            message (str): The warning message to log.
-        """
         self.logger.warning(message)
 
     def error(self, message: str):
-        """
-        Log an error message.
+        """Log an error message."""
 
-        Args:
-            message (str): The error message to log.
-        """
         self.logger.error(message)
 
     def critical(self, message: str):
-        """
-        Log a critical error message.
+        """Log a critical error message."""
 
-        Args:
-            message (str): The critical message to log.
-        """
         self.logger.critical(message)
 
     def getChild(self, name: str):
         """
-        Create a child logger for a subsystem or module.
-
-        Child loggers inherit configuration from the root logger but include
-        an additional name segment to identify the subsystem generating logs.
-
-        Args:
-            name (str): Name of the child logger.
-
-        Returns:
-            logging.Logger: A configured child logger instance.
-
-        Example:
-            logger = context.logger.get_child("Database")
-            logger.info("Connected to database")
+        Return a child logger that inherits the root file handler.
         """
+
         return self.logger.getChild(name)

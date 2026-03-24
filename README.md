@@ -1,127 +1,97 @@
 # Aura Assistant
 
-**Author:** Nova Brown
-**Copyright:** © Nova Brown — All Rights Reserved
-
----
+**Author:** Nova Brown  
+**Copyright:** © Nova Brown - All Rights Reserved
 
 ## Overview
 
-Aura is a modular personal assistant framework designed to provide intelligent automation, conversational interaction, and extensible system control.
+Aura is a modular personal assistant framework built around a headless core runtime.
 
-The project is structured around a modular architecture that separates core systems such as runtime management, threading, routing, language model interaction, and interface handling. This design allows Aura to be expanded with additional modules while maintaining a stable and maintainable core.
+The `master` branch is intentionally interface-neutral. It contains the runtime,
+threading systems, routing, LLM integration, database-backed memory/history,
+calendar/reminder backends, and interface-agnostic input/output APIs. It does not
+ship with a CLI or desktop frontend.
 
-Aura is currently under active development and its internal architecture may evolve as new features and improvements are implemented.
+Interface-specific work is intended to live in separate branches that call into
+the core runtime through the shared API surface.
 
----
+## Current Architecture
 
-## Version
+Aura currently includes:
 
-**Current Version:** Development Build
+- A headless runtime engine
+- Interface-agnostic `InputManager` and `OutputManager`
+- Runtime context and module loading
+- Scheduler, task manager, and event manager
+- MySQL-backed persistence
+- Conversation history and long-term memory
+- Calendar backend with events, tasks, reminders, recurrence, exceptions, and timezone support
+- Standalone reminders backend
 
-Aura is currently in an early development stage. The architecture and internal systems are still being refined, and future updates may introduce structural changes, new modules, or expanded capabilities.
+The runtime is designed so an interface branch can attach by calling:
 
-Version numbers will be assigned once the project reaches a stable milestone.
+- `context.inputManager.submit(...)`
+- `context.engine.handleInput(...)`
+- `context.outputManager.subscribe(...)`
 
----
+## Branch Intent
 
-## Project Structure
+The purpose of `master` is to remain a stable backend foundation.
 
-The project is organized into several major subsystems:
+That means this branch should contain:
 
-* **Core Runtime**
+- shared runtime systems
+- backend modules
+- storage and scheduling logic
+- interface-independent APIs
 
-  * Runtime context and system lifecycle management
+That means this branch should not contain:
 
-* **Threading System**
+- CLI workflows
+- desktop UI implementations
+- mobile UI implementations
+- web interface implementations
 
-  * Task management
-  * Event system
-  * Background scheduling
+## Logging
 
-* **Routing System**
+Aura creates a `logs` directory automatically if it does not exist.
 
-  * Input interpretation
-  * Intent routing
-  * Module handling
+Each startup creates a new timestamped log file in `logs/`, and all log levels
+are written there for that run.
 
-* **LLM Integration**
+## Configuration
 
-  * Language model interaction
-  * Conversation history management
-  * Long-term memory handling
+Primary runtime config file:
 
-* **Interface Layer**
-
-  * Input and output management
-  * Future support for voice, web, and mobile interfaces
-
-* **Module System**
-
-  * Extensible plugin-style architecture for adding assistant capabilities
-
----
-
-## Development Status
-
-Aura is currently being developed as a personal research and development project.
-Features, architecture, and interfaces may change significantly between revisions.
-
----
-
-## License and Usage Restrictions
-
-This software and all associated source code are the exclusive intellectual property of **Nova Brown**.
-
-**All rights are reserved.**
-
-The contents of this repository may **not** be:
-
-* shared
-* redistributed
-* copied
-* modified
-* published
-* or used in derivative works
-
-without explicit written permission from the author.
-
-This project is intended for **private development and experimentation only**.
-
-Unauthorized distribution or reproduction of any part of this software is strictly prohibited.
-
----
-
-## Contact
-
-Project maintained by **Nova Brown**.
-
----
+```text
+config.yml
+```
 
 ## Testing
 
 Run all tests:
 
-```bash
+```powershell
 python run_tests.py
 ```
 
 Run individual suites:
 
-```bash
+```powershell
 python run_tests.py --suite build
-python run_tests.py --suite command_registry
 python run_tests.py --suite runtime_smoke
+python run_tests.py --suite logger
 python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory
-python run_tests.py --suite system_commands
+python run_tests.py --suite calendar
+python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration
 ```
 
 Optional live LLM connectivity test:
 
-```bash
+```powershell
 $env:RUN_LIVE_LLM_TEST="true"
 $env:LLM_ENDPOINT="http://localhost:11434/api/generate"
 $env:LLM_MODEL="llama3.1:8b"
@@ -130,7 +100,7 @@ python run_tests.py --suite llm
 
 Optional live MySQL integration test:
 
-```bash
+```powershell
 $env:RUN_LIVE_MYSQL_TEST="true"
 $env:DB_HOST="localhost"
 $env:DB_PORT="3306"
@@ -140,8 +110,26 @@ $env:DB_PASSWORD="your_password"
 python run_tests.py --suite mysql_integration
 ```
 
-Primary runtime config file:
+## License and Usage Restrictions
 
-```text
-config.yml
-```
+This software and all associated source code are the exclusive intellectual
+property of **Nova Brown**.
+
+**All rights are reserved.**
+
+The contents of this repository may not be:
+
+- shared
+- redistributed
+- copied
+- modified
+- published
+- used in derivative works
+
+without explicit written permission from the author.
+
+This project is intended for private development and experimentation only.
+
+## Contact
+
+Project maintained by **Nova Brown**.
