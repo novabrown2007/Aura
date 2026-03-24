@@ -11,6 +11,7 @@ SUITES = {
     "runtime_smoke": "tests.test_runtime_smoke",
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
+    "calendar": "tests.test_calendar",
     "system_commands": "tests.test_system_commands",
     "llm": "tests.test_llm_handler",
     "reminders": "tests.test_reminders",

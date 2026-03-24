@@ -3,3 +3,4 @@ PyYAML
 mysql-connector-python
 pyttsx3
 SpeechRecognition
+tzdata
