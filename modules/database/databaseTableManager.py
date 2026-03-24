@@ -98,23 +98,36 @@ class DatabaseTableManager:
             """
             CREATE TABLE IF NOT EXISTS notifications (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                source_type VARCHAR(64) DEFAULT 'system',
-                source_id VARCHAR(128) NULL,
-                category VARCHAR(64) DEFAULT 'general',
                 title VARCHAR(255) NOT NULL,
-                message TEXT,
-                payload TEXT NULL,
-                priority VARCHAR(32) DEFAULT 'normal',
+                content TEXT,
+                notification_at DATETIME NOT NULL,
+                source_module VARCHAR(128) NOT NULL,
                 status VARCHAR(32) DEFAULT 'pending',
-                scheduled_for DATETIME NULL,
                 delivered_at DATETIME NULL,
                 read_at DATETIME NULL,
                 dismissed_at DATETIME NULL,
-                expires_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP
             )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS content TEXT
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS notification_at DATETIME NULL
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN IF NOT EXISTS source_module VARCHAR(128) NULL
             """
         )
 

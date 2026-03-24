@@ -22,6 +22,7 @@ Lifecycle Flow:
 """
 
 from core.runtime.runtimeContext import RuntimeContext
+from core.runtime.datetimeUtils import DateTimeUtils
 from core.runtime.logger import AuraLogger
 from core.runtime.moduleLoader import ModuleLoader
 
@@ -97,6 +98,9 @@ def main():
 
     # Logger
     context.logger = AuraLogger()
+
+    # Shared Utilities
+    context.dtUtil = DateTimeUtils
 
     # Config
     context.config = ConfigLoader(context)

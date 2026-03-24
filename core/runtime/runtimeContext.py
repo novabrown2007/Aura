@@ -39,6 +39,9 @@ class RuntimeContext:
         self.logger = None
         """Global logging system used across Aura."""
 
+        self.dtUtil = None
+        """Shared datetime formatting utility used across runtime modules."""
+
         # ----------------------------
         # Threading / Async Systems
         # ----------------------------
