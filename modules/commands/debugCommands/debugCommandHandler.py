@@ -8,6 +8,7 @@ from modules.commands.debugCommands.memoryDebugCommands import MemoryDebugComman
 from modules.commands.debugCommands.notificationsDebugCommand import NotificationsDebugCommand
 from modules.commands.debugCommands.remindersDebugCommand import RemindersDebugCommand
 from modules.commands.debugCommands.runtimeDebugCommand import RuntimeDebugCommand
+from modules.commands.debugCommands.threadingDebugCommand import ThreadingDebugCommand
 
 
 def build_commands(context):
@@ -22,4 +23,5 @@ def build_commands(context):
         MemoryDebugCommand(context),
         NotificationsDebugCommand(context),
         RemindersDebugCommand(context),
+        ThreadingDebugCommand(context),
     ]
