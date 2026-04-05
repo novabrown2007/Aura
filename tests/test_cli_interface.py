@@ -293,6 +293,127 @@ class _NotificationsStub:
         return [dict(self.rows[0])]
 
 
+class _ThreadStub:
+    """Simple thread object used by threading debug tests."""
+
+    def __init__(self, alive=True):
+        """Store whether the fake thread is alive."""
+
+        self._alive = alive
+
+    def is_alive(self):
+        """Return the configured alive state."""
+
+        return self._alive
+
+
+class _ThreadControlStub:
+    """Minimal control object compatible with threading debug output."""
+
+    def __init__(self, paused=False, stop_requested=False):
+        """Initialize fake pause and stop flags."""
+
+        self.pause_event = SimpleNamespace(is_set=lambda: not paused)
+        self.stop_event = SimpleNamespace(is_set=lambda: stop_requested)
+
+
+class _ManagedTaskStub:
+    """Simple task object used by threading debug tests."""
+
+    def __init__(self, completed=False, error=None):
+        """Store fake task completion state."""
+
+        self.completed = completed
+        self.error = error
+
+
+class _ThreadingManagerStub:
+    """Threading manager stub for threading debug command tests."""
+
+    def __init__(self):
+        """Build one managed task thread and one scheduler thread."""
+
+        self.threads = {
+            "task_schedule_alpha": _ThreadStub(alive=True),
+            "Scheduler": _ThreadStub(alive=True),
+        }
+        self.controls = {
+            "task_schedule_alpha": _ThreadControlStub(paused=False, stop_requested=False),
+            "Scheduler": _ThreadControlStub(paused=False, stop_requested=False),
+        }
+        self.stop_requests = []
+
+    def listThreads(self):
+        """Return all registered thread names."""
+
+        return list(self.threads.keys())
+
+    def getThread(self, name):
+        """Return one fake thread by name."""
+
+        return self.threads.get(name)
+
+    def stopThread(self, name):
+        """Record a stop request for one thread."""
+
+        self.stop_requests.append(name)
+        control = self.controls.get(name)
+        if control is not None:
+            control.stop_event = SimpleNamespace(is_set=lambda: True)
+
+
+class _TaskManagerStub:
+    """Task manager stub for threading debug command tests."""
+
+    def __init__(self):
+        """Initialize fake managed tasks."""
+
+        self.tasks = {
+            "schedule_alpha": _ManagedTaskStub(completed=False),
+        }
+
+    def listTasks(self):
+        """Return all fake task names."""
+
+        return list(self.tasks.keys())
+
+    def getTask(self, name):
+        """Return one fake task by name."""
+
+        return self.tasks.get(name)
+
+
+class _ScheduleStub:
+    """Simple schedule object for threading debug tests."""
+
+    def __init__(self, last_ran=None):
+        """Store fake last-ran metadata."""
+
+        self.last_ran = last_ran
+
+
+class _SchedulerStub:
+    """Scheduler stub for threading debug command tests."""
+
+    def __init__(self):
+        """Initialize fake schedule state."""
+
+        self.running = True
+        self.schedules = {
+            "alpha": _ScheduleStub(last_ran="2026-03-24 10:00:00"),
+        }
+
+    def listSchedules(self):
+        """Return all fake schedule names."""
+
+        return list(self.schedules.keys())
+
+    def getSchedule(self, name):
+        """Return one fake schedule by name."""
+
+        return self.schedules.get(name)
+
+
 class CliCommandTests(unittest.TestCase):
     """Validate command registration and execution against the current backend."""
 
@@ -303,7 +424,9 @@ class CliCommandTests(unittest.TestCase):
             database=_CommandTestDatabase(),
             extra={
                 "logger": _Logger(),
-                "taskManager": SimpleNamespace(listTasks=lambda: ["schedule_alpha"]),
+                "taskManager": _TaskManagerStub(),
+                "threader": _ThreadingManagerStub(),
+                "scheduler": _SchedulerStub(),
                 "calendar": _CalendarStub(),
                 "reminders": _SharedRemindersStub(),
                 "notifications": _NotificationsStub(),
@@ -390,7 +513,7 @@ class CliCommandTests(unittest.TestCase):
         self.assertEqual(context.reminders.rows, [])
 
     def test_command_handler_exposes_low_level_module_debug_views(self):
-        """Debug commands should expose calendar, reminders, and notifications state."""
+        """Debug commands should expose calendar, reminders, notifications, and threading state."""
 
         context = self._build_context()
         context.reminders.createReminder("Take meds", "After dinner", "system", "19:00 24/03/2026")
@@ -407,6 +530,23 @@ class CliCommandTests(unittest.TestCase):
         self.assertTrue(notifications_result.success)
         self.assertIn("due_now: 1", notifications_result.message)
 
+        threading_result = context.commandHandler.handle("/debug threading")
+        self.assertTrue(threading_result.success)
+        self.assertIn("threads_registered: 2", threading_result.message)
+        self.assertIn("tasks_registered: 1", threading_result.message)
+        self.assertIn("scheduler_running: True", threading_result.message)
+
+    def test_command_handler_requests_stop_for_threading_task(self):
+        """Threading debug end should request a cooperative stop for a managed task."""
+
+        context = self._build_context()
+
+        result = context.commandHandler.handle("/debug threading end name=schedule_alpha")
+
+        self.assertTrue(result.success)
+        self.assertIn("Stop requested for task schedule_alpha", result.message)
+        self.assertEqual(context.threader.stop_requests, ["task_schedule_alpha"])
+
 
 class CliInterfaceTests(unittest.TestCase):
     """Validate the interactive CLI loop behavior."""
@@ -418,7 +558,9 @@ class CliInterfaceTests(unittest.TestCase):
         context.system = SimpleNamespace(shutdown=lambda: setattr(context, "should_exit", True) or True)
         context.commandHandler = CommandHandler(context)
         context.commandRegistry = context.commandHandler.registry
-        context.taskManager = SimpleNamespace(listTasks=lambda: [])
+        context.taskManager = _TaskManagerStub()
+        context.threader = _ThreadingManagerStub()
+        context.scheduler = _SchedulerStub()
         context.calendar = _CalendarStub()
         context.reminders = _SharedRemindersStub()
         context.notifications = _NotificationsStub()
