@@ -25,6 +25,7 @@ jobs:
 
           SOURCE_BRANCH="master"
           TARGET_BRANCHES=(
+            "interface/CLI"
             "interface/windowsOS"
             "interface/chromeOS"
             "interface/androidOS"
