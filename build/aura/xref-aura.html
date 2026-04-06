@@ -250,8 +250,6 @@ imports:
  &#8226;   <a href="#keyword">keyword</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
- &#8226;   <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#modules.reminders">modules.reminders</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#operator">operator</a>
  &#8226;   <a href="#os">os</a>
@@ -267,9 +265,6 @@ imports:
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
- &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
  &#8226;   <a href="#warnings">warnings</a>
@@ -3839,10 +3834,45 @@ imported by:
   <a target="code" href="///C:/Users/brown/PycharmProjects/aura/core/__init__.py" type="text/plain"><tt>core</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
 imported by:
-    <a href="#core.interface">core.interface</a>
+    <a href="#core.engine">core.engine</a>
+ &#8226;   <a href="#core.interface">core.interface</a>
  &#8226;   <a href="#core.router">core.router</a>
  &#8226;   <a href="#core.runtime">core.runtime</a>
  &#8226;   <a href="#core.threading">core.threading</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="core.engine"></a>
+  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/core/engine/__init__.py" type="text/plain"><tt>core.engine</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#core">core</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#core.engine.engine">core.engine.engine</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="core.engine.engine"></a>
+  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/core/engine/engine.py" type="text/plain"><tt>core.engine.engine</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#core.engine">core.engine</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#typing">typing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
 
   </div>
 
@@ -3887,15 +3917,12 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#core.interface.desktopInterface">core.interface.desktopInterface</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
 
   </div>
   <div class="import">
 imported by:
     <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows.errorDialog">core.interface.desktopInterface.windows.errorDialog</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
 
   </div>
@@ -3910,20 +3937,15 @@ imports:
     <a href="#__future__">__future__</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows">core.interface.desktopInterface.windows</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows.errorDialog">core.interface.desktopInterface.windows.errorDialog</a>
- &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
  &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#core.interface.desktopInterface.windows">core.interface.desktopInterface.windows</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
+    <a href="#runAuraWindows.py">runAuraWindows.py</a>
 
   </div>
 
@@ -3941,33 +3963,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
  &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="core.interface.desktopInterface.windows.runAuraWindows"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/core/interface/desktopInterface/windows/runAuraWindows.py" type="text/plain"><tt>core.interface.desktopInterface.windows.runAuraWindows</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#core.interface.desktopInterface.windows">core.interface.desktopInterface.windows</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.errorDialog">core.interface.desktopInterface.windows.errorDialog</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
- &#8226;   <a href="#ctypes">ctypes</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
- &#8226;   <a href="#traceback">traceback</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#core.interface.desktopInterface.windows">core.interface.desktopInterface.windows</a>
 
   </div>
 
@@ -3979,6 +3975,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#config.configLoader">config.configLoader</a>
+ &#8226;   <a href="#core.engine.engine">core.engine.engine</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows">core.interface.desktopInterface.windows</a>
  &#8226;   <a href="#core.interface.io.inputManager">core.interface.io.inputManager</a>
  &#8226;   <a href="#core.interface.io.outputManager">core.interface.io.outputManager</a>
@@ -3991,21 +3988,15 @@ imports:
  &#8226;   <a href="#core.threading.scheduler.scheduler">core.threading.scheduler.scheduler</a>
  &#8226;   <a href="#core.threading.tasks.taskManager">core.threading.tasks.taskManager</a>
  &#8226;   <a href="#core.threading.threadingManager">core.threading.threadingManager</a>
- &#8226;   <a href="#modules.commands">modules.commands</a>
  &#8226;   <a href="#modules.database.mysql.mysqlDatabase">modules.database.mysql.mysqlDatabase</a>
  &#8226;   <a href="#modules.llm.conversationHistory">modules.llm.conversationHistory</a>
  &#8226;   <a href="#modules.llm.llmHandler">modules.llm.llmHandler</a>
  &#8226;   <a href="#modules.llm.memoryManager">modules.llm.memoryManager</a>
- &#8226;   <a href="#modules.reminders">modules.reminders</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#pathlib">pathlib</a>
- &#8226;   <a href="#types">types</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
+    <a href="#runAuraWindows.py">runAuraWindows.py</a>
 
   </div>
 
@@ -4034,6 +4025,8 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#core.interface.io">core.interface.io</a>
+ &#8226;   <a href="#datetime">datetime</a>
+ &#8226;   <a href="#typing">typing</a>
 
   </div>
   <div class="import">
@@ -4050,6 +4043,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#core.interface.io">core.interface.io</a>
+ &#8226;   <a href="#typing">typing</a>
 
   </div>
   <div class="import">
@@ -4151,8 +4145,10 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#core.runtime">core.runtime</a>
+ &#8226;   <a href="#datetime">datetime</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
 
   </div>
   <div class="import">
@@ -4445,8 +4441,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#ctypes._endian">ctypes._endian</a>
+    <a href="#ctypes._endian">ctypes._endian</a>
  &#8226;   <a href="#ctypes.wintypes">ctypes.wintypes</a>
  &#8226;   <a href="#multiprocessing.sharedctypes">multiprocessing.sharedctypes</a>
  &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
@@ -4536,10 +4531,11 @@ imports:
 imported by:
     <a href="#_strptime">_strptime</a>
  &#8226;   <a href="#calendar">calendar</a>
+ &#8226;   <a href="#core.interface.io.inputManager">core.interface.io.inputManager</a>
+ &#8226;   <a href="#core.runtime.logger">core.runtime.logger</a>
  &#8226;   <a href="#email.utils">email.utils</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#http.server">http.server</a>
- &#8226;   <a href="#modules.reminders.reminders">modules.reminders.reminders</a>
  &#8226;   <a href="#mysql.connector.abstracts">mysql.connector.abstracts</a>
  &#8226;   <a href="#mysql.connector.connection">mysql.connector.connection</a>
  &#8226;   <a href="#mysql.connector.constants">mysql.connector.constants</a>
@@ -10147,8 +10143,6 @@ imported by:
  &#8226;   <a href="#json.decoder">json.decoder</a>
  &#8226;   <a href="#json.encoder">json.encoder</a>
  &#8226;   <a href="#json.scanner">json.scanner</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryExportCommand">modules.commands.memoryCommands.memoryExportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryImportCommand">modules.commands.memoryCommands.memoryImportCommand</a>
  &#8226;   <a href="#modules.llm.memoryManager">modules.llm.memoryManager</a>
  &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#setuptools.config._validate_pyproject.error_reporting">setuptools.config._validate_pyproject.error_reporting</a>
@@ -10448,777 +10442,8 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imported by:
     <a href="#core.runtime.moduleLoader">core.runtime.moduleLoader</a>
- &#8226;   <a href="#modules.commands">modules.commands</a>
  &#8226;   <a href="#modules.database">modules.database</a>
  &#8226;   <a href="#modules.llm">modules.llm</a>
- &#8226;   <a href="#modules.reminders">modules.reminders</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/__init__.py" type="text/plain"><tt>modules.commands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules">modules</a>
- &#8226;   <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.commandHandler">modules.commands.commandHandler</a>
- &#8226;   <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
- &#8226;   <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
- &#8226;   <a href="#modules.commands.helpCommand">modules.commands.helpCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands">modules.commands.historyCommands</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
- &#8226;   <a href="#modules.commands.statusCommand">modules.commands.statusCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
- &#8226;   <a href="#modules.commands.versionCommand">modules.commands.versionCommand</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.baseCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/baseCommand.py" type="text/plain"><tt>modules.commands.baseCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.configCommands.configGetCommand">modules.commands.configCommands.configGetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configReloadCommand">modules.commands.configCommands.configReloadCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configSetCommand">modules.commands.configCommands.configSetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configValidateCommand">modules.commands.configCommands.configValidateCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.databaseDebugCommands">modules.commands.debugCommands.databaseDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.llmDebugCommand">modules.commands.debugCommands.llmDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.logsDebugCommand">modules.commands.debugCommands.logsDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.memoryDebugCommands">modules.commands.debugCommands.memoryDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.runtimeDebugCommand">modules.commands.debugCommands.runtimeDebugCommand</a>
- &#8226;   <a href="#modules.commands.helpCommand">modules.commands.helpCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyClearCommand">modules.commands.historyCommands.historyClearCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyShowCommand">modules.commands.historyCommands.historyShowCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryClearCommand">modules.commands.memoryCommands.memoryClearCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryExportCommand">modules.commands.memoryCommands.memoryExportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryGetCommand">modules.commands.memoryCommands.memoryGetCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryImportCommand">modules.commands.memoryCommands.memoryImportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryListCommand">modules.commands.memoryCommands.memoryListCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryRemoveCommand">modules.commands.memoryCommands.memoryRemoveCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySearchCommand">modules.commands.memoryCommands.memorySearchCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySetCommand">modules.commands.memoryCommands.memorySetCommand</a>
- &#8226;   <a href="#modules.commands.statusCommand">modules.commands.statusCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.modulesCommand">modules.commands.systemCommands.modulesCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.restartCommand">modules.commands.systemCommands.restartCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.shutdownCommand">modules.commands.systemCommands.shutdownCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.tasksCommand">modules.commands.systemCommands.tasksCommand</a>
- &#8226;   <a href="#modules.commands.versionCommand">modules.commands.versionCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.commandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/commandHandler.py" type="text/plain"><tt>modules.commands.commandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.commandRegistry"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/commandRegistry.py" type="text/plain"><tt>modules.commands.commandRegistry</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#modules.commands.commandHandler">modules.commands.commandHandler</a>
- &#8226;   <a href="#modules.commands.configCommands.configCommandHandler">modules.commands.configCommands.configCommandHandler</a>
- &#8226;   <a href="#modules.commands.configCommands.configGetCommand">modules.commands.configCommands.configGetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configReloadCommand">modules.commands.configCommands.configReloadCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configSetCommand">modules.commands.configCommands.configSetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configValidateCommand">modules.commands.configCommands.configValidateCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.databaseDebugCommands">modules.commands.debugCommands.databaseDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.debugCommandHandler">modules.commands.debugCommands.debugCommandHandler</a>
- &#8226;   <a href="#modules.commands.debugCommands.llmDebugCommand">modules.commands.debugCommands.llmDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.logsDebugCommand">modules.commands.debugCommands.logsDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.memoryDebugCommands">modules.commands.debugCommands.memoryDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.runtimeDebugCommand">modules.commands.debugCommands.runtimeDebugCommand</a>
- &#8226;   <a href="#modules.commands.helpCommand">modules.commands.helpCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyClearCommand">modules.commands.historyCommands.historyClearCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyCommandHandler">modules.commands.historyCommands.historyCommandHandler</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyShowCommand">modules.commands.historyCommands.historyShowCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryClearCommand">modules.commands.memoryCommands.memoryClearCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryCommandHandler">modules.commands.memoryCommands.memoryCommandHandler</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryExportCommand">modules.commands.memoryCommands.memoryExportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryGetCommand">modules.commands.memoryCommands.memoryGetCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryImportCommand">modules.commands.memoryCommands.memoryImportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryListCommand">modules.commands.memoryCommands.memoryListCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryRemoveCommand">modules.commands.memoryCommands.memoryRemoveCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySearchCommand">modules.commands.memoryCommands.memorySearchCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySetCommand">modules.commands.memoryCommands.memorySetCommand</a>
- &#8226;   <a href="#modules.commands.statusCommand">modules.commands.statusCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.modulesCommand">modules.commands.systemCommands.modulesCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.restartCommand">modules.commands.systemCommands.restartCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.shutdownCommand">modules.commands.systemCommands.shutdownCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.systemCommandHandler">modules.commands.systemCommands.systemCommandHandler</a>
- &#8226;   <a href="#modules.commands.systemCommands.tasksCommand">modules.commands.systemCommands.tasksCommand</a>
- &#8226;   <a href="#modules.commands.versionCommand">modules.commands.versionCommand</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/__init__.py" type="text/plain"><tt>modules.commands.configCommands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.configCommands.configCommandHandler">modules.commands.configCommands.configCommandHandler</a>
- &#8226;   <a href="#modules.commands.configCommands.configGetCommand">modules.commands.configCommands.configGetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configReloadCommand">modules.commands.configCommands.configReloadCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configSetCommand">modules.commands.configCommands.configSetCommand</a>
- &#8226;   <a href="#modules.commands.configCommands.configValidateCommand">modules.commands.configCommands.configValidateCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands.configCommandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/configCommandHandler.py" type="text/plain"><tt>modules.commands.configCommands.configCommandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands.configGetCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/configGetCommand.py" type="text/plain"><tt>modules.commands.configCommands.configGetCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands.configReloadCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/configReloadCommand.py" type="text/plain"><tt>modules.commands.configCommands.configReloadCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands.configSetCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/configSetCommand.py" type="text/plain"><tt>modules.commands.configCommands.configSetCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.configCommands.configValidateCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/configCommands/configValidateCommand.py" type="text/plain"><tt>modules.commands.configCommands.configValidateCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.configCommands">modules.commands.configCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/__init__.py" type="text/plain"><tt>modules.commands.debugCommands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.debugCommands.databaseDebugCommands">modules.commands.debugCommands.databaseDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.debugCommandHandler">modules.commands.debugCommands.debugCommandHandler</a>
- &#8226;   <a href="#modules.commands.debugCommands.llmDebugCommand">modules.commands.debugCommands.llmDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.logsDebugCommand">modules.commands.debugCommands.logsDebugCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands.memoryDebugCommands">modules.commands.debugCommands.memoryDebugCommands</a>
- &#8226;   <a href="#modules.commands.debugCommands.runtimeDebugCommand">modules.commands.debugCommands.runtimeDebugCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.databaseDebugCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/databaseDebugCommands.py" type="text/plain"><tt>modules.commands.debugCommands.databaseDebugCommands</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.debugCommandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/debugCommandHandler.py" type="text/plain"><tt>modules.commands.debugCommands.debugCommandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.llmDebugCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/llmDebugCommand.py" type="text/plain"><tt>modules.commands.debugCommands.llmDebugCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.logsDebugCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/logsDebugCommand.py" type="text/plain"><tt>modules.commands.debugCommands.logsDebugCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.memoryDebugCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/memoryDebugCommands.py" type="text/plain"><tt>modules.commands.debugCommands.memoryDebugCommands</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.debugCommands.runtimeDebugCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/debugCommands/runtimeDebugCommand.py" type="text/plain"><tt>modules.commands.debugCommands.runtimeDebugCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.debugCommands">modules.commands.debugCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.helpCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/helpCommand.py" type="text/plain"><tt>modules.commands.helpCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.historyCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/historyCommands/__init__.py" type="text/plain"><tt>modules.commands.historyCommands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.historyCommands.historyClearCommand">modules.commands.historyCommands.historyClearCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyCommandHandler">modules.commands.historyCommands.historyCommandHandler</a>
- &#8226;   <a href="#modules.commands.historyCommands.historyShowCommand">modules.commands.historyCommands.historyShowCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.historyCommands.historyClearCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/historyCommands/historyClearCommand.py" type="text/plain"><tt>modules.commands.historyCommands.historyClearCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands">modules.commands.historyCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.historyCommands.historyCommandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/historyCommands/historyCommandHandler.py" type="text/plain"><tt>modules.commands.historyCommands.historyCommandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.historyCommands">modules.commands.historyCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.historyCommands.historyShowCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/historyCommands/historyShowCommand.py" type="text/plain"><tt>modules.commands.historyCommands.historyShowCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.historyCommands">modules.commands.historyCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/__init__.py" type="text/plain"><tt>modules.commands.memoryCommands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.memoryCommands.memoryClearCommand">modules.commands.memoryCommands.memoryClearCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryCommandHandler">modules.commands.memoryCommands.memoryCommandHandler</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryExportCommand">modules.commands.memoryCommands.memoryExportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryGetCommand">modules.commands.memoryCommands.memoryGetCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryImportCommand">modules.commands.memoryCommands.memoryImportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryListCommand">modules.commands.memoryCommands.memoryListCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryRemoveCommand">modules.commands.memoryCommands.memoryRemoveCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySearchCommand">modules.commands.memoryCommands.memorySearchCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memorySetCommand">modules.commands.memoryCommands.memorySetCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryClearCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryClearCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryClearCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryCommandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryCommandHandler.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryCommandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryExportCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryExportCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryExportCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#json">json</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
- &#8226;   <a href="#pathlib">pathlib</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryGetCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryGetCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryGetCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryImportCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryImportCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryImportCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#json">json</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
- &#8226;   <a href="#pathlib">pathlib</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryListCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryListCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryListCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memoryRemoveCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memoryRemoveCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memoryRemoveCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memorySearchCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memorySearchCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memorySearchCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.memoryCommands.memorySetCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/memoryCommands/memorySetCommand.py" type="text/plain"><tt>modules.commands.memoryCommands.memorySetCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands">modules.commands.memoryCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.statusCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/statusCommand.py" type="text/plain"><tt>modules.commands.statusCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/__init__.py" type="text/plain"><tt>modules.commands.systemCommands</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.systemCommands.modulesCommand">modules.commands.systemCommands.modulesCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.restartCommand">modules.commands.systemCommands.restartCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.shutdownCommand">modules.commands.systemCommands.shutdownCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands.systemCommandHandler">modules.commands.systemCommands.systemCommandHandler</a>
- &#8226;   <a href="#modules.commands.systemCommands.tasksCommand">modules.commands.systemCommands.tasksCommand</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands.modulesCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/modulesCommand.py" type="text/plain"><tt>modules.commands.systemCommands.modulesCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands.restartCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/restartCommand.py" type="text/plain"><tt>modules.commands.systemCommands.restartCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands.shutdownCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/shutdownCommand.py" type="text/plain"><tt>modules.commands.systemCommands.shutdownCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands.systemCommandHandler"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/systemCommandHandler.py" type="text/plain"><tt>modules.commands.systemCommands.systemCommandHandler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.systemCommands.tasksCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/systemCommands/tasksCommand.py" type="text/plain"><tt>modules.commands.systemCommands.tasksCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#modules.commands.systemCommands">modules.commands.systemCommands</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.commands.versionCommand"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/commands/versionCommand.py" type="text/plain"><tt>modules.commands.versionCommand</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.commands">modules.commands</a>
- &#8226;   <a href="#modules.commands.baseCommand">modules.commands.baseCommand</a>
- &#8226;   <a href="#platform">platform</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.commands.commandRegistry">modules.commands.commandRegistry</a>
 
   </div>
 
@@ -11358,60 +10583,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.reminders"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/reminders/__init__.py" type="text/plain"><tt>modules.reminders</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#modules">modules</a>
- &#8226;   <a href="#modules.reminders.reminderCommands">modules.reminders.reminderCommands</a>
- &#8226;   <a href="#modules.reminders.reminders">modules.reminders.reminders</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
- &#8226;   <a href="#modules.reminders.reminderCommands">modules.reminders.reminderCommands</a>
- &#8226;   <a href="#modules.reminders.reminders">modules.reminders.reminders</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.reminders.reminderCommands"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/reminders/reminderCommands.py" type="text/plain"><tt>modules.reminders.reminderCommands</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#modules.reminders">modules.reminders</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.reminders">modules.reminders</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="modules.reminders.reminders"></a>
-  <a target="code" href="///C:/Users/brown/PycharmProjects/aura/modules/reminders/reminders.py" type="text/plain"><tt>modules.reminders.reminders</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#datetime">datetime</a>
- &#8226;   <a href="#modules.reminders">modules.reminders</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#modules.reminders">modules.reminders</a>
 
   </div>
 
@@ -13401,8 +12572,7 @@ imported by:
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
  &#8226;   <a href="#configparser">configparser</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
+ &#8226;   <a href="#core.runtime.logger">core.runtime.logger</a>
  &#8226;   <a href="#ctypes">ctypes</a>
  &#8226;   <a href="#distutils._msvccompiler">distutils._msvccompiler</a>
  &#8226;   <a href="#distutils.archive_util">distutils.archive_util</a>
@@ -14032,15 +13202,12 @@ imports:
   <div class="import">
 imported by:
     <a href="#config.configLoader">config.configLoader</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
+ &#8226;   <a href="#core.runtime.logger">core.runtime.logger</a>
  &#8226;   <a href="#importlib._common">importlib._common</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.resources">importlib.resources</a>
  &#8226;   <a href="#importlib_metadata">importlib_metadata</a>
  &#8226;   <a href="#importlib_metadata.compat.py311">importlib_metadata.compat.py311</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryExportCommand">modules.commands.memoryCommands.memoryExportCommand</a>
- &#8226;   <a href="#modules.commands.memoryCommands.memoryImportCommand">modules.commands.memoryCommands.memoryImportCommand</a>
  &#8226;   <a href="#setuptools._distutils.command.config">setuptools._distutils.command.config</a>
  &#8226;   <a href="#setuptools._distutils.compilers.C.base">setuptools._distutils.compilers.C.base</a>
  &#8226;   <a href="#setuptools._distutils.compilers.C.cygwin">setuptools._distutils.compilers.C.cygwin</a>
@@ -14155,7 +13322,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#importlib_metadata._compat">importlib_metadata._compat</a>
- &#8226;   <a href="#modules.commands.versionCommand">modules.commands.versionCommand</a>
  &#8226;   <a href="#mysql.connector.connection_cext">mysql.connector.connection_cext</a>
  &#8226;   <a href="#mysql.connector.utils">mysql.connector.utils</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
@@ -14722,8 +13888,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#modules.commands.debugCommands.llmDebugCommand">modules.commands.debugCommands.llmDebugCommand</a>
- &#8226;   <a href="#modules.llm.llmHandler">modules.llm.llmHandler</a>
+    <a href="#modules.llm.llmHandler">modules.llm.llmHandler</a>
  &#8226;   <a href="#modules.llm.memoryManager">modules.llm.memoryManager</a>
  &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#requests.__version__">requests.__version__</a>
@@ -19832,8 +18997,6 @@ imported by:
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#configparser">configparser</a>
  &#8226;   <a href="#contextlib">contextlib</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.runtime.logger">core.runtime.logger</a>
  &#8226;   <a href="#ctypes">ctypes</a>
  &#8226;   <a href="#ctypes._endian">ctypes._endian</a>
  &#8226;   <a href="#dataclasses">dataclasses</a>
@@ -20268,6 +19431,7 @@ imported by:
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.windows_events">asyncio.windows_events</a>
  &#8226;   <a href="#concurrent.futures._base">concurrent.futures._base</a>
+ &#8226;   <a href="#core.engine.engine">core.engine.engine</a>
  &#8226;   <a href="#core.threading.scheduler.schedule">core.threading.scheduler.schedule</a>
  &#8226;   <a href="#core.threading.scheduler.scheduler">core.threading.scheduler.scheduler</a>
  &#8226;   <a href="#datetime">datetime</a>
@@ -20280,8 +19444,6 @@ imported by:
  &#8226;   <a href="#http.cookies">http.cookies</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#modules.commands.commandHandler">modules.commands.commandHandler</a>
- &#8226;   <a href="#modules.commands.debugCommands.llmDebugCommand">modules.commands.debugCommands.llmDebugCommand</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#multiprocessing.managers">multiprocessing.managers</a>
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
@@ -20333,8 +19495,6 @@ imports:
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
 
@@ -20343,29 +19503,8 @@ imports:
 imported by:
     <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
  &#8226;   <a href="#core.interface.desktopInterface.windows.errorDialog">core.interface.desktopInterface.windows.errorDialog</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
- &#8226;   <a href="#tkinter.commondialog">tkinter.commondialog</a>
  &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
  &#8226;   <a href="#tkinter.scrolledtext">tkinter.scrolledtext</a>
- &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="tkinter.commondialog"></a>
-  <a target="code" href="///C:/Program%20Files/Python39/lib/tkinter/commondialog.py" type="text/plain"><tt>tkinter.commondialog</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#tkinter">tkinter</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#tkinter.messagebox">tkinter.messagebox</a>
 
   </div>
 
@@ -20389,27 +19528,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="tkinter.messagebox"></a>
-  <a target="code" href="///C:/Program%20Files/Python39/lib/tkinter/messagebox.py" type="text/plain"><tt>tkinter.messagebox</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.commondialog">tkinter.commondialog</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
- &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="tkinter.scrolledtext"></a>
   <a target="code" href="///C:/Program%20Files/Python39/lib/tkinter/scrolledtext.py" type="text/plain"><tt>tkinter.scrolledtext</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -20421,25 +19539,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#core.interface.desktopInterface.windows.auraWindowsApp">core.interface.desktopInterface.windows.auraWindowsApp</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="tkinter.simpledialog"></a>
-  <a target="code" href="///C:/Program%20Files/Python39/lib/tkinter/simpledialog.py" type="text/plain"><tt>tkinter.simpledialog</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
- &#8226;   <a href="#runAuraWindows.py">runAuraWindows.py</a>
- &#8226;   <a href="#tkinter">tkinter</a>
 
   </div>
 
@@ -20534,7 +19633,6 @@ imported by:
  &#8226;   <a href="#asyncio.format_helpers">asyncio.format_helpers</a>
  &#8226;   <a href="#cgi">cgi</a>
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.runAuraWindows">core.interface.desktopInterface.windows.runAuraWindows</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#multiprocessing.managers">multiprocessing.managers</a>
@@ -20626,7 +19724,6 @@ imported by:
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
  &#8226;   <a href="#contextlib">contextlib</a>
  &#8226;   <a href="#copy">copy</a>
- &#8226;   <a href="#core.interface.desktopInterface.windows.windowsRuntimeBootstrap">core.interface.desktopInterface.windows.windowsRuntimeBootstrap</a>
  &#8226;   <a href="#ctypes">ctypes</a>
  &#8226;   <a href="#dataclasses">dataclasses</a>
  &#8226;   <a href="#difflib">difflib</a>
@@ -20709,6 +19806,9 @@ imported by:
  &#8226;   <a href="#charset_normalizer.legacy">charset_normalizer.legacy</a>
  &#8226;   <a href="#charset_normalizer.models">charset_normalizer.models</a>
  &#8226;   <a href="#charset_normalizer.utils">charset_normalizer.utils</a>
+ &#8226;   <a href="#core.engine.engine">core.engine.engine</a>
+ &#8226;   <a href="#core.interface.io.inputManager">core.interface.io.inputManager</a>
+ &#8226;   <a href="#core.interface.io.outputManager">core.interface.io.outputManager</a>
  &#8226;   <a href="#core.threading.events.eventManager">core.threading.events.eventManager</a>
  &#8226;   <a href="#core.threading.events.events">core.threading.events.events</a>
  &#8226;   <a href="#core.threading.scheduler.schedule">core.threading.scheduler.schedule</a>

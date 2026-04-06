@@ -1,0 +1,9 @@
+[2026-03-26 17:47:19] [INFO] [Aura] logger.py has been initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Config] Configuration loaded from config.yml
+[2026-03-26 17:47:19] [INFO] [Aura.Threading] Initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Threadding.Events] Initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Threading.Tasks] Initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Threadding.Scheduler] Initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Database] MySQL initialized.
+[2026-03-26 17:47:19] [INFO] [Aura.Database] MySQL connected: 'root@localhost:3306/aura'.
+[2026-03-26 17:47:19] [INFO] [Aura.Database] Initializing database schema
