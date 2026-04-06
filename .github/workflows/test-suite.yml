@@ -1,0 +1,66 @@
+name: test-suite
+
+on:
+  push:
+    branches:
+      - master
+      - "interface/**"
+  pull_request:
+    branches:
+      - master
+      - "interface/**"
+  workflow_dispatch:
+
+jobs:
+  test-suite:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run build suite
+        run: python run_tests.py --suite build
+
+      - name: Run runtime smoke suite
+        run: python run_tests.py --suite runtime_smoke
+
+      - name: Run logger suite
+        run: python run_tests.py --suite logger
+
+      - name: Run datetime utils suite
+        run: python run_tests.py --suite datetime_utils
+
+      - name: Run notifications suite
+        run: python run_tests.py --suite notifications
+
+      - name: Run system suite
+        run: python run_tests.py --suite system
+
+      - name: Run short memory suite
+        run: python run_tests.py --suite short_memory
+
+      - name: Run long memory suite
+        run: python run_tests.py --suite long_memory
+
+      - name: Run calendar suite
+        run: python run_tests.py --suite calendar
+
+      - name: Run llm suite
+        run: python run_tests.py --suite llm
+
+      - name: Run reminders suite
+        run: python run_tests.py --suite reminders
+
+      - name: Run mysql integration suite
+        run: python run_tests.py --suite mysql_integration
