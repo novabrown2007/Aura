@@ -12,6 +12,7 @@ from modules.commands.debugCommands.debugCommandHandler import build_commands as
 from modules.commands.helpCommand import HelpCommand
 from modules.commands.historyCommands.historyCommandHandler import build_commands as build_history_commands
 from modules.commands.memoryCommands.memoryCommandHandler import build_commands as build_memory_commands
+from modules.commands.notificationCommands.notificationCommandHandler import build_commands as build_notification_commands
 from modules.commands.reminderCommands.reminderCommandHandler import build_commands as build_reminder_commands
 from modules.commands.statusCommand import StatusCommand
 from modules.commands.systemCommands.systemCommandHandler import build_commands as build_system_commands
@@ -43,6 +44,7 @@ class CommandHandler:
             *build_debug_commands(self.context),
             *build_history_commands(self.context),
             *build_memory_commands(self.context),
+            *build_notification_commands(self.context),
             *build_reminder_commands(self.context),
             *build_system_commands(self.context),
         ]

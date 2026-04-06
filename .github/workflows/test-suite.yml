@@ -47,6 +47,9 @@ jobs:
       - name: Run system suite
         run: python run_tests.py --suite system
 
+      - name: Run cli interface suite
+        run: python run_tests.py --suite cli_interface
+
       - name: Run short memory suite
         run: python run_tests.py --suite short_memory
 

@@ -292,6 +292,46 @@ class _NotificationsStub:
 
         return [dict(self.rows[0])]
 
+    def getNotification(self, notification_id):
+        """Return one notification row by ID."""
+
+        for row in self.rows:
+            if row["id"] == notification_id:
+                return dict(row)
+        return None
+
+    def sendNotification(self, notification_id):
+        """Mark one notification as delivered and return it."""
+
+        for row in self.rows:
+            if row["id"] == notification_id:
+                row["status"] = "delivered"
+                return dict(row)
+        return None
+
+    def markRead(self, notification_id):
+        """Mark one notification as read."""
+
+        for row in self.rows:
+            if row["id"] == notification_id:
+                row["status"] = "read"
+                return None
+        return None
+
+    def dismissNotification(self, notification_id):
+        """Mark one notification as dismissed."""
+
+        for row in self.rows:
+            if row["id"] == notification_id:
+                row["status"] = "dismissed"
+                return None
+        return None
+
+    def deleteNotification(self, notification_id):
+        """Delete one notification by ID."""
+
+        self.rows = [row for row in self.rows if row["id"] != notification_id]
+
 
 class _ThreadStub:
     """Simple thread object used by threading debug tests."""
@@ -511,6 +551,35 @@ class CliCommandTests(unittest.TestCase):
         delete_result = context.commandHandler.handle("/reminder delete id=1")
         self.assertTrue(delete_result.success)
         self.assertEqual(context.reminders.rows, [])
+
+    def test_command_handler_manages_notifications(self):
+        """Notification commands should expose operational notification actions."""
+
+        context = self._build_context()
+
+        list_result = context.commandHandler.handle("/notification list")
+        self.assertTrue(list_result.success)
+        self.assertIn("Test notification", list_result.message)
+
+        get_result = context.commandHandler.handle("/notification get id=1")
+        self.assertTrue(get_result.success)
+        self.assertIn("\"id\": 1", get_result.message)
+
+        send_result = context.commandHandler.handle("/notification send id=1")
+        self.assertTrue(send_result.success)
+        self.assertEqual(context.notifications.rows[0]["status"], "delivered")
+
+        read_result = context.commandHandler.handle("/notification read id=1")
+        self.assertTrue(read_result.success)
+        self.assertEqual(context.notifications.rows[0]["status"], "read")
+
+        dismiss_result = context.commandHandler.handle("/notification dismiss id=1")
+        self.assertTrue(dismiss_result.success)
+        self.assertEqual(context.notifications.rows[0]["status"], "dismissed")
+
+        delete_result = context.commandHandler.handle("/notification delete id=1")
+        self.assertTrue(delete_result.success)
+        self.assertEqual(context.notifications.rows, [])
 
     def test_command_handler_exposes_low_level_module_debug_views(self):
         """Debug commands should expose calendar, reminders, notifications, and threading state."""

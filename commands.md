@@ -221,6 +221,62 @@ These commands manage Aura's shared reminder store, not the calendar reminder su
 
 ---
 
+## Notification commands
+
+These commands manage queued notifications in Aura's notification store.
+
+### `/notification list [status=...] [limit=...]`
+**Purpose:** List notifications, optionally filtered by status and limit.
+
+**Usage:**
+```text
+/notification list
+/notification list status=pending
+/notification list status=delivered limit=5
+```
+
+### `/notification get id=1`
+**Purpose:** Fetch one notification by ID.
+
+**Usage:**
+```text
+/notification get id=1
+```
+
+### `/notification send id=1`
+**Purpose:** Deliver one queued notification immediately.
+
+**Usage:**
+```text
+/notification send id=1
+```
+
+### `/notification read id=1`
+**Purpose:** Mark one notification as read.
+
+**Usage:**
+```text
+/notification read id=1
+```
+
+### `/notification dismiss id=1`
+**Purpose:** Mark one notification as dismissed.
+
+**Usage:**
+```text
+/notification dismiss id=1
+```
+
+### `/notification delete id=1`
+**Purpose:** Delete one notification by ID.
+
+**Usage:**
+```text
+/notification delete id=1
+```
+
+---
+
 ## System commands
 
 ### `/system modules`
