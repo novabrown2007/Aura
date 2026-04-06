@@ -1,0 +1,64 @@
+name: BuildTest
+
+on:
+  push:
+    branches:
+      - master
+      - "interface/**"
+  pull_request:
+    branches:
+      - master
+      - "interface/**"
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Detect build strategy
+        id: build-strategy
+        shell: bash
+        run: |
+          if [ -f "./gradlew" ]; then
+            echo "mode=wrapper" >> "$GITHUB_OUTPUT"
+          elif find . -name "build.gradle" -o -name "build.gradle.kts" | grep -q .; then
+            echo "mode=gradle" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=python-compile" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build with Gradle Wrapper
+        if: steps.build-strategy.outputs.mode == 'wrapper'
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build
+
+      - name: Build with Gradle
+        if: steps.build-strategy.outputs.mode == 'gradle'
+        run: gradle build
+
+      - name: Run compile validation
+        if: steps.build-strategy.outputs.mode == 'python-compile'
+        run: |
+          python run_tests.py --suite build
