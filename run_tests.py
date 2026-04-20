@@ -11,6 +11,7 @@ SUITES = {
     "logger": "tests.test_logger",
     "datetime_utils": "tests.test_datetime_utils",
     "notifications": "tests.test_notifications",
+    "database_factory": "tests.test_database_factory",
     "system": "tests.test_system",
     "windows_interface": "tests.test_windows_interface",
     "short_memory": "tests.test_conversation_history",

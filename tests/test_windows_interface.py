@@ -215,6 +215,20 @@ class _FakeEngine:
         self.context = context
 
 
+class _FakeFallbackDatabase:
+    """Fallback database stub used by bootstrap tests."""
+
+    def __init__(self):
+        """Initialize fallback lifecycle state."""
+
+        self.closed = False
+
+    def close(self):
+        """Record database shutdown."""
+
+        self.closed = True
+
+
 class _FakeWidget:
     """Base widget stub that records configuration and geometry calls."""
 
@@ -491,14 +505,28 @@ class _FakeCalendar:
         """Initialize calendar rows and call tracking."""
 
         self.created = []
+        self.created_tasks = []
+        self.created_reminders = []
+        self.created_calendars = []
+        self.updated_events = []
+        self.deleted_events = []
+        self.updated_tasks = []
+        self.deleted_tasks = []
+        self.updated_reminders = []
+        self.deleted_reminders = []
+        self.conflict_checks = []
+        self.series_updates = []
+        self.series_deletes = []
+        self.occurrence_updates = []
+        self.occurrence_cancels = []
         self.loaded_days = []
         self.loaded_weeks = []
         self.loaded_months = []
 
-    def buildDayView(self, day):
+    def buildDayView(self, day, calendar_id=None):
         """Return a deterministic day view."""
 
-        self.loaded_days.append(day)
+        self.loaded_days.append((day, calendar_id))
         return {
             "day": day,
             "events": [
@@ -530,10 +558,10 @@ class _FakeCalendar:
             ],
         }
 
-    def buildWeekView(self, day):
+    def buildWeekView(self, day, calendar_id=None):
         """Return a deterministic week view."""
 
-        self.loaded_weeks.append(day)
+        self.loaded_weeks.append((day, calendar_id))
         return {
             "week_start": "2026-03-23",
             "week_end": "2026-03-29",
@@ -548,10 +576,10 @@ class _FakeCalendar:
             "reminders": [],
         }
 
-    def buildMonthView(self, day):
+    def buildMonthView(self, day, calendar_id=None):
         """Return a deterministic month view."""
 
-        self.loaded_months.append(day)
+        self.loaded_months.append((day, calendar_id))
         month = day[:7]
         return {
             "month": month,
@@ -566,19 +594,155 @@ class _FakeCalendar:
             "reminders": [],
         }
 
-    def createEvent(self, title, start_at, end_at=None, description=None, location=None):
+    def createEvent(self, title, start_at, end_at=None, description=None, location=None, **fields):
         """Record one event creation request."""
 
-        self.created.append(
-            {
-                "title": title,
-                "start_at": start_at,
-                "end_at": end_at,
-                "description": description,
-                "location": location,
-            }
-        )
+        event = {
+            "title": title,
+            "start_at": start_at,
+            "end_at": end_at,
+            "description": description,
+            "location": location,
+        }
+        event.update(fields)
+        self.created.append(event)
         return len(self.created)
+
+    def updateEvent(self, event_id, **fields):
+        """Record an event update request."""
+
+        self.updated_events.append((event_id, fields))
+
+    def deleteEvent(self, event_id):
+        """Record an event delete request."""
+
+        self.deleted_events.append(event_id)
+
+    def searchEvents(self, **kwargs):
+        """Return matching event rows for search tests."""
+
+        return self.buildDayView("2026-03-24")["events"]
+
+    def detectConflicts(self, **kwargs):
+        """Record a conflict check and return one row."""
+
+        self.conflict_checks.append(kwargs)
+        return self.buildDayView("2026-03-24")["events"]
+
+    def createTask(self, **fields):
+        """Record a task creation request."""
+
+        self.created_tasks.append(fields)
+        return len(self.created_tasks)
+
+    def updateTask(self, task_id, **fields):
+        """Record a task update request."""
+
+        self.updated_tasks.append((task_id, fields))
+
+    def deleteTask(self, task_id):
+        """Record a task delete request."""
+
+        self.deleted_tasks.append(task_id)
+
+    def searchTasks(self, **kwargs):
+        """Return matching task rows for search tests."""
+
+        return self.buildDayView("2026-03-24")["tasks"]
+
+    def createReminder(self, **fields):
+        """Record a calendar reminder creation request."""
+
+        self.created_reminders.append(fields)
+        return len(self.created_reminders)
+
+    def updateReminder(self, reminder_id, **fields):
+        """Record a calendar reminder update request."""
+
+        self.updated_reminders.append((reminder_id, fields))
+
+    def deleteReminder(self, reminder_id):
+        """Record a calendar reminder delete request."""
+
+        self.deleted_reminders.append(reminder_id)
+
+    def searchReminders(self, **kwargs):
+        """Return matching reminder rows for search tests."""
+
+        return self.buildDayView("2026-03-24")["reminders"]
+
+    def createCalendar(self, **fields):
+        """Record a calendar creation request."""
+
+        self.created_calendars.append(fields)
+
+    def listCalendars(self):
+        """Return deterministic calendars."""
+
+        return [
+            {"id": 1, "name": "Aura", "timezone": "UTC", "description": "Default"},
+            {"id": 2, "name": "Work", "timezone": "America/Toronto", "description": "Work calendar"},
+        ]
+
+    def updateOccurrence(self, event_id, occurrence_start, **fields):
+        """Record an event occurrence update."""
+
+        self.occurrence_updates.append(("event", event_id, occurrence_start, fields))
+
+    def cancelOccurrence(self, event_id, occurrence_start):
+        """Record an event occurrence cancellation."""
+
+        self.occurrence_cancels.append(("event", event_id, occurrence_start))
+
+    def updateEventSeries(self, event_id, scope="all", occurrence_start=None, **fields):
+        """Record an event series update."""
+
+        self.series_updates.append(("event", event_id, scope, occurrence_start, fields))
+
+    def deleteEventSeries(self, event_id, scope="all", occurrence_start=None):
+        """Record an event series delete."""
+
+        self.series_deletes.append(("event", event_id, scope, occurrence_start))
+
+    def updateTaskOccurrence(self, task_id, occurrence_due_at, **fields):
+        """Record a task occurrence update."""
+
+        self.occurrence_updates.append(("task", task_id, occurrence_due_at, fields))
+
+    def cancelTaskOccurrence(self, task_id, occurrence_due_at):
+        """Record a task occurrence cancellation."""
+
+        self.occurrence_cancels.append(("task", task_id, occurrence_due_at))
+
+    def updateTaskSeries(self, task_id, scope="all", occurrence_due_at=None, **fields):
+        """Record a task series update."""
+
+        self.series_updates.append(("task", task_id, scope, occurrence_due_at, fields))
+
+    def deleteTaskSeries(self, task_id, scope="all", occurrence_due_at=None):
+        """Record a task series delete."""
+
+        self.series_deletes.append(("task", task_id, scope, occurrence_due_at))
+
+    def updateReminderOccurrence(self, reminder_id, occurrence_remind_at, **fields):
+        """Record a reminder occurrence update."""
+
+        self.occurrence_updates.append(("reminder", reminder_id, occurrence_remind_at, fields))
+
+    def cancelReminderOccurrence(self, reminder_id, occurrence_remind_at):
+        """Record a reminder occurrence cancellation."""
+
+        self.occurrence_cancels.append(("reminder", reminder_id, occurrence_remind_at))
+
+    def updateReminderSeries(self, reminder_id, scope="all", occurrence_remind_at=None, **fields):
+        """Record a reminder series update."""
+
+        self.series_updates.append(("reminder", reminder_id, scope, occurrence_remind_at, fields))
+
+    def deleteReminderSeries(self, reminder_id, scope="all", occurrence_remind_at=None):
+        """Record a reminder series delete."""
+
+        self.series_deletes.append(("reminder", reminder_id, scope, occurrence_remind_at))
 
 
 class WindowsRuntimeBootstrapTests(unittest.TestCase):
@@ -593,14 +757,14 @@ class WindowsRuntimeBootstrapTests(unittest.TestCase):
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.LLMHandler", _FakeLLMHandler)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ConversationHistory", _FakeConversationHistory)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.MemoryManager", _FakeMemoryManager)
-    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.MySQLDatabase", _FakeDatabase)
+    @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.createDatabaseWithFallback")
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.Scheduler", _FakeScheduler)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.TaskManager", _FakeTaskManager)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.EventManager", _FakeEventManager)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ThreadingManager", _FakeThreadingManager)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.ConfigLoader", _FakeConfigLoader)
     @patch("core.interface.desktopInterface.windows.windowsRuntimeBootstrap.AuraLogger", _FakeChildLogger)
-    def test_create_runtime_context_and_lifecycle(self):
+    def test_create_runtime_context_and_lifecycle(self, create_database):
         """Bootstrap should initialize core services and clean them up on shutdown."""
 
         from core.interface.desktopInterface.windows.windowsRuntimeBootstrap import (
@@ -609,10 +773,12 @@ class WindowsRuntimeBootstrapTests(unittest.TestCase):
             startup,
         )
 
+        database = _FakeFallbackDatabase()
+        create_database.return_value = database
         context = createRuntimeContext()
 
-        self.assertTrue(context.database.connected)
-        self.assertTrue(context.database.initialized)
+        create_database.assert_called_once_with(context)
+        self.assertIs(context.database, database)
         self.assertIsNotNone(context.engine)
         self.assertFalse(context.should_exit)
 
@@ -842,8 +1008,8 @@ class AuraWindowsAppTests(unittest.TestCase):
 
         self.assertEqual(app.activePage, "calendar")
         self.assertEqual(app.activeCalendarView, "day")
-        self.assertEqual(context.calendar.loaded_days[-1], "2026-03-24")
-        self.assertEqual(len(app.renderedCalendarItems), 6)
+        self.assertEqual(context.calendar.loaded_days[-1], ("2026-03-24", None))
+        self.assertEqual(app.renderedCalendarItems[0]["row"], {"surface": "day"})
         self.assertIn("1 events, 1 tasks, 1 reminders", app.calendarSummaryLabel.text)
         self.assertEqual(app.calendarViewButtons["day"].kwargs["bg"], "#3ea6ff")
 
@@ -858,13 +1024,13 @@ class AuraWindowsAppTests(unittest.TestCase):
 
         app._setCalendarView("week")
         self.assertEqual(app.activeCalendarView, "week")
-        self.assertEqual(context.calendar.loaded_weeks[-1], "2026-03-24")
+        self.assertEqual(context.calendar.loaded_weeks[-1], ("2026-03-24", None))
         app._showNextCalendarRange()
         self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-03-31")
-        self.assertEqual(context.calendar.loaded_weeks[-1], "2026-03-31")
+        self.assertEqual(context.calendar.loaded_weeks[-1], ("2026-03-31", None))
 
         app._setCalendarView("month")
-        self.assertEqual(context.calendar.loaded_months[-1], "2026-03-31")
+        self.assertEqual(context.calendar.loaded_months[-1], ("2026-03-31", None))
         app._showPreviousCalendarRange()
         self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-02-28")
 
@@ -873,6 +1039,57 @@ class AuraWindowsAppTests(unittest.TestCase):
         app._refreshCalendarView()
         self.assertEqual(len(context.calendar.loaded_months), loaded_before + 12)
         self.assertEqual(app.calendarViewButtons["year"].kwargs["bg"], "#3ea6ff")
+
+    def test_calendar_view_switch_exits_search_mode_immediately(self):
+        """View buttons should render the requested view even after search results."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app.calendarToolEntries["query"].value = "roadmap"
+        app._searchCalendarFromTools()
+
+        self.assertTrue(app.calendarSearchActive)
+
+        app._setCalendarView("month")
+
+        self.assertFalse(app.calendarSearchActive)
+        self.assertEqual(app.activeCalendarView, "month")
+        self.assertEqual(app.calendarViewButtons["month"].kwargs["bg"], "#3ea6ff")
+        self.assertEqual(app.renderedCalendarItems[0]["row"], {"surface": "month"})
+
+    def test_calendar_year_month_click_opens_month_view(self):
+        """Selecting a month from year view should open that month."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app._setCalendarView("year")
+        app._showCalendarMonthFromYear("2026-07")
+
+        self.assertEqual(app.activeCalendarView, "month")
+        self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-07-01")
+        self.assertEqual(app.calendarDayEntry.value, "2026-07-01")
+        self.assertEqual(app.calendarViewButtons["month"].kwargs["bg"], "#3ea6ff")
+        self.assertEqual(app.renderedCalendarItems[0]["row"], {"surface": "month"})
+
+    def test_calendar_month_day_click_opens_day_view(self):
+        """Selecting a day from month view should open that day."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app._setCalendarView("month")
+        app._showCalendarDayFromMonth(app._parseCalendarDate("2026-07-14"))
+
+        self.assertEqual(app.activeCalendarView, "day")
+        self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-07-14")
+        self.assertEqual(app.calendarDayEntry.value, "2026-07-14")
+        self.assertEqual(app.calendarViewButtons["day"].kwargs["bg"], "#3ea6ff")
+        self.assertEqual(app.renderedCalendarItems[0]["row"], {"surface": "day"})
 
     def test_calendar_event_composer_creates_event_and_refreshes_view(self):
         """Calendar event composer should create an event through the calendar backend."""
@@ -911,6 +1128,86 @@ class AuraWindowsAppTests(unittest.TestCase):
         )
         self.assertFalse(app.calendarEventComposerVisible)
         self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-03-25")
+
+    def test_calendar_tools_cover_search_crud_conflicts_and_recurrence_actions(self):
+        """Calendar tools should expose backend calendar management workflows."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        entries = app.calendarToolEntries
+
+        entries["title"].value = "Roadmap"
+        entries["date"].value = "2026-03-24"
+        entries["start"].value = "09:00"
+        entries["end"].value = "10:00"
+        entries["location"].value = "Room 4"
+        entries["attendees"].value = "alice@example.com,bob@example.com"
+        entries["recurrence_type"].value = "weekly"
+        entries["recurrence_interval"].value = "1"
+        entries["organizer"].value = "nova@example.com"
+        entries["visibility"].value = "private"
+        entries["all_day"].value = "false"
+        entries["notification_preferences"].value = '{"minutes_before":[30]}'
+
+        app._createCalendarEventFromTools()
+        self.assertEqual(context.calendar.created[-1]["title"], "Roadmap")
+        self.assertEqual(context.calendar.created[-1]["attendees"], ["alice@example.com", "bob@example.com"])
+        self.assertEqual(context.calendar.created[-1]["recurrence_type"], "weekly")
+        self.assertEqual(context.calendar.created[-1]["organizer"], "nova@example.com")
+        self.assertEqual(context.calendar.created[-1]["notification_preferences"], {"minutes_before": [30]})
+
+        entries["item_id"].value = "7"
+        entries["title"].value = "Roadmap moved"
+        app._updateCalendarEventFromTools()
+        self.assertEqual(context.calendar.updated_events[-1][0], 7)
+        self.assertEqual(context.calendar.updated_events[-1][1]["title"], "Roadmap moved")
+
+        app._deleteCalendarEventFromTools()
+        self.assertEqual(context.calendar.deleted_events[-1], 7)
+
+        entries["query"].value = "roadmap"
+        app._searchCalendarFromTools()
+        self.assertTrue(app.calendarSearchActive)
+        self.assertIn("Search", app.calendarSummaryLabel.text)
+
+        app._checkCalendarConflictsFromTools()
+        self.assertTrue(context.calendar.conflict_checks)
+
+        entries["priority"].value = "task"
+        entries["item_id"].value = "3"
+        entries["occurrence"].value = "2026-03-31 09:00"
+        entries["scope"].value = "following"
+        app._updateCalendarOccurrenceFromTools()
+        self.assertEqual(context.calendar.occurrence_updates[-1][0], "task")
+
+        app._cancelCalendarOccurrenceFromTools()
+        self.assertEqual(context.calendar.occurrence_cancels[-1][0], "task")
+
+        app._updateCalendarSeriesFromTools()
+        self.assertEqual(context.calendar.series_updates[-1][0], "task")
+
+        app._deleteCalendarSeriesFromTools()
+        self.assertEqual(context.calendar.series_deletes[-1][0], "task")
+
+        entries["priority"].value = "normal"
+        entries["title"].value = "Follow up"
+        app._createCalendarTaskFromTools()
+        self.assertEqual(context.calendar.created_tasks[-1]["title"], "Follow up")
+
+        entries["title"].value = "Hydrate"
+        entries["start"].value = "11:00"
+        app._createCalendarReminderFromTools()
+        self.assertEqual(context.calendar.created_reminders[-1]["title"], "Hydrate")
+
+        entries["title"].value = "Work"
+        app._createCalendarFromTools()
+        self.assertEqual(context.calendar.created_calendars[-1]["name"], "Work")
+
+        entries["calendar_id"].value = "2"
+        app._selectCalendarFromTools()
+        self.assertEqual(app.selectedCalendarId, 2)
 
     def test_processing_error_shows_popup(self):
         """Worker failures should display an error popup and reset busy state."""

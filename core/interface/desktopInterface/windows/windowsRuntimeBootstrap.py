@@ -13,7 +13,7 @@ from core.threading.events.eventManager import EventManager
 from core.threading.scheduler.scheduler import Scheduler
 from core.threading.tasks.taskManager import TaskManager
 from core.threading.threadingManager import ThreadingManager
-from modules.database.mysql.mysqlDatabase import MySQLDatabase
+from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.llm.conversationHistory import ConversationHistory
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.memoryManager import MemoryManager
@@ -34,9 +34,7 @@ def createRuntimeContext() -> RuntimeContext:
     context.taskManager = TaskManager(context)
     context.scheduler = Scheduler(context)
 
-    context.database = MySQLDatabase(context)
-    context.database.connect()
-    context.database.initialize()
+    context.database = createDatabaseWithFallback(context)
 
     context.memoryManager = MemoryManager(context)
     context.conversationHistory = ConversationHistory(context)

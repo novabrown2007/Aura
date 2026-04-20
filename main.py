@@ -37,7 +37,7 @@ from core.router.interpreter import Interpreter
 from core.interface.io.inputManager import InputManager
 from core.interface.io.outputManager import OutputManager
 
-from modules.database.mysql.mysqlDatabase import MySQLDatabase
+from modules.database.databaseFactory import createDatabaseWithFallback
 
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
@@ -112,9 +112,7 @@ def buildRuntimeContext():
     context.scheduler = Scheduler(context)
 
     # Database
-    context.database = MySQLDatabase(context)
-    context.database.connect()
-    context.database.initialize()
+    context.database = createDatabaseWithFallback(context)
 
     # LLM
     context.memoryManager = MemoryManager(context)
