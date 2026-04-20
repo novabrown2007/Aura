@@ -1,0 +1,34 @@
+[2026-04-20 15:20:34] [INFO] [Aura] logger.py has been initialized.
+[2026-04-20 15:20:34] [INFO] [Aura.Config] Configuration loaded from config.yml
+[2026-04-20 15:20:34] [INFO] [Aura.Threading] Initialized.
+[2026-04-20 15:20:34] [INFO] [Aura.Threadding.Events] Initialized.
+[2026-04-20 15:20:34] [INFO] [Aura.Threading.Tasks] Initialized.
+[2026-04-20 15:20:34] [INFO] [Aura.Threadding.Scheduler] Initialized.
+[2026-04-20 15:20:34] [INFO] [Aura.Database] MySQL initialized.
+[2026-04-20 15:20:34] [ERROR] [Aura.DatabaseFactory] MySQL unavailable; falling back to SQLite: 1045 (28000): Access denied for user 'aura'@'localhost' (using password: YES)
+[2026-04-20 15:20:34] [INFO] [Aura.SQLiteDatabase] SQLite connected: 'aura.sqlite3'.
+[2026-04-20 15:20:34] [INFO] [Aura.SQLiteDatabase] Initializing SQLite schema.
+[2026-04-20 15:20:35] [INFO] [Aura.LLM.Memory] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.LLM.ConversationHistory] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.LLM] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.Interpreter] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.Router] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.Input] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.Output] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Loading modules.
+[2026-04-20 15:20:35] [INFO] [Aura.Calendar] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Loaded module: calendar
+[2026-04-20 15:20:35] [INFO] [Aura.Notifications] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Loaded module: notifications
+[2026-04-20 15:20:35] [INFO] [Aura.Reminders] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Loaded module: reminders
+[2026-04-20 15:20:35] [INFO] [Aura.System] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.ModuleLoader] Loaded module: system
+[2026-04-20 15:20:35] [INFO] [Aura.Engine] Initialized.
+[2026-04-20 15:20:35] [INFO] [Aura.WindowsRuntime] Starting Aura Windows runtime.
+[2026-04-20 15:20:35] [INFO] [Aura.Threadding.Scheduler] Scheduler started.
+[2026-04-20 15:20:35] [INFO] [Aura.WindowsApp] AuraWindowsApp initialized.
+[2026-04-20 15:24:47] [INFO] [Aura.WindowsRuntime] Stopping Aura Windows runtime.
+[2026-04-20 15:24:47] [INFO] [Aura.Threadding.Scheduler] Scheduler stopped.
+[2026-04-20 15:24:47] [INFO] [Aura.SQLiteDatabase] SQLite connection closed.
