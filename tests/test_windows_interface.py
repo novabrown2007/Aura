@@ -484,6 +484,103 @@ class _FakeReminders:
         return reminder_id
 
 
+class _FakeCalendar:
+    """Calendar service stub used by Windows UI tests."""
+
+    def __init__(self):
+        """Initialize calendar rows and call tracking."""
+
+        self.created = []
+        self.loaded_days = []
+        self.loaded_weeks = []
+        self.loaded_months = []
+
+    def buildDayView(self, day):
+        """Return a deterministic day view."""
+
+        self.loaded_days.append(day)
+        return {
+            "day": day,
+            "events": [
+                {
+                    "id": 1,
+                    "title": "Team sync",
+                    "description": "Roadmap",
+                    "location": "Room 4",
+                    "start_at": f"{day} 09:00:00",
+                    "end_at": f"{day} 10:00:00",
+                }
+            ],
+            "tasks": [
+                {
+                    "id": 1,
+                    "title": "Call bank",
+                    "description": "Ask about card",
+                    "due_at": f"{day} 15:00:00",
+                    "priority": "normal",
+                }
+            ],
+            "reminders": [
+                {
+                    "id": 1,
+                    "title": "Prep notes",
+                    "notes": "Print agenda",
+                    "remind_at": f"{day} 08:30:00",
+                }
+            ],
+        }
+
+    def buildWeekView(self, day):
+        """Return a deterministic week view."""
+
+        self.loaded_weeks.append(day)
+        return {
+            "week_start": "2026-03-23",
+            "week_end": "2026-03-29",
+            "events": [
+                {
+                    "id": 2,
+                    "title": "Weekly review",
+                    "start_at": "2026-03-27 11:00:00",
+                }
+            ],
+            "tasks": [],
+            "reminders": [],
+        }
+
+    def buildMonthView(self, day):
+        """Return a deterministic month view."""
+
+        self.loaded_months.append(day)
+        month = day[:7]
+        return {
+            "month": month,
+            "events": [
+                {
+                    "id": len(self.loaded_months),
+                    "title": f"{month} planning",
+                    "start_at": f"{month}-01 09:00:00",
+                }
+            ],
+            "tasks": [],
+            "reminders": [],
+        }
+
+    def createEvent(self, title, start_at, end_at=None, description=None, location=None):
+        """Record one event creation request."""
+
+        self.created.append(
+            {
+                "title": title,
+                "start_at": start_at,
+                "end_at": end_at,
+                "description": description,
+                "location": location,
+            }
+        )
+        return len(self.created)
+
+
 class WindowsRuntimeBootstrapTests(unittest.TestCase):
     """Test the lifecycle helpers used by the Windows bootstrap layer."""
 
@@ -571,6 +668,7 @@ class AuraWindowsAppTests(unittest.TestCase):
         context.inputManager = SimpleNamespace()
         context.notifications = _FakeNotifications()
         context.reminders = _FakeReminders()
+        context.calendar = _FakeCalendar()
         context.should_exit = False
         return context
 
@@ -731,6 +829,88 @@ class AuraWindowsAppTests(unittest.TestCase):
         self.assertFalse(app.reminderComposerVisible)
         self.assertEqual(len(app.renderedReminderItems), 3)
         self.assertEqual(app.renderedReminderItems[-1]["row"]["title"], "Pick up package")
+
+    def test_calendar_day_view_renders_events_tasks_and_reminders(self):
+        """Calendar page should render the selected day agenda."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app.selectedCalendarDay = app._parseCalendarDate("2026-03-24")
+        app._showCalendarPage()
+
+        self.assertEqual(app.activePage, "calendar")
+        self.assertEqual(app.activeCalendarView, "day")
+        self.assertEqual(context.calendar.loaded_days[-1], "2026-03-24")
+        self.assertEqual(len(app.renderedCalendarItems), 6)
+        self.assertIn("1 events, 1 tasks, 1 reminders", app.calendarSummaryLabel.text)
+        self.assertEqual(app.calendarViewButtons["day"].kwargs["bg"], "#3ea6ff")
+
+    def test_calendar_navigation_switches_between_day_week_month_and_year(self):
+        """Calendar controls should make the four primary views easy to move between."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app.selectedCalendarDay = app._parseCalendarDate("2026-03-24")
+
+        app._setCalendarView("week")
+        self.assertEqual(app.activeCalendarView, "week")
+        self.assertEqual(context.calendar.loaded_weeks[-1], "2026-03-24")
+        app._showNextCalendarRange()
+        self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-03-31")
+        self.assertEqual(context.calendar.loaded_weeks[-1], "2026-03-31")
+
+        app._setCalendarView("month")
+        self.assertEqual(context.calendar.loaded_months[-1], "2026-03-31")
+        app._showPreviousCalendarRange()
+        self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-02-28")
+
+        app._setCalendarView("year")
+        loaded_before = len(context.calendar.loaded_months)
+        app._refreshCalendarView()
+        self.assertEqual(len(context.calendar.loaded_months), loaded_before + 12)
+        self.assertEqual(app.calendarViewButtons["year"].kwargs["bg"], "#3ea6ff")
+
+    def test_calendar_event_composer_creates_event_and_refreshes_view(self):
+        """Calendar event composer should create an event through the calendar backend."""
+
+        context = self._build_context()
+        context.inputManager.submit = lambda *args, **kwargs: {"response": "ok"}
+
+        app = self._create_app(context)
+        app.selectedCalendarDay = app._parseCalendarDate("2026-03-24")
+
+        self.assertFalse(app.calendarEventComposerVisible)
+        app._toggleCalendarEventComposer()
+        self.assertTrue(app.calendarEventComposerVisible)
+        self.assertEqual(app.calendarEventDateEntry.value, "2026-03-24")
+
+        app.calendarEventTitleEntry.value = "Design review"
+        app.calendarEventDescriptionEntry.value = "Review calendar UI"
+        app.calendarEventDateEntry.value = "2026-03-25"
+        app.calendarEventStartEntry.value = "14:00"
+        app.calendarEventEndEntry.value = "15:00"
+        app.calendarEventLocationEntry.value = "Studio"
+
+        app._createCalendarEventFromComposer()
+
+        self.assertEqual(
+            context.calendar.created,
+            [
+                {
+                    "title": "Design review",
+                    "start_at": "2026-03-25 14:00",
+                    "end_at": "2026-03-25 15:00",
+                    "description": "Review calendar UI",
+                    "location": "Studio",
+                }
+            ],
+        )
+        self.assertFalse(app.calendarEventComposerVisible)
+        self.assertEqual(app.selectedCalendarDay.isoformat(), "2026-03-25")
 
     def test_processing_error_shows_popup(self):
         """Worker failures should display an error popup and reset busy state."""

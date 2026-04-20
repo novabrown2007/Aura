@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import calendar as month_calendar
+from datetime import date, datetime, timedelta
 from queue import Empty, Queue
 from threading import Thread
 from tkinter import BOTH, DISABLED, END, LEFT, NORMAL, TOP, X, Button, Entry, Frame, Label, TclError, Tk
@@ -40,8 +42,11 @@ class AuraWindowsApp:
         self.notificationsVisible = False
         self.reminderComposerVisible = False
         self.activePage = "chat"
+        self.activeCalendarView = "day"
+        self.selectedCalendarDay = date.today()
         self.renderedNotificationItems = []
         self.renderedReminderItems = []
+        self.renderedCalendarItems = []
 
         self.root = Tk()
         self.root.title("Aura")
@@ -168,13 +173,10 @@ class AuraWindowsApp:
 
         self._buildChatPage()
         self._buildRemindersPage()
-        self._buildPlaceholderPage(
-            self.calendarPage,
-            "Calendar",
-            "This branch does not implement calendar UI yet.",
-        )
+        self._buildCalendarPage()
         self._buildNotificationsOverlay()
         self._buildReminderComposerOverlay()
+        self._buildCalendarEventComposerOverlay()
         self._showPage("chat")
 
     def _buildChatPage(self):
@@ -331,6 +333,174 @@ class AuraWindowsApp:
         )
         self.remindersEmptyLabel.pack(padx=18, pady=24)
 
+    def _buildCalendarPage(self):
+        """Build the calendar day-view page."""
+
+        container = Frame(
+            self.calendarPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        container.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        header = Frame(container, bg=PANEL_BG)
+        header.pack(fill=X, padx=18, pady=(18, 12))
+
+        Label(
+            header,
+            text="Calendar",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(side=LEFT)
+
+        self.createCalendarEventButton = Button(
+            header,
+            text="New Event",
+            command=self._toggleCalendarEventComposer,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=8,
+            cursor="hand2",
+        )
+        self.createCalendarEventButton.pack(side="right")
+
+        view_row = Frame(container, bg=PANEL_BG)
+        view_row.pack(fill=X, padx=18, pady=(0, 10))
+
+        self.calendarViewButtons = {}
+        for view_name in ("day", "week", "month", "year"):
+            button = Button(
+                view_row,
+                text=view_name.title(),
+                command=lambda selected=view_name: self._setCalendarView(selected),
+                bg=NAV_INACTIVE,
+                fg=TEXT_PRIMARY,
+                activebackground=NAV_INACTIVE_ACTIVE,
+                activeforeground=TEXT_PRIMARY,
+                relief="flat",
+                bd=0,
+                font=("Segoe UI Semibold", 10),
+                padx=12,
+                pady=8,
+                cursor="hand2",
+            )
+            button.pack(side=LEFT, padx=(0, 8))
+            self.calendarViewButtons[view_name] = button
+
+        controls = Frame(container, bg=PANEL_BG)
+        controls.pack(fill=X, padx=18, pady=(0, 12))
+
+        self.previousCalendarDayButton = Button(
+            controls,
+            text="<",
+            command=self._showPreviousCalendarRange,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=12,
+            pady=8,
+            cursor="hand2",
+        )
+        self.previousCalendarDayButton.pack(side=LEFT)
+
+        self.calendarDayEntry = Entry(
+            controls,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarDayEntry.pack(side=LEFT, fill=X, expand=True, padx=10, ipady=8)
+        self.calendarDayEntry.bind("<Return>", self._onCalendarDaySubmitted)
+
+        self.nextCalendarDayButton = Button(
+            controls,
+            text=">",
+            command=self._showNextCalendarRange,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=12,
+            pady=8,
+            cursor="hand2",
+        )
+        self.nextCalendarDayButton.pack(side=LEFT)
+
+        self.todayCalendarButton = Button(
+            controls,
+            text="Today",
+            command=self._showTodayCalendarDay,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=12,
+            pady=8,
+            cursor="hand2",
+        )
+        self.todayCalendarButton.pack(side=LEFT, padx=(10, 0))
+
+        self.loadCalendarDayButton = Button(
+            controls,
+            text="Load",
+            command=self._loadCalendarDayFromEntry,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=12,
+            pady=8,
+            cursor="hand2",
+        )
+        self.loadCalendarDayButton.pack(side=LEFT, padx=(8, 0))
+
+        self.calendarSummaryLabel = Label(
+            container,
+            text="",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 12),
+        )
+        self.calendarSummaryLabel.pack(anchor="w", padx=18, pady=(0, 12))
+
+        self.calendarItemsFrame = Frame(container, bg=PANEL_BG)
+        self.calendarItemsFrame.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
+
+        self.calendarEmptyLabel = Label(
+            self.calendarItemsFrame,
+            text="No events, tasks, or reminders for this day.",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEmptyLabel.pack(padx=18, pady=24)
+        self._syncCalendarDayEntry()
+
     def _buildReminderComposerOverlay(self):
         """Build the in-window reminder creation overlay."""
 
@@ -452,6 +622,153 @@ class AuraWindowsApp:
         )
         self.confirmReminderButton.pack(side="right")
 
+    def _buildCalendarEventComposerOverlay(self):
+        """Build the in-window calendar event creation overlay."""
+
+        self.calendarEventComposerVisible = False
+        self.calendarEventComposerOverlay = Frame(
+            self.contentFrame,
+            bg="#0a1017",
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+
+        panel = Frame(
+            self.calendarEventComposerOverlay,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        panel.place(relx=0.5, rely=0.5, anchor="center", width=520, height=430)
+
+        Label(
+            panel,
+            text="Create Event",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(anchor="w", padx=18, pady=(18, 12))
+
+        Label(panel, text="Title", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=18)
+        self.calendarEventTitleEntry = Entry(
+            panel,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventTitleEntry.pack(fill=X, padx=18, pady=(4, 12), ipady=8)
+
+        Label(panel, text="Description", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=18)
+        self.calendarEventDescriptionEntry = Entry(
+            panel,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventDescriptionEntry.pack(fill=X, padx=18, pady=(4, 12), ipady=8)
+
+        date_time_row = Frame(panel, bg=PANEL_BG)
+        date_time_row.pack(fill=X, padx=18, pady=(0, 12))
+
+        date_column = Frame(date_time_row, bg=PANEL_BG)
+        date_column.pack(side=LEFT, fill=X, expand=True)
+        Label(date_column, text="Date", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        self.calendarEventDateEntry = Entry(
+            date_column,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventDateEntry.pack(fill=X, pady=(4, 0), ipady=8)
+
+        start_column = Frame(date_time_row, bg=PANEL_BG)
+        start_column.pack(side=LEFT, fill=X, expand=True, padx=(12, 0))
+        Label(start_column, text="Start", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        self.calendarEventStartEntry = Entry(
+            start_column,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventStartEntry.pack(fill=X, pady=(4, 0), ipady=8)
+
+        end_column = Frame(date_time_row, bg=PANEL_BG)
+        end_column.pack(side=LEFT, fill=X, expand=True, padx=(12, 0))
+        Label(end_column, text="End", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        self.calendarEventEndEntry = Entry(
+            end_column,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventEndEntry.pack(fill=X, pady=(4, 0), ipady=8)
+
+        Label(panel, text="Location", bg=PANEL_BG, fg=TEXT_MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=18)
+        self.calendarEventLocationEntry = Entry(
+            panel,
+            bg=INPUT_BG,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 11),
+        )
+        self.calendarEventLocationEntry.pack(fill=X, padx=18, pady=(4, 12), ipady=8)
+
+        button_row = Frame(panel, bg=PANEL_BG)
+        button_row.pack(fill=X, padx=18, pady=(8, 18))
+
+        self.cancelCalendarEventButton = Button(
+            button_row,
+            text="Cancel",
+            command=self._toggleCalendarEventComposer,
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=8,
+            cursor="hand2",
+        )
+        self.cancelCalendarEventButton.pack(side=LEFT)
+
+        self.confirmCalendarEventButton = Button(
+            button_row,
+            text="Create",
+            command=self._createCalendarEventFromComposer,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=16,
+            pady=8,
+            cursor="hand2",
+        )
+        self.confirmCalendarEventButton.pack(side="right")
+
     def _buildNotificationsOverlay(self):
         """Build the persistent notifications overlay and content holder."""
 
@@ -563,6 +880,8 @@ class AuraWindowsApp:
         self._setActivePage(page_name)
         if page_name == "reminders":
             self._refreshRemindersList()
+        if page_name == "calendar":
+            self._refreshCalendarView()
 
     def _setActivePage(self, page_name: str):
         """Update sidebar button styles for the active page."""
@@ -597,11 +916,399 @@ class AuraWindowsApp:
             self._toggleSidebar()
 
     def _showCalendarPage(self):
-        """Activate the calendar placeholder page."""
+        """Activate the calendar page."""
 
         self._showPage("calendar")
         if self.sidebarVisible:
             self._toggleSidebar()
+
+    def _setCalendarView(self, view_name: str):
+        """Switch between calendar view modes."""
+
+        if view_name not in {"day", "week", "month", "year"}:
+            return
+
+        self.activeCalendarView = view_name
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _showPreviousCalendarRange(self):
+        """Move the selected calendar date back by the active view size."""
+
+        if self.activeCalendarView == "day":
+            self.selectedCalendarDay -= timedelta(days=1)
+        elif self.activeCalendarView == "week":
+            self.selectedCalendarDay -= timedelta(days=7)
+        elif self.activeCalendarView == "month":
+            self.selectedCalendarDay = self._addMonths(self.selectedCalendarDay, -1)
+        else:
+            self.selectedCalendarDay = self._addMonths(self.selectedCalendarDay, -12)
+
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _showNextCalendarRange(self):
+        """Move the selected calendar date forward by the active view size."""
+
+        if self.activeCalendarView == "day":
+            self.selectedCalendarDay += timedelta(days=1)
+        elif self.activeCalendarView == "week":
+            self.selectedCalendarDay += timedelta(days=7)
+        elif self.activeCalendarView == "month":
+            self.selectedCalendarDay = self._addMonths(self.selectedCalendarDay, 1)
+        else:
+            self.selectedCalendarDay = self._addMonths(self.selectedCalendarDay, 12)
+
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _showTodayCalendarDay(self):
+        """Return the calendar to today."""
+
+        self.selectedCalendarDay = date.today()
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _onCalendarDaySubmitted(self, _event):
+        """Load the date typed in the calendar date field."""
+
+        self._loadCalendarDayFromEntry()
+
+    def _loadCalendarDayFromEntry(self):
+        """Parse the calendar date entry and refresh the active view."""
+
+        try:
+            self.selectedCalendarDay = self._parseCalendarDate(self.calendarDayEntry.get())
+        except ValueError as error:
+            self._showErrorPopup(str(error))
+            return
+
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _refreshCalendarView(self):
+        """Reload calendar data for the active view and repaint the list."""
+
+        self._setActiveCalendarViewButton()
+
+        calendar_service = getattr(self.context, "calendar", None)
+        if calendar_service is None:
+            self._renderCalendarSections([], "Calendar is not available.")
+            return
+
+        try:
+            view_data = self._loadCalendarViewData(calendar_service)
+        except Exception as error:
+            self._renderCalendarSections([], "Calendar could not be loaded.")
+            self._showErrorPopup(str(error))
+            return
+
+        sections = self._buildCalendarSections(view_data)
+        self._renderCalendarSections(sections, self._buildCalendarSummary(view_data))
+
+    def _loadCalendarViewData(self, calendar_service):
+        """Call the backend calendar method for the active view."""
+
+        selected_day = self.selectedCalendarDay.strftime("%Y-%m-%d")
+
+        if self.activeCalendarView == "day":
+            return dict(calendar_service.buildDayView(selected_day))
+        if self.activeCalendarView == "week":
+            return dict(calendar_service.buildWeekView(selected_day))
+        if self.activeCalendarView == "month":
+            return dict(calendar_service.buildMonthView(selected_day))
+
+        months = []
+        total_events = []
+        total_tasks = []
+        total_reminders = []
+        for month_index in range(1, 13):
+            month_day = date(self.selectedCalendarDay.year, month_index, 1).strftime("%Y-%m-%d")
+            month_view = dict(calendar_service.buildMonthView(month_day))
+            months.append(month_view)
+            total_events.extend(month_view.get("events", []))
+            total_tasks.extend(month_view.get("tasks", []))
+            total_reminders.extend(month_view.get("reminders", []))
+
+        return {
+            "year": str(self.selectedCalendarDay.year),
+            "months": months,
+            "events": total_events,
+            "tasks": total_tasks,
+            "reminders": total_reminders,
+        }
+
+    def _buildCalendarSummary(self, view_data):
+        """Build the status line for the active calendar view."""
+
+        event_count = len(view_data.get("events", []))
+        task_count = len(view_data.get("tasks", []))
+        reminder_count = len(view_data.get("reminders", []))
+
+        if self.activeCalendarView == "day":
+            label = self.selectedCalendarDay.strftime("%A, %B %d, %Y")
+        elif self.activeCalendarView == "week":
+            label = f"{view_data.get('week_start')} to {view_data.get('week_end')}"
+        elif self.activeCalendarView == "month":
+            label = self.selectedCalendarDay.strftime("%B %Y")
+        else:
+            label = str(self.selectedCalendarDay.year)
+
+        return f"{label} - {event_count} events, {task_count} tasks, {reminder_count} reminders"
+
+    def _buildCalendarSections(self, view_data):
+        """Convert backend calendar data into renderable sections."""
+
+        if self.activeCalendarView == "year":
+            sections = []
+            for month_view in view_data.get("months", []):
+                rows = (
+                    self._calendarRowsForKind("Event", month_view.get("events", []))
+                    + self._calendarRowsForKind("Task", month_view.get("tasks", []))
+                    + self._calendarRowsForKind("Reminder", month_view.get("reminders", []))
+                )
+                if rows:
+                    month_label = self._formatMonthLabel(month_view.get("month"))
+                    sections.append({"title": month_label, "rows": rows})
+            return sections
+
+        return [
+            {"title": "Events", "rows": self._calendarRowsForKind("Event", view_data.get("events", []))},
+            {"title": "Tasks", "rows": self._calendarRowsForKind("Task", view_data.get("tasks", []))},
+            {"title": "Reminders", "rows": self._calendarRowsForKind("Reminder", view_data.get("reminders", []))},
+        ]
+
+    def _calendarRowsForKind(self, kind: str, rows):
+        """Normalize calendar rows for display."""
+
+        normalized = []
+        for row in rows:
+            item = dict(row)
+            if kind == "Event":
+                when_value = item.get("start_at")
+                detail = item.get("location") or item.get("description") or ""
+            elif kind == "Task":
+                when_value = item.get("due_at")
+                detail = item.get("description") or item.get("priority") or item.get("status") or ""
+            else:
+                when_value = item.get("remind_at")
+                detail = item.get("notes") or ""
+
+            normalized.append(
+                {
+                    "kind": kind,
+                    "title": str(item.get("title") or f"Untitled {kind.lower()}"),
+                    "when": self._formatCalendarTimestamp(when_value),
+                    "sort_key": str(when_value or ""),
+                    "detail": str(detail or ""),
+                    "row": item,
+                }
+            )
+
+        normalized.sort(key=lambda item: (item["sort_key"], item["title"]))
+        return normalized
+
+    def _renderCalendarSections(self, sections, summary_text: str):
+        """Render the calendar sections for the active view."""
+
+        for item in self.renderedCalendarItems:
+            item["container"].destroy()
+        self.renderedCalendarItems = []
+
+        self.calendarSummaryLabel.configure(text=summary_text)
+        has_rows = any(section["rows"] for section in sections)
+        if not has_rows:
+            self.calendarEmptyLabel.pack(padx=18, pady=24)
+            return
+
+        self.calendarEmptyLabel.pack_forget()
+        for section in sections:
+            if not section["rows"]:
+                continue
+
+            section_container = Frame(self.calendarItemsFrame, bg=PANEL_BG)
+            section_container.pack(fill=X, pady=(0, 12))
+
+            Label(
+                section_container,
+                text=section["title"],
+                bg=PANEL_BG,
+                fg=TEXT_MUTED,
+                font=("Segoe UI Semibold", 10),
+            ).pack(anchor="w", pady=(0, 6))
+
+            for row in section["rows"]:
+                card = Frame(
+                    section_container,
+                    bg=TRANSCRIPT_BG,
+                    highlightbackground=BORDER,
+                    highlightthickness=1,
+                    bd=0,
+                )
+                card.pack(fill=X, pady=(0, 8))
+
+                top_row = Frame(card, bg=TRANSCRIPT_BG)
+                top_row.pack(fill=X, padx=12, pady=(10, 4))
+
+                Label(
+                    top_row,
+                    text=f"{row['kind']}: {row['title']}",
+                    bg=TRANSCRIPT_BG,
+                    fg=TEXT_PRIMARY,
+                    font=("Segoe UI Semibold", 11),
+                ).pack(side=LEFT)
+
+                Label(
+                    card,
+                    text=row["when"],
+                    bg=TRANSCRIPT_BG,
+                    fg=TEXT_MUTED,
+                    font=("Segoe UI", 9),
+                ).pack(anchor="w", padx=12)
+
+                if row["detail"]:
+                    Label(
+                        card,
+                        text=row["detail"],
+                        bg=TRANSCRIPT_BG,
+                        fg=TEXT_PRIMARY,
+                        font=("Segoe UI", 10),
+                        justify="left",
+                        wraplength=560,
+                    ).pack(anchor="w", fill=X, padx=12, pady=(6, 10))
+
+                self.renderedCalendarItems.append({"row": row, "container": card})
+
+            self.renderedCalendarItems.append({"row": {"section": section["title"]}, "container": section_container})
+
+    def _toggleCalendarEventComposer(self):
+        """Show or hide the event creation overlay."""
+
+        if self.calendarEventComposerVisible:
+            self.calendarEventComposerOverlay.place_forget()
+            self.calendarEventComposerVisible = False
+            return
+
+        self.calendarEventDateEntry.delete(0, END)
+        self.calendarEventDateEntry.insert(0, self.selectedCalendarDay.strftime("%Y-%m-%d"))
+        self.calendarEventComposerOverlay.place(relx=0.0, rely=0.0, relwidth=1.0, relheight=1.0)
+        self.calendarEventComposerOverlay.lift()
+        self.calendarEventComposerVisible = True
+        self.calendarEventTitleEntry.focus_set()
+
+    def _createCalendarEventFromComposer(self):
+        """Create one calendar event from the composer inputs."""
+
+        title = self.calendarEventTitleEntry.get().strip()
+        description = self.calendarEventDescriptionEntry.get().strip()
+        date_value = self.calendarEventDateEntry.get().strip()
+        start_value = self.calendarEventStartEntry.get().strip()
+        end_value = self.calendarEventEndEntry.get().strip()
+        location = self.calendarEventLocationEntry.get().strip()
+
+        if not title:
+            self._showErrorPopup("Event title is required.")
+            return
+        if not date_value or not start_value:
+            self._showErrorPopup("Event date and start time are required.")
+            return
+
+        try:
+            event_day = self._parseCalendarDate(date_value)
+            start_at = f"{event_day.strftime('%Y-%m-%d')} {start_value}"
+            end_at = f"{event_day.strftime('%Y-%m-%d')} {end_value}" if end_value else None
+            calendar_service = self.context.require("calendar")
+            calendar_service.createEvent(
+                title=title,
+                description=description,
+                location=location,
+                start_at=start_at,
+                end_at=end_at,
+            )
+        except Exception as error:
+            self._showErrorPopup(str(error))
+            return
+
+        for entry in (
+            self.calendarEventTitleEntry,
+            self.calendarEventDescriptionEntry,
+            self.calendarEventDateEntry,
+            self.calendarEventStartEntry,
+            self.calendarEventEndEntry,
+            self.calendarEventLocationEntry,
+        ):
+            entry.delete(0, END)
+
+        self.selectedCalendarDay = event_day
+        self._toggleCalendarEventComposer()
+        self._syncCalendarDayEntry()
+        self._refreshCalendarView()
+
+    def _setActiveCalendarViewButton(self):
+        """Update calendar view button styling."""
+
+        for view_name, button in self.calendarViewButtons.items():
+            is_active = view_name == self.activeCalendarView
+            button.configure(
+                bg=ACCENT if is_active else NAV_INACTIVE,
+                fg="#08111d" if is_active else TEXT_PRIMARY,
+                activebackground=ACCENT_ACTIVE if is_active else NAV_INACTIVE_ACTIVE,
+                activeforeground="#08111d" if is_active else TEXT_PRIMARY,
+            )
+
+    def _syncCalendarDayEntry(self):
+        """Write the selected date into the calendar date entry."""
+
+        if not hasattr(self, "calendarDayEntry"):
+            return
+
+        self.calendarDayEntry.delete(0, END)
+        self.calendarDayEntry.insert(0, self.selectedCalendarDay.strftime("%Y-%m-%d"))
+
+    def _parseCalendarDate(self, raw_value: str) -> date:
+        """Parse a user-entered calendar date."""
+
+        value = str(raw_value or "").strip()
+        for format_string in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(value, format_string).date()
+            except ValueError:
+                continue
+        raise ValueError("Invalid date value. Use YYYY-MM-DD or DD/MM/YYYY.")
+
+    def _formatCalendarTimestamp(self, timestamp_value):
+        """Format calendar timestamp text for display."""
+
+        if not timestamp_value:
+            return "Unscheduled"
+
+        dt_util = getattr(self.context, "dtUtil", None)
+        if dt_util is not None and hasattr(dt_util, "toPreferredDateTime"):
+            try:
+                return dt_util.toPreferredDateTime(str(timestamp_value))
+            except Exception:
+                return str(timestamp_value)
+        return str(timestamp_value)
+
+    @staticmethod
+    def _formatMonthLabel(month_value):
+        """Format a backend month value like YYYY-MM."""
+
+        try:
+            parsed = datetime.strptime(str(month_value), "%Y-%m")
+            return parsed.strftime("%B %Y")
+        except ValueError:
+            return str(month_value or "Month")
+
+    @staticmethod
+    def _addMonths(value: date, offset: int) -> date:
+        """Add whole months while preserving a valid day of month."""
+
+        total_month = value.month - 1 + offset
+        year = value.year + total_month // 12
+        month = total_month % 12 + 1
+        day = min(value.day, month_calendar.monthrange(year, month)[1])
+        return value.replace(year=year, month=month, day=day)
 
     def _onNotificationPressed(self):
         """Handle notification-button presses."""
