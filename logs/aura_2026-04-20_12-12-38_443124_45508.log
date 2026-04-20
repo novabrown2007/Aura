@@ -1,0 +1,7 @@
+[2026-04-20 12:12:38] [INFO] [Aura] logger.py has been initialized.
+[2026-04-20 12:12:38] [INFO] [Aura.Config] Configuration loaded from config.yml
+[2026-04-20 12:12:38] [INFO] [Aura.Threading] Initialized.
+[2026-04-20 12:12:38] [INFO] [Aura.Threadding.Events] Initialized.
+[2026-04-20 12:12:38] [INFO] [Aura.Threading.Tasks] Initialized.
+[2026-04-20 12:12:38] [INFO] [Aura.Threadding.Scheduler] Initialized.
+[2026-04-20 12:12:38] [INFO] [Aura.Database] MySQL initialized.
