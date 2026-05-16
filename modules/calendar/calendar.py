@@ -2701,6 +2701,14 @@ class Calendar:
 
         raise ValueError("Invalid date value. Use YYYY-MM-DD or DD/MM/YYYY.")
 
+    @staticmethod
+    def _parseDate(value: str) -> datetime:
+        """
+        Parse a normalized date string into a datetime at midnight.
+        """
+
+        return datetime.strptime(value, "%Y-%m-%d")
+
     def _updateRow(
         self,
         table_name: str,

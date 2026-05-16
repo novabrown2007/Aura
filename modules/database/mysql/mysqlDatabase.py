@@ -28,6 +28,7 @@ class MySQLDatabase:
         self.user = self.context.config.require("database.user")
         self.password = self.context.config.require("database.password")
         self.database_name = self.context.config.require("database.name")
+        self.connection_timeout = self.context.config.get("database.connection_timeout", 5)
 
         self.logger = None
         if context.logger:
@@ -56,6 +57,7 @@ class MySQLDatabase:
             user=self.user,
             password=self.password,
             database=self.database_name,
+            connection_timeout=self.connection_timeout,
         )
 
         if self.logger:

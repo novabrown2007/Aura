@@ -1,24 +1,12 @@
 """
 Aura Assistant - Main Entry Point
 
-This file bootstraps the Aura system by creating the RuntimeContext,
-initializing all core subsystems, and managing the application lifecycle.
+This file bootstraps the headless Aura runtime by creating the
+RuntimeContext, initializing all core subsystems, loading backend modules,
+and managing the application lifecycle.
 
-Lifecycle Flow:
-
-    main()
-        ↓
-    RuntimeContext created
-        ↓
-    Core systems initialized
-        ↓
-    Modules loaded
-        ↓
-    startup()
-        ↓
-    Engine.run()
-        ↓
-    shutdown()
+This migration version intentionally contains no interface package setup.
+Interfaces will attach later through separate frontend/adaptor packages.
 """
 
 from core.runtime.runtimeContext import RuntimeContext
@@ -34,10 +22,7 @@ from core.threading.scheduler.scheduler import Scheduler
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
 
-from core.interface.io.inputManager import InputManager
-from core.interface.io.outputManager import OutputManager
-
-from modules.database.mysql.mysqlDatabase import MySQLDatabase
+from modules.database.databaseFactory import createDatabaseWithFallback
 
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
@@ -86,7 +71,7 @@ def shutdown(context):
 
 
 # --------------------------------------------------
-# Main Entry Point
+# Runtime Builder
 # --------------------------------------------------
 
 def buildRuntimeContext():
@@ -112,9 +97,7 @@ def buildRuntimeContext():
     context.scheduler = Scheduler(context)
 
     # Database
-    context.database = MySQLDatabase(context)
-    context.database.connect()
-    context.database.initialize()
+    context.database = createDatabaseWithFallback(context)
 
     # LLM
     context.memoryManager = MemoryManager(context)
@@ -125,10 +108,6 @@ def buildRuntimeContext():
     context.interpreter = Interpreter(context)
     context.intentRouter = IntentRouter(context)
 
-    # IO
-    context.inputManager = InputManager(context)
-    context.outputManager = OutputManager(context)
-
     # Module Loader
     loader = ModuleLoader(context)
     loader.loadModules()
@@ -137,6 +116,10 @@ def buildRuntimeContext():
     context.engine = Engine(context)
     return context
 
+
+# --------------------------------------------------
+# Main Entry Point
+# --------------------------------------------------
 
 def main():
     """
