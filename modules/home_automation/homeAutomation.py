@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from modules.home_automation.bridgeConnection import BridgeConnection
-from modules.home_automation.config import HomeAutomationConfig
+from modules.home_automation.config import HomeAutomationConfig, buildHomeAutomationConfig
 from modules.home_automation.models import (
     BridgeState,
     CameraDevice,
@@ -19,7 +19,7 @@ class HomeAutomation:
 
     def __init__(self, context, config: HomeAutomationConfig | None = None):
         self.context = context
-        self.config = config or HomeAutomationConfig()
+        self.config = config or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
         self.bridge = BridgeConnection(self.config.bridge)
         self.serviceControl = ServiceControlConnection(self.config.control)
