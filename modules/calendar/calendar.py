@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import calendar as month_calendar
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Iterable, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, Iterable, Mapping, Optional, cast
 from zoneinfo import ZoneInfo
 
 from core.threading.events.events import Event
@@ -179,7 +179,7 @@ class Calendar(AuraModule):
             """
         )
         if row:
-            return int(row["id"])
+            return self._coerceInt(self._coerceRow(row).get("id"))
         return None
 
     def createEvent(
@@ -304,6 +304,8 @@ class Calendar(AuraModule):
 
         events = []
         for row in self._fetchStoredEvents(calendar_id=calendar_id):
+            if row is None:
+                continue
             if row.get("recurrence_type"):
                 events.extend(self._expandRecurringEvent(row, range_start, range_end))
             elif self._eventOverlapsRange(row, range_start, range_end):
@@ -395,8 +397,11 @@ class Calendar(AuraModule):
         """
 
         normalized_fields = dict(fields)
-        current = self.getEvent(event_id) or {}
-        event_timezone = normalized_fields.get("timezone", current.get("timezone", "UTC"))
+        current = self._coerceRow(self.getEvent(event_id))
+        event_timezone = self._coerceStr(
+            normalized_fields.get("timezone", current.get("timezone", "UTC")),
+            default="UTC",
+        )
 
         if "attendees" in normalized_fields:
             normalized_fields["attendees"] = self._serializeAttendees(normalized_fields["attendees"])
@@ -416,18 +421,21 @@ class Calendar(AuraModule):
         if recurrence_keys.intersection(normalized_fields):
             normalized_recurrence = self._normalizeRecurrence(
                 recurrence_type=normalized_fields.get("recurrence_type", current.get("recurrence_type")),
-                recurrence_interval=normalized_fields.get(
+                recurrence_interval=self._coerceInt(
+                    normalized_fields.get(
                     "recurrence_interval",
                     current.get("recurrence_interval", 1),
+                    ),
+                    default=1,
                 ),
                 recurrence_until=normalized_fields.get(
                     "recurrence_until",
                     current.get("recurrence_until"),
                 ),
-                recurrence_count=normalized_fields.get(
+                recurrence_count=self._coerceOptionalInt(normalized_fields.get(
                     "recurrence_count",
                     current.get("recurrence_count"),
-                ),
+                )),
                 source_timezone=event_timezone,
                 allow_date_only=bool(normalized_fields.get("all_day", current.get("all_day"))),
             )
@@ -436,7 +444,7 @@ class Calendar(AuraModule):
         for field_name in ("start_at", "end_at"):
             if normalized_fields.get(field_name) is not None:
                 normalized_fields[field_name] = self._normalizeDateTimeValue(
-                    normalized_fields[field_name],
+                    self._coerceStr(normalized_fields[field_name]),
                     allow_date_only=bool(normalized_fields.get("all_day", current.get("all_day"))),
                     source_timezone=event_timezone,
                 )
@@ -655,7 +663,7 @@ class Calendar(AuraModule):
         priority: Optional[str] = None,
         due_before: Optional[str] = None,
         due_after: Optional[str] = None,
-    ):
+    ) -> list[dict[str, Any]]:
         """
         Search and filter tasks using text, status, priority, and due-date filters.
         """
@@ -689,11 +697,11 @@ class Calendar(AuraModule):
         if normalized_due_before is not None and normalized_due_after is not None:
             rows = self._expandRecurringTasks(rows, normalized_due_after, normalized_due_before)
 
-        filtered = []
+        filtered: list[dict[str, Any]] = []
         for row in rows:
             title_text = str(row.get("title") or "").lower()
             description_text = str(row.get("description") or "").lower()
-            due_at = row.get("due_at")
+            due_at = self._coerceStr(row.get("due_at")) if row.get("due_at") is not None else None
 
             if query_value and query_value not in title_text and query_value not in description_text:
                 continue
@@ -705,7 +713,7 @@ class Calendar(AuraModule):
                 continue
             if normalized_due_after is not None and due_at is not None and due_at < normalized_due_after:
                 continue
-            filtered.append(dict(row))
+            filtered.append(self._coerceRow(row))
 
         return filtered
 
@@ -736,8 +744,11 @@ class Calendar(AuraModule):
         """
 
         normalized_fields = dict(fields)
-        current = self.getTask(task_id) or {}
-        task_timezone = normalized_fields.get("timezone", current.get("timezone", "UTC"))
+        current = self._coerceRow(self.getTask(task_id))
+        task_timezone = self._coerceStr(
+            normalized_fields.get("timezone", current.get("timezone", "UTC")),
+            default="UTC",
+        )
         if "categories" in normalized_fields:
             normalized_fields["categories"] = self._serializeStringList(normalized_fields["categories"])
         if "notification_preferences" in normalized_fields:
@@ -747,12 +758,12 @@ class Calendar(AuraModule):
 
         if normalized_fields.get("due_at") is not None:
             normalized_fields["due_at"] = self._normalizeDateTimeValue(
-                normalized_fields["due_at"],
+                self._coerceStr(normalized_fields["due_at"]),
                 source_timezone=task_timezone,
             )
         if normalized_fields.get("completed_at") is not None:
             normalized_fields["completed_at"] = self._normalizeDateTimeValue(
-                normalized_fields["completed_at"],
+                self._coerceStr(normalized_fields["completed_at"]),
                 source_timezone=task_timezone,
             )
         if {
@@ -764,18 +775,21 @@ class Calendar(AuraModule):
             normalized_fields.update(
                 self._normalizeRecurrence(
                     recurrence_type=normalized_fields.get("recurrence_type", current.get("recurrence_type")),
-                    recurrence_interval=normalized_fields.get(
+                    recurrence_interval=self._coerceInt(
+                        normalized_fields.get(
                         "recurrence_interval",
                         current.get("recurrence_interval", 1),
+                        ),
+                        default=1,
                     ),
                     recurrence_until=normalized_fields.get(
                         "recurrence_until",
                         current.get("recurrence_until"),
                     ),
-                    recurrence_count=normalized_fields.get(
+                    recurrence_count=self._coerceOptionalInt(normalized_fields.get(
                         "recurrence_count",
                         current.get("recurrence_count"),
-                    ),
+                    )),
                     source_timezone=task_timezone,
                 )
             )
@@ -1018,7 +1032,7 @@ class Calendar(AuraModule):
         include_delivered: bool = True,
         remind_before: Optional[str] = None,
         remind_after: Optional[str] = None,
-    ):
+    ) -> list[dict[str, Any]]:
         """
         Search and filter calendar reminders.
         """
@@ -1050,11 +1064,11 @@ class Calendar(AuraModule):
         if normalized_remind_before is not None and normalized_remind_after is not None:
             rows = self._expandRecurringReminders(rows, normalized_remind_after, normalized_remind_before)
 
-        filtered = []
+        filtered: list[dict[str, Any]] = []
         for row in rows:
             title_text = str(row.get("title") or "").lower()
             notes_text = str(row.get("notes") or "").lower()
-            remind_at = row.get("remind_at")
+            remind_at = self._coerceStr(row.get("remind_at")) if row.get("remind_at") is not None else None
 
             if event_id is not None and row.get("event_id") != event_id:
                 continue
@@ -1068,7 +1082,7 @@ class Calendar(AuraModule):
                 continue
             if normalized_remind_after is not None and remind_at is not None and remind_at < normalized_remind_after:
                 continue
-            filtered.append(dict(row))
+            filtered.append(self._coerceRow(row))
 
         return filtered
 
@@ -1078,8 +1092,11 @@ class Calendar(AuraModule):
         """
 
         normalized_fields = dict(fields)
-        current = self.getReminder(reminder_id) or {}
-        reminder_timezone = normalized_fields.get("timezone", current.get("timezone", "UTC"))
+        current = self._coerceRow(self.getReminder(reminder_id))
+        reminder_timezone = self._coerceStr(
+            normalized_fields.get("timezone", current.get("timezone", "UTC")),
+            default="UTC",
+        )
         if "notification_preferences" in normalized_fields:
             normalized_fields["notification_preferences"] = self._serializeJsonValue(
                 normalized_fields["notification_preferences"]
@@ -1087,12 +1104,12 @@ class Calendar(AuraModule):
 
         if normalized_fields.get("remind_at") is not None:
             normalized_fields["remind_at"] = self._normalizeDateTimeValue(
-                normalized_fields["remind_at"],
+                self._coerceStr(normalized_fields["remind_at"]),
                 source_timezone=reminder_timezone,
             )
         if normalized_fields.get("delivered_at") is not None:
             normalized_fields["delivered_at"] = self._normalizeDateTimeValue(
-                normalized_fields["delivered_at"],
+                self._coerceStr(normalized_fields["delivered_at"]),
                 source_timezone=reminder_timezone,
             )
         if {
@@ -1107,18 +1124,21 @@ class Calendar(AuraModule):
                         "recurrence_type",
                         current.get("recurrence_type"),
                     ),
-                    recurrence_interval=normalized_fields.get(
+                    recurrence_interval=self._coerceInt(
+                        normalized_fields.get(
                         "recurrence_interval",
                         current.get("recurrence_interval", 1),
+                        ),
+                        default=1,
                     ),
                     recurrence_until=normalized_fields.get(
                         "recurrence_until",
                         current.get("recurrence_until"),
                     ),
-                    recurrence_count=normalized_fields.get(
+                    recurrence_count=self._coerceOptionalInt(normalized_fields.get(
                         "recurrence_count",
                         current.get("recurrence_count"),
-                    ),
+                    )),
                     source_timezone=reminder_timezone,
                 )
             )
@@ -1777,7 +1797,9 @@ class Calendar(AuraModule):
         """
 
         display_start = self._convertStoredDateTimeToDisplay(start_at, timezone)
-        event_start = self._parseDateTime(str(display_start))
+        if display_start is None:
+            raise ValueError("Event start could not be converted for reminder creation.")
+        event_start = self._parseDateTime(display_start)
         reminder_time = event_start - timedelta(minutes=int(minutes_before))
         return reminder_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1788,7 +1810,7 @@ class Calendar(AuraModule):
 
         last_row_id = getattr(cursor, "lastrowid", None)
         if last_row_id is not None:
-            return int(last_row_id)
+            return self._coerceInt(last_row_id)
 
         row = self.database.fetchOne(
             f"""
@@ -1800,7 +1822,7 @@ class Calendar(AuraModule):
         )
         if row is None:
             return None
-        return int(row["id"])
+        return self._coerceInt(self._coerceRow(row).get("id"))
 
     def _resolveCalendarId(self, calendar_id: Optional[int]) -> int:
         """
@@ -1834,9 +1856,9 @@ class Calendar(AuraModule):
         """Return the configured timezone for a calendar, defaulting to UTC."""
 
         resolved_calendar_id = self._resolveCalendarId(calendar_id)
-        row = self.getCalendar(resolved_calendar_id)
+        row = self._coerceRow(self.getCalendar(resolved_calendar_id))
         if row and row.get("timezone"):
-            return str(row["timezone"])
+            return self._coerceStr(row.get("timezone"), default="UTC")
         return "UTC"
 
     def convertDateTimeBetweenTimezones(
@@ -1855,7 +1877,7 @@ class Calendar(AuraModule):
             target_timezone=to_timezone,
         )
 
-    def _fetchStoredEvents(self, calendar_id: Optional[int] = None):
+    def _fetchStoredEvents(self, calendar_id: Optional[int] = None) -> list[dict[str, Any]]:
         """
         Fetch stored event rows and normalize backend-only fields.
         """
@@ -1876,9 +1898,13 @@ class Calendar(AuraModule):
             params = (int(calendar_id),)
 
         query += " ORDER BY start_at ASC, id ASC"
-        return [self._prepareEventRow(row) for row in self.database.fetchAll(query, params)]
+        return [
+            prepared
+            for row in self.database.fetchAll(query, params)
+            if (prepared := self._prepareEventRow(row)) is not None
+        ]
 
-    def _fetchStoredTasks(self, calendar_id: Optional[int] = None):
+    def _fetchStoredTasks(self, calendar_id: Optional[int] = None) -> list[dict[str, Any]]:
         """Fetch stored task rows and normalize backend-only fields."""
 
         if not self.database:
@@ -1896,9 +1922,13 @@ class Calendar(AuraModule):
             params = (int(calendar_id),)
 
         query += " ORDER BY due_at ASC, id ASC"
-        return [self._prepareTaskRow(row) for row in self.database.fetchAll(query, params)]
+        return [
+            prepared
+            for row in self.database.fetchAll(query, params)
+            if (prepared := self._prepareTaskRow(row)) is not None
+        ]
 
-    def _fetchStoredReminders(self, calendar_id: Optional[int] = None):
+    def _fetchStoredReminders(self, calendar_id: Optional[int] = None) -> list[dict[str, Any]]:
         """Fetch stored reminder rows and normalize backend-only fields."""
 
         if not self.database:
@@ -1916,9 +1946,13 @@ class Calendar(AuraModule):
             params = (int(calendar_id),)
 
         query += " ORDER BY remind_at ASC, id ASC"
-        return [self._prepareReminderRow(row) for row in self.database.fetchAll(query, params)]
+        return [
+            prepared
+            for row in self.database.fetchAll(query, params)
+            if (prepared := self._prepareReminderRow(row)) is not None
+        ]
 
-    def _fetchEventExceptions(self, event_id: int, event_timezone: str) -> dict[str, dict]:
+    def _fetchEventExceptions(self, event_id: int, event_timezone: str) -> dict[str, dict[str, Any]]:
         """
         Return recurrence exceptions indexed by occurrence start datetime string.
         """
@@ -1939,9 +1973,9 @@ class Calendar(AuraModule):
             (int(event_id),),
         )
 
-        indexed = {}
+        indexed: dict[str, dict[str, Any]] = {}
         for row in rows:
-            prepared = dict(row)
+            prepared = self._coerceRow(row)
             prepared["override_attendees"] = self._deserializeAttendees(
                 prepared.get("override_attendees")
             )
@@ -1960,7 +1994,7 @@ class Calendar(AuraModule):
             indexed[str(prepared["occurrence_start"])] = prepared
         return indexed
 
-    def _fetchTaskExceptions(self, task_id: int, task_timezone: str) -> dict[str, dict]:
+    def _fetchTaskExceptions(self, task_id: int, task_timezone: str) -> dict[str, dict[str, Any]]:
         """Return task recurrence exceptions indexed by displayed due datetime."""
 
         if not self.database:
@@ -1979,9 +2013,9 @@ class Calendar(AuraModule):
             (int(task_id),),
         )
 
-        indexed = {}
+        indexed: dict[str, dict[str, Any]] = {}
         for row in rows:
-            prepared = dict(row)
+            prepared = self._coerceRow(row)
             prepared["override_categories"] = self._deserializeStringList(
                 prepared.get("override_categories")
             )
@@ -1999,7 +2033,7 @@ class Calendar(AuraModule):
             indexed[str(prepared["occurrence_due_at"])] = prepared
         return indexed
 
-    def _fetchReminderExceptions(self, reminder_id: int, reminder_timezone: str) -> dict[str, dict]:
+    def _fetchReminderExceptions(self, reminder_id: int, reminder_timezone: str) -> dict[str, dict[str, Any]]:
         """Return reminder recurrence exceptions indexed by displayed reminder datetime."""
 
         if not self.database:
@@ -2017,9 +2051,9 @@ class Calendar(AuraModule):
             (int(reminder_id),),
         )
 
-        indexed = {}
+        indexed: dict[str, dict[str, Any]] = {}
         for row in rows:
-            prepared = dict(row)
+            prepared = self._coerceRow(row)
             prepared["override_notification_preferences"] = self._deserializeJsonValue(
                 prepared.get("override_notification_preferences")
             )
@@ -2034,7 +2068,7 @@ class Calendar(AuraModule):
             indexed[str(prepared["occurrence_remind_at"])] = prepared
         return indexed
 
-    def _prepareEventRow(self, row):
+    def _prepareEventRow(self, row: Mapping[str, Any] | None) -> Optional[dict[str, Any]]:
         """
         Normalize one stored event row into the public event shape.
         """
@@ -2042,64 +2076,52 @@ class Calendar(AuraModule):
         if row is None:
             return None
 
-        prepared = dict(row)
+        prepared = self._coerceRow(row)
         prepared["attendees"] = self._deserializeAttendees(prepared.get("attendees"))
         prepared["categories"] = self._deserializeStringList(prepared.get("categories"))
         prepared["notification_preferences"] = self._deserializeJsonValue(
             prepared.get("notification_preferences")
         )
-        event_timezone = str(prepared.get("timezone") or "UTC")
+        event_timezone = self._coerceStr(prepared.get("timezone"), default="UTC")
         for key in ("start_at", "end_at", "recurrence_until"):
             prepared[key] = self._convertStoredDateTimeToDisplay(prepared.get(key), event_timezone)
-        prepared["recurrence_interval"] = int(prepared.get("recurrence_interval") or 1)
-        prepared["recurrence_count"] = (
-            int(prepared["recurrence_count"])
-            if prepared.get("recurrence_count") is not None
-            else None
-        )
+        prepared["recurrence_interval"] = self._coerceInt(prepared.get("recurrence_interval"), default=1)
+        prepared["recurrence_count"] = self._coerceOptionalInt(prepared.get("recurrence_count"))
         return prepared
 
-    def _prepareTaskRow(self, row):
+    def _prepareTaskRow(self, row: Mapping[str, Any] | None) -> Optional[dict[str, Any]]:
         """Normalize one stored task row into the public task shape."""
 
         if row is None:
             return None
 
-        prepared = dict(row)
+        prepared = self._coerceRow(row)
         prepared["categories"] = self._deserializeStringList(prepared.get("categories"))
         prepared["notification_preferences"] = self._deserializeJsonValue(
             prepared.get("notification_preferences")
         )
-        task_timezone = str(prepared.get("timezone") or "UTC")
+        task_timezone = self._coerceStr(prepared.get("timezone"), default="UTC")
         for key in ("due_at", "completed_at", "recurrence_until"):
             prepared[key] = self._convertStoredDateTimeToDisplay(prepared.get(key), task_timezone)
-        prepared["recurrence_interval"] = int(prepared.get("recurrence_interval") or 1)
-        prepared["recurrence_count"] = (
-            int(prepared["recurrence_count"])
-            if prepared.get("recurrence_count") is not None
-            else None
-        )
+        prepared["recurrence_interval"] = self._coerceInt(prepared.get("recurrence_interval"), default=1)
+        prepared["recurrence_count"] = self._coerceOptionalInt(prepared.get("recurrence_count"))
         return prepared
 
-    def _prepareReminderRow(self, row):
+    def _prepareReminderRow(self, row: Mapping[str, Any] | None) -> Optional[dict[str, Any]]:
         """Normalize one stored reminder row into the public reminder shape."""
 
         if row is None:
             return None
 
-        prepared = dict(row)
+        prepared = self._coerceRow(row)
         prepared["notification_preferences"] = self._deserializeJsonValue(
             prepared.get("notification_preferences")
         )
-        reminder_timezone = str(prepared.get("timezone") or "UTC")
+        reminder_timezone = self._coerceStr(prepared.get("timezone"), default="UTC")
         for key in ("remind_at", "delivered_at", "recurrence_until"):
             prepared[key] = self._convertStoredDateTimeToDisplay(prepared.get(key), reminder_timezone)
-        prepared["recurrence_interval"] = int(prepared.get("recurrence_interval") or 1)
-        prepared["recurrence_count"] = (
-            int(prepared["recurrence_count"])
-            if prepared.get("recurrence_count") is not None
-            else None
-        )
+        prepared["recurrence_interval"] = self._coerceInt(prepared.get("recurrence_interval"), default=1)
+        prepared["recurrence_count"] = self._coerceOptionalInt(prepared.get("recurrence_count"))
         return prepared
 
     def _serializeAttendees(self, attendees: Optional[Iterable[str] | str]) -> str:
@@ -2132,7 +2154,7 @@ class Calendar(AuraModule):
             parsed = json.loads(attendees_value)
             if isinstance(parsed, list):
                 return [str(value) for value in parsed]
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             pass
 
         return [value.strip() for value in str(attendees_value).split(",") if value.strip()]
@@ -2157,7 +2179,7 @@ class Calendar(AuraModule):
             parsed = json.loads(raw_value)
             if isinstance(parsed, list):
                 return [str(value) for value in parsed]
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             pass
         return [value.strip() for value in str(raw_value).split(",") if value.strip()]
 
@@ -2177,18 +2199,18 @@ class Calendar(AuraModule):
             return None
         try:
             return json.loads(raw_value)
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             return raw_value
 
     def _normalizeRecurrence(
         self,
-        recurrence_type: Optional[str],
-        recurrence_interval: int,
-        recurrence_until: Optional[str],
-        recurrence_count: Optional[int],
+        recurrence_type: Any | None,
+        recurrence_interval: Any,
+        recurrence_until: Any | None,
+        recurrence_count: Any | None,
         source_timezone: str = "UTC",
         allow_date_only: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Validate and normalize recurrence fields for storage.
         """
@@ -2205,20 +2227,20 @@ class Calendar(AuraModule):
         if normalized_type not in RECURRENCE_TYPES:
             raise ValueError("Invalid recurrence type. Use daily, weekly, monthly, or yearly.")
 
-        normalized_interval = int(recurrence_interval or 1)
+        normalized_interval = self._coerceInt(recurrence_interval, default=1)
         if normalized_interval < 1:
             raise ValueError("Recurrence interval must be at least 1.")
 
         normalized_until = (
             self._normalizeDateTimeValue(
-                recurrence_until,
+                self._coerceStr(recurrence_until),
                 allow_date_only=allow_date_only,
                 source_timezone=source_timezone,
             )
             if recurrence_until not in (None, "")
             else None
         )
-        normalized_count = int(recurrence_count) if recurrence_count not in (None, "") else None
+        normalized_count = self._coerceOptionalInt(recurrence_count)
         if normalized_count is not None and normalized_count < 1:
             raise ValueError("Recurrence count must be at least 1.")
 
@@ -2229,23 +2251,31 @@ class Calendar(AuraModule):
             "recurrence_count": normalized_count,
         }
 
-    def _expandRecurringEvent(self, row, range_start: datetime, range_end: datetime):
+    def _expandRecurringEvent(
+        self,
+        row: Mapping[str, Any],
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[dict[str, Any]]:
         """
         Expand one stored recurring event into concrete occurrences.
         """
 
-        base_start = self._parseDateTime(row["start_at"])
-        base_end = self._parseDateTime(row["end_at"]) if row.get("end_at") else None
+        base_start = self._parseDateTime(self._coerceStr(row.get("start_at")))
+        base_end = self._parseDateTime(self._coerceStr(row.get("end_at"))) if row.get("end_at") else None
         duration = (base_end - base_start) if base_end is not None else timedelta(0)
 
-        until = self._parseDateTime(row["recurrence_until"]) if row.get("recurrence_until") else None
-        count_limit = row.get("recurrence_count")
-        interval = int(row.get("recurrence_interval") or 1)
+        until = self._parseDateTime(self._coerceStr(row.get("recurrence_until"))) if row.get("recurrence_until") else None
+        count_limit: Optional[int] = self._coerceOptionalInt(row.get("recurrence_count"))
+        interval = self._coerceInt(row.get("recurrence_interval"), default=1)
 
-        occurrences = []
+        occurrences: list[dict[str, Any]] = []
         occurrence_start = base_start
         occurrence_index = 0
-        exceptions = self._fetchEventExceptions(int(row["id"]), str(row.get("timezone") or "UTC"))
+        exceptions = self._fetchEventExceptions(
+            self._coerceInt(row.get("id")),
+            self._coerceStr(row.get("timezone"), default="UTC"),
+        )
 
         while occurrence_start <= range_end:
             occurrence_index += 1
@@ -2259,7 +2289,7 @@ class Calendar(AuraModule):
                 occurrence_start + duration if row.get("end_at") is not None else None
             )
 
-            candidate = dict(row)
+            candidate = self._coerceRow(row)
             candidate["series_id"] = row.get("id")
             candidate["occurrence_index"] = occurrence_index
             candidate["start_at"] = occurrence_start.strftime("%Y-%m-%d %H:%M:%S")
@@ -2276,7 +2306,7 @@ class Calendar(AuraModule):
                 if exception.get("exception_type") == "cancel":
                     occurrence_start = self._advanceOccurrence(
                         occurrence_start,
-                        row.get("recurrence_type"),
+                        self._coerceStr(row.get("recurrence_type")),
                         interval,
                     )
                     continue
@@ -2288,34 +2318,42 @@ class Calendar(AuraModule):
 
             occurrence_start = self._advanceOccurrence(
                 occurrence_start,
-                row.get("recurrence_type"),
+                self._coerceStr(row.get("recurrence_type")),
                 interval,
             )
 
         return occurrences
 
-    def _expandRecurringTasks(self, rows, range_start_text: str, range_end_text: str):
+    def _expandRecurringTasks(
+        self,
+        rows: Iterable[Mapping[str, Any]],
+        range_start_text: str,
+        range_end_text: str,
+    ) -> list[dict[str, Any]]:
         """Expand recurring tasks into concrete due instances for a date range."""
 
         range_start = self._parseDateTime(range_start_text)
         range_end = self._parseDateTime(range_end_text)
-        expanded = []
+        expanded: list[dict[str, Any]] = []
 
         for row in rows:
             if not row.get("recurrence_type"):
-                expanded.append(row)
+                expanded.append(self._coerceRow(row))
                 continue
 
-            base_due = self._parseDateTime(row["due_at"]) if row.get("due_at") else None
+            base_due = self._parseDateTime(self._coerceStr(row.get("due_at"))) if row.get("due_at") else None
             if base_due is None:
-                expanded.append(row)
+                expanded.append(self._coerceRow(row))
                 continue
 
-            until = self._parseDateTime(row["recurrence_until"]) if row.get("recurrence_until") else None
-            count_limit = row.get("recurrence_count")
+            until = self._parseDateTime(self._coerceStr(row.get("recurrence_until"))) if row.get("recurrence_until") else None
+            count_limit: Optional[int] = self._coerceOptionalInt(row.get("recurrence_count"))
             occurrence_due = base_due
             occurrence_index = 0
-            exceptions = self._fetchTaskExceptions(int(row["id"]), str(row.get("timezone") or "UTC"))
+            exceptions = self._fetchTaskExceptions(
+                self._coerceInt(row.get("id")),
+                self._coerceStr(row.get("timezone"), default="UTC"),
+            )
 
             while occurrence_due <= range_end:
                 occurrence_index += 1
@@ -2325,7 +2363,7 @@ class Calendar(AuraModule):
                     break
 
                 if occurrence_due >= range_start:
-                    candidate = dict(row)
+                    candidate = self._coerceRow(row)
                     candidate["series_id"] = row.get("id")
                     candidate["occurrence_index"] = occurrence_index
                     candidate["due_at"] = occurrence_due.strftime("%Y-%m-%d %H:%M:%S")
@@ -2334,8 +2372,8 @@ class Calendar(AuraModule):
                         if exception.get("exception_type") == "cancel":
                             occurrence_due = self._advanceOccurrence(
                                 occurrence_due,
-                                row.get("recurrence_type"),
-                                int(row.get("recurrence_interval") or 1),
+                                self._coerceStr(row.get("recurrence_type")),
+                                self._coerceInt(row.get("recurrence_interval"), default=1),
                             )
                             continue
                         candidate = self._applyTaskOccurrenceOverride(candidate, exception)
@@ -2343,32 +2381,37 @@ class Calendar(AuraModule):
 
                 occurrence_due = self._advanceOccurrence(
                     occurrence_due,
-                    row.get("recurrence_type"),
-                    int(row.get("recurrence_interval") or 1),
+                    self._coerceStr(row.get("recurrence_type")),
+                    self._coerceInt(row.get("recurrence_interval"), default=1),
                 )
 
         return expanded
 
-    def _expandRecurringReminders(self, rows, range_start_text: str, range_end_text: str):
+    def _expandRecurringReminders(
+        self,
+        rows: Iterable[Mapping[str, Any]],
+        range_start_text: str,
+        range_end_text: str,
+    ) -> list[dict[str, Any]]:
         """Expand recurring reminders into concrete instances for a date range."""
 
         range_start = self._parseDateTime(range_start_text)
         range_end = self._parseDateTime(range_end_text)
-        expanded = []
+        expanded: list[dict[str, Any]] = []
 
         for row in rows:
             if not row.get("recurrence_type"):
-                expanded.append(row)
+                expanded.append(self._coerceRow(row))
                 continue
 
-            base_remind = self._parseDateTime(row["remind_at"])
-            until = self._parseDateTime(row["recurrence_until"]) if row.get("recurrence_until") else None
-            count_limit = row.get("recurrence_count")
+            base_remind = self._parseDateTime(self._coerceStr(row.get("remind_at")))
+            until = self._parseDateTime(self._coerceStr(row.get("recurrence_until"))) if row.get("recurrence_until") else None
+            count_limit: Optional[int] = self._coerceOptionalInt(row.get("recurrence_count"))
             occurrence_remind = base_remind
             occurrence_index = 0
             exceptions = self._fetchReminderExceptions(
-                int(row["id"]),
-                str(row.get("timezone") or "UTC"),
+                self._coerceInt(row.get("id")),
+                self._coerceStr(row.get("timezone"), default="UTC"),
             )
 
             while occurrence_remind <= range_end:
@@ -2379,7 +2422,7 @@ class Calendar(AuraModule):
                     break
 
                 if occurrence_remind >= range_start:
-                    candidate = dict(row)
+                    candidate = self._coerceRow(row)
                     candidate["series_id"] = row.get("id")
                     candidate["occurrence_index"] = occurrence_index
                     candidate["remind_at"] = occurrence_remind.strftime("%Y-%m-%d %H:%M:%S")
@@ -2388,8 +2431,8 @@ class Calendar(AuraModule):
                         if exception.get("exception_type") == "cancel":
                             occurrence_remind = self._advanceOccurrence(
                                 occurrence_remind,
-                                row.get("recurrence_type"),
-                                int(row.get("recurrence_interval") or 1),
+                                self._coerceStr(row.get("recurrence_type")),
+                                self._coerceInt(row.get("recurrence_interval"), default=1),
                             )
                             continue
                         candidate = self._applyReminderOccurrenceOverride(candidate, exception)
@@ -2397,18 +2440,22 @@ class Calendar(AuraModule):
 
                 occurrence_remind = self._advanceOccurrence(
                     occurrence_remind,
-                    row.get("recurrence_type"),
-                    int(row.get("recurrence_interval") or 1),
+                    self._coerceStr(row.get("recurrence_type")),
+                    self._coerceInt(row.get("recurrence_interval"), default=1),
                 )
 
         return expanded
 
-    def _applyOccurrenceOverride(self, candidate: dict, exception: dict) -> dict:
+    def _applyOccurrenceOverride(
+        self,
+        candidate: Mapping[str, Any],
+        exception: Mapping[str, Any],
+    ) -> dict[str, Any]:
         """
         Apply one stored recurrence override to a generated event instance.
         """
 
-        overridden = dict(candidate)
+        overridden = self._coerceRow(candidate)
 
         field_map = {
             "override_title": "title",
@@ -2431,10 +2478,14 @@ class Calendar(AuraModule):
         overridden["exception_id"] = exception.get("id")
         return overridden
 
-    def _applyTaskOccurrenceOverride(self, candidate: dict, exception: dict) -> dict:
+    def _applyTaskOccurrenceOverride(
+        self,
+        candidate: Mapping[str, Any],
+        exception: Mapping[str, Any],
+    ) -> dict[str, Any]:
         """Apply one stored task recurrence override to a generated task instance."""
 
-        overridden = dict(candidate)
+        overridden = self._coerceRow(candidate)
 
         field_map = {
             "override_title": "title",
@@ -2456,10 +2507,14 @@ class Calendar(AuraModule):
         overridden["exception_id"] = exception.get("id")
         return overridden
 
-    def _applyReminderOccurrenceOverride(self, candidate: dict, exception: dict) -> dict:
+    def _applyReminderOccurrenceOverride(
+        self,
+        candidate: Mapping[str, Any],
+        exception: Mapping[str, Any],
+    ) -> dict[str, Any]:
         """Apply one stored reminder recurrence override to a generated reminder instance."""
 
-        overridden = dict(candidate)
+        overridden = self._coerceRow(candidate)
 
         field_map = {
             "override_title": "title",
@@ -2497,9 +2552,45 @@ class Calendar(AuraModule):
         Determine whether an event instance overlaps the provided range.
         """
 
-        event_start = self._parseDateTime(row["start_at"])
-        event_end = self._parseDateTime(row["end_at"]) if row.get("end_at") else event_start
+        event_start = self._parseDateTime(self._coerceStr(row.get("start_at")))
+        event_end = self._parseDateTime(self._coerceStr(row.get("end_at"))) if row.get("end_at") else event_start
         return event_start <= range_end and event_end >= range_start
+
+    @staticmethod
+    def _coerceRow(row: Mapping[str, Any] | None) -> dict[str, Any]:
+        """Return a plain dictionary for row-like values."""
+
+        if row is None:
+            return {}
+        return cast(dict[str, Any], dict(row))
+
+    @staticmethod
+    def _coerceStr(value: Any, default: str = "") -> str:
+        """Return a string for loose database/config values."""
+
+        if value is None:
+            return default
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        return json.dumps(value, default=repr, sort_keys=True)
+
+    @staticmethod
+    def _coerceInt(value: Any, default: int = 0) -> int:
+        """Return an integer for loose database/config values."""
+
+        if value in (None, ""):
+            return int(default)
+        return int(value)
+
+    @staticmethod
+    def _coerceOptionalInt(value: Any) -> Optional[int]:
+        """Return an optional integer for loose database/config values."""
+
+        if value in (None, ""):
+            return None
+        return int(value)
 
     @staticmethod
     def _parseDateTime(value: str) -> datetime:
@@ -2533,7 +2624,7 @@ class Calendar(AuraModule):
 
     def _normalizeDateTimeValue(
         self,
-        value: str,
+        value: Any | None,
         allow_date_only: bool = False,
         source_timezone: str = "UTC",
         target_timezone: str = "UTC",
@@ -2545,7 +2636,7 @@ class Calendar(AuraModule):
         if value is None:
             raise ValueError("A datetime value is required.")
 
-        raw_value = str(value).strip()
+        raw_value = self._coerceStr(value).strip()
         if raw_value == "":
             raise ValueError("A datetime value is required.")
 
@@ -2577,12 +2668,12 @@ class Calendar(AuraModule):
             "Invalid date/time value. Use YYYY-MM-DD HH:MM or DD/MM/YYYY HH:MM."
         )
 
-    def _convertStoredDateTimeToDisplay(self, value: Optional[str], target_timezone: str) -> Optional[str]:
+    def _convertStoredDateTimeToDisplay(self, value: Any | None, target_timezone: str) -> Optional[str]:
         """Convert a UTC-stored datetime string into a calendar-local display string."""
 
         if value in (None, ""):
             return None
-        parsed = self._parseDateTime(str(value))
+        parsed = self._parseDateTime(self._coerceStr(value))
         converted = self._convertNaiveBetweenTimezones(parsed, "UTC", target_timezone)
         return converted.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2592,7 +2683,7 @@ class Calendar(AuraModule):
 
         try:
             return ZoneInfo(str(timezone_name or "UTC"))
-        except Exception:
+        except (LookupError, ValueError):
             return None
 
     def _convertNaiveBetweenTimezones(
@@ -2711,7 +2802,8 @@ class Calendar(AuraModule):
             value -= timedelta(days=1)
         return value
 
-    def _normalizeDateValue(self, value: str) -> str:
+    @staticmethod
+    def _normalize_date_value(value: str) -> str:
         """
         Normalize a date-only value to `YYYY-MM-DD`.
         """
@@ -2724,6 +2816,8 @@ class Calendar(AuraModule):
                 continue
 
         raise ValueError("Invalid date value. Use YYYY-MM-DD or DD/MM/YYYY.")
+
+    _normalizeDateValue = _normalize_date_value
 
     @staticmethod
     def _parseDate(value: str) -> datetime:
@@ -2757,7 +2851,7 @@ class Calendar(AuraModule):
 
             normalized_value = value
             if key in datetime_fields and value is not None:
-                normalized_value = self._normalizeDateTimeValue(str(value))
+                normalized_value = self._normalizeDateTimeValue(self._coerceStr(value))
 
             update_parts.append(f"{key} = ?")
             params.append(normalized_value)

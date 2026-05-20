@@ -3,8 +3,12 @@
 from typing import Any, Optional, Tuple
 
 import mysql.connector
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from mysql.connector.pooling import PooledMySQLConnection
 from modules.base import AuraModule, ModuleMetadata
 from modules.database.databaseTableManager import DatabaseTableManager
+
+MySQLConnectorConnection = MySQLConnectionAbstract | PooledMySQLConnection
 
 
 class MySQLDatabase(AuraModule):
@@ -39,7 +43,7 @@ class MySQLDatabase(AuraModule):
         self.database_name = None
         self.connection_timeout = 5
         self.logger = None
-        self.connection: Optional[mysql.connector.MySQLConnection] = None
+        self.connection: Optional[MySQLConnectorConnection] = None
         if context is not None:
             self.initialize(context)
 
