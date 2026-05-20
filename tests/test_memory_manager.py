@@ -1,23 +1,11 @@
 """Automated tests for `test_memory_manager` behavior and regression coverage."""
 
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
 
 from modules.llm.memoryManager import MemoryManager
+from modules.llm.models.llmResponse import LLMResponse
 from tests.support.fakes import InMemoryDatabase, make_context
-
-
-class DummyResponse:
-    """Testing utility class used to simulate `DummyResponse` dependencies and behavior."""
-    def __init__(self, status_code=200, payload=None, text=""):
-        """Initialize `DummyResponse` with required dependencies and internal state."""
-        self.status_code = status_code
-        self._payload = payload or {}
-        self.text = text
-
-    def json(self):
-        """Implement `json` as part of this component's public/internal behavior."""
-        return self._payload
 
 
 class MemoryManagerTests(unittest.TestCase):
@@ -26,6 +14,13 @@ class MemoryManagerTests(unittest.TestCase):
         """Prepare the test fixture state before each test case executes."""
         self.database = InMemoryDatabase()
         self.context = make_context(database=self.database)
+        self.context.llmManager = SimpleNamespace(
+            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                rawResponse={},
+            )
+        )
         self.memory = MemoryManager(self.context)
 
     def test_set_get_delete_memory(self):
@@ -45,24 +40,61 @@ class MemoryManagerTests(unittest.TestCase):
         self.memory.setMemory("favorite_color", "green")
         self.assertEqual(self.memory.get("favorite_color"), "green")
 
-    @patch("modules.llm.memoryManager.requests.post")
-    def test_learn_from_message_persists_extracted_values(self, mock_post):
+    def test_learn_from_message_persists_extracted_values(self):
         """Validate that learn from message persists extracted values behaves as expected."""
-        mock_post.return_value = DummyResponse(
-            200,
-            {"response": '{"name":"Nova","favorite_food":"pizza"}'},
-        )
+        captured = []
+        self.context.llmManager = SimpleNamespace(
+            generateStructuredResponse=lambda *args, **kwargs: (
+                captured.append(args),
+                LLMResponse(
+                    provider="test",
+                    success=True,
+                    rawResponse={"name": "Nova", "favorite_food": "pizza"},
+                ),
+            )[1]
+            )
+        self.memory.llmManager = self.context.llmManager
 
         self.memory.learnFromMessage("My name is Nova and I like pizza.")
 
         all_memory = self.memory.getMemory()
         self.assertEqual(all_memory.get("name"), "Nova")
         self.assertEqual(all_memory.get("favorite_food"), "pizza")
+        self.assertIn("Conversation:", captured[0][1])
 
-    @patch("modules.llm.memoryManager.requests.post")
-    def test_learn_from_message_ignores_invalid_json(self, mock_post):
+    def test_learn_from_history_sends_short_term_history_to_llm(self):
+        """Memory extraction should send the short-term history window as context."""
+
+        captured = []
+        self.context.llmManager = SimpleNamespace(
+            generateStructuredResponse=lambda *args, **kwargs: (
+                captured.append((args, kwargs)),
+                LLMResponse(
+                    provider="test",
+                    success=True,
+                    rawResponse={"favorite_color": "purple"},
+                ),
+            )[1]
+        )
+        self.memory.llmManager = self.context.llmManager
+
+        self.memory.learnFromHistory([("user", "I like purple"), ("aura", "Noted")])
+
+        prompt = captured[0][0][1]
+        self.assertIn("User: I like purple", prompt)
+        self.assertIn("Aura: Noted", prompt)
+        self.assertEqual(self.memory.get("favorite_color"), "purple")
+
+    def test_learn_from_message_ignores_invalid_json(self):
         """Validate that learn from message ignores invalid json behaves as expected."""
-        mock_post.return_value = DummyResponse(200, {"response": "not json"})
+        self.context.llmManager = SimpleNamespace(
+            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=False,
+                error="invalid json",
+            )
+        )
+        self.memory.llmManager = self.context.llmManager
 
         self.memory.learnFromMessage("This should fail JSON parse.")
 

@@ -1,6 +1,7 @@
 """Automated tests for `test_conversation_history` behavior and regression coverage."""
 
 import unittest
+from types import SimpleNamespace
 
 from modules.llm.conversationHistory import ConversationHistory
 from tests.support.fakes import InMemoryDatabase, make_context
@@ -40,6 +41,46 @@ class ConversationHistoryTests(unittest.TestCase):
         self.history.clear()
 
         self.assertEqual(self.history.getRecentMessages(limit=10), [])
+
+    def test_history_limit_comes_from_config(self):
+        """Conversation history should roll over at the configured limit."""
+
+        self.context.config._data["llm"]["history"]["limit"] = 3
+        self.history = ConversationHistory(self.context)
+
+        for index in range(5):
+            self.history.logMessage("user", f"message {index}")
+
+        self.assertEqual(
+            self.history.getRecentMessages(limit=10),
+            [
+                ("user", "message 2"),
+                ("user", "message 3"),
+                ("user", "message 4"),
+            ],
+        )
+
+    def test_memory_frequency_comes_from_config(self):
+        """Memory extraction should trigger after the configured message count."""
+
+        calls = []
+        self.context.config._data["llm"]["history"]["limit"] = 4
+        self.context.config._data["llm"]["memory"]["frequency"] = 3
+        self.context.memoryManager = SimpleNamespace(
+            learnFromHistory=lambda messages: calls.append(list(messages))
+        )
+        self.history = ConversationHistory(self.context)
+
+        self.history.logMessage("user", "one")
+        self.history.logMessage("aura", "two")
+        self.assertEqual(calls, [])
+
+        self.history.logMessage("user", "three")
+
+        self.assertEqual(
+            calls,
+            [[("user", "one"), ("aura", "two"), ("user", "three")]],
+        )
 
 
 if __name__ == "__main__":

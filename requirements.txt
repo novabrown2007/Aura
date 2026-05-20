@@ -2,5 +2,4 @@ requests
 PyYAML
 mysql-connector-python
 tzdata
-
-# Home automation bridge/control integrations use Python standard-library HTTP clients.
+google-genai

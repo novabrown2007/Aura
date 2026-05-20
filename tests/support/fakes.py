@@ -70,6 +70,21 @@ class InMemoryDatabase:
             )
             return None
 
+        if normalized.startswith("delete from conversation_history where id not in"):
+            limit = int(params[0])
+            keep_ids = {
+                row["id"]
+                for row in sorted(
+                    self._conversation_rows,
+                    key=lambda item: item["id"],
+                    reverse=True,
+                )[:limit]
+            }
+            self._conversation_rows = [
+                row for row in self._conversation_rows if row["id"] in keep_ids
+            ]
+            return None
+
         if normalized.startswith("delete from conversation_history"):
             self._conversation_rows.clear()
             return None
@@ -195,10 +210,14 @@ def make_context(database=None, extra=None):
     config = DictConfig(
         {
             "llm": {
-                "endpoint": "http://localhost:11434/api/generate",
-                "model": "llama3.1:8b",
+                "activeProvider": "ollama",
+                "fallbackProvider": "ollama",
+                "ollama": {
+                    "endpoint": "http://localhost:11434/api/generate",
+                    "model": "llama3.1:8b",
+                },
                 "history": {"enabled": True, "limit": 25},
-                "memory": {"enabled": True},
+                "memory": {"enabled": True, "frequency": 20},
             },
             "database": {
                 "host": "localhost",
@@ -217,6 +236,7 @@ def make_context(database=None, extra=None):
     context.database = database
     context.conversationHistory = None
     context.memoryManager = None
+    context.llmManager = None
     context.llm = None
     context.modules = {}
     context.threader = None

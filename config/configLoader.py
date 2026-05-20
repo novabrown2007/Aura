@@ -1,5 +1,6 @@
 """Core implementation for `configLoader` in the Aura assistant project."""
 
+import os
 import yaml
 from pathlib import Path
 
@@ -12,7 +13,7 @@ class ConfigLoader:
     Values can be accessed using dot-notation paths.
 
     Example:
-        config.get("llm.model")
+        config.get("llm.ollama.model")
         config.get("llm.history.limit")
     """
 
@@ -35,7 +36,20 @@ class ConfigLoader:
             self.logger = context.logger.getChild("Config")
 
         self.path = Path(path)
+        self.env_path = Path(".env")
         self.data = {}
+        self.env_key_map = {
+            "llm.endpoint": "OLLAMA_ENDPOINT",
+            "llm.ollama.endpoint": "OLLAMA_ENDPOINT",
+            "llm.providers.ollama.endpoint": "OLLAMA_ENDPOINT",
+            "llm.gemini.api_secret": "GEMINI_API_KEY",
+            "llm.gemini.apiKey": "GEMINI_API_KEY",
+            "llm.providers.gemini.apiKey": "GEMINI_API_KEY",
+            "llm.providers.gemini.api_secret": "GEMINI_API_KEY",
+            "discord.webhook": "DISCORD_WEBHOOK_URL",
+            "discord.webhook_url": "DISCORD_WEBHOOK_URL",
+            "discord.webhookUrl": "DISCORD_WEBHOOK_URL",
+        }
 
         self.load()
 
@@ -47,6 +61,8 @@ class ConfigLoader:
         """
         Load configuration from the YAML file.
         """
+
+        self._loadEnvFile()
 
         if not self.path.exists():
             raise FileNotFoundError(f"Config file not found: {self.path}")
@@ -81,7 +97,7 @@ class ConfigLoader:
                 Dot-separated configuration path.
 
                 Example:
-                    "llm.model"
+                    "llm.ollama.model"
 
             :param default:
                 Value returned if the key does not exist.
@@ -97,6 +113,8 @@ class ConfigLoader:
             if part not in value:
                 return default
             value = value[part]
+        if value == "CHANGE_ME":
+            return self._getEnvFallback(key, default)
         return value
 
     def require(self, key: str):
@@ -144,3 +162,38 @@ class ConfigLoader:
         Return the full configuration dictionary.
         """
         return self.data
+
+    def _loadEnvFile(self):
+        """
+        Load local .env values into os.environ without external dependencies.
+
+        Existing environment variables win over .env values so CI and shell
+        overrides remain authoritative.
+        """
+
+        if not self.env_path.exists():
+            return
+
+        with open(self.env_path, "r", encoding="utf-8") as file:
+            for line in file:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or "=" not in stripped:
+                    continue
+                key, value = stripped.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+
+    def _getEnvFallback(self, key: str, default=None):
+        """
+        Return an environment value for config entries intentionally marked CHANGE_ME.
+        """
+
+        env_key = self.env_key_map.get(key)
+        if not env_key:
+            return default
+        env_value = os.getenv(env_key)
+        if env_value in (None, ""):
+            return default
+        return env_value

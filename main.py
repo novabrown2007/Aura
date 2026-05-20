@@ -21,6 +21,7 @@ from core.router.interpreter import Interpreter
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 
+from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
 from modules.llm.memoryManager import MemoryManager
@@ -66,6 +67,9 @@ def shutdown(context):
     if context.moduleLoader:
         context.moduleLoader.shutdownModules()
 
+    if context.llmManager:
+        context.llmManager.shutdown()
+
     if context.database:
         context.database.close()
 
@@ -100,6 +104,7 @@ def buildRuntimeContext():
     context.database = createDatabaseWithFallback(context)
 
     # LLM
+    context.llmManager = LLMManager(context)
     context.memoryManager = MemoryManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)

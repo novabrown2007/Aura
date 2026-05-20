@@ -93,6 +93,9 @@ class RuntimeContext:
         self.llm = None
         """LLM handler responsible for model interaction."""
 
+        self.llmManager = None
+        """Provider-neutral manager responsible for all model access."""
+
         self.conversationHistory = None
         """Stores active conversation context."""
 
