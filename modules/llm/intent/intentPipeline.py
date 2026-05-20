@@ -43,6 +43,8 @@ class IntentPipeline:
         self.logger = context.logger.getChild("LLM.Intent") if getattr(context, "logger", None) else None
         self.threshold = self._getConfigValue("llm.intent.confidenceThreshold", 0.75)
         self.rawLogger = getattr(manager, "rawLogger", None)
+        self.recentToolContext: list[dict[str, Any]] = []
+        self.contextWindow = int(self._getConfigValue("llm.intent.contextWindow", 6))
 
     def handleUserInput(
         self,
@@ -115,10 +117,12 @@ class IntentPipeline:
 
         registry = getattr(self.context, "toolRegistry", None)
         toolSchemas = registry.exportSchemas(offlineMode=self._isOfflineMode()) if registry else []
+        contextualMemory = self.buildContextualMemory(userInput, conversationHistory)
         systemPrompt = PromptBuilder.buildIntentPrompt(
             baseSystemPrompt,
             toolSchemas,
             self.threshold,
+            contextualMemory=contextualMemory,
         )
         response = self.manager.generateStructuredResponse(
             systemPrompt,
@@ -139,6 +143,20 @@ class IntentPipeline:
         if not intents:
             return {"success": False, "error": "Intent response did not include any intents."}
         return {"success": True, "intents": intents, "response": normalized.get("response", "")}
+
+    def buildContextualMemory(
+        self,
+        userInput: str,
+        conversationHistory: list | None = None,
+    ) -> dict[str, Any]:
+        """Collect short-term, long-term, and runtime context for intent parsing."""
+
+        return {
+            "memory": self._getRelevantMemory(userInput),
+            "recentConversation": self._formatRecentConversation(conversationHistory),
+            "recentToolContext": self._formatRecentToolContext(),
+            "runtimeState": self._getRuntimeState(),
+        }
 
     def validateIntent(self, intent: StructuredIntent) -> dict[str, Any]:
         """Validate tool existence and arguments before execution."""
@@ -191,6 +209,7 @@ class IntentPipeline:
                 continue
             execution = self.executeIntent(intent, confirmed=confirmed)
             executions.append(execution)
+            self._rememberToolContext(intent, execution)
             if not execution.get("success"):
                 break
         return executions
@@ -254,6 +273,115 @@ class IntentPipeline:
         if config is None:
             return default
         return config.get(key, default)
+
+    def _getRelevantMemory(self, userInput: str) -> dict[str, Any]:
+        """Return memory entries useful for resolving contextual references."""
+
+        memoryManager = getattr(self.context, "memoryManager", None)
+        if memoryManager is None or not hasattr(memoryManager, "getMemory"):
+            return {}
+
+        memory = memoryManager.getMemory() or {}
+        if not isinstance(memory, dict):
+            return {}
+
+        if self._looksContextual(userInput):
+            return memory
+
+        tokens = self._tokenize(userInput)
+        relevant = {}
+        for key, value in memory.items():
+            keyText = str(key).lower()
+            valueText = str(value).lower()
+            if keyText in {"current_room", "current_location", "room", "location"}:
+                relevant[key] = value
+                continue
+            if any(token in keyText or token in valueText for token in tokens):
+                relevant[key] = value
+        return relevant
+
+    def _formatRecentConversation(self, conversationHistory: list | None) -> list[str]:
+        """Format recent conversation turns for reference resolution."""
+
+        if not conversationHistory:
+            return []
+
+        formatted = []
+        for message in conversationHistory[-self.contextWindow:]:
+            if isinstance(message, dict):
+                role = str(message.get("role") or message.get("author") or "user")
+                content = str(message.get("content") or "")
+            else:
+                role, content = message
+                role = str(role)
+                content = str(content)
+            formatted.append(f"{role}: {content}")
+        return formatted
+
+    def _formatRecentToolContext(self) -> list[str]:
+        """Format recent tool executions for pronoun and follow-up resolution."""
+
+        formatted = []
+        for item in self.recentToolContext[-self.contextWindow:]:
+            formatted.append(
+                f"{item.get('intent')} arguments={item.get('arguments')} "
+                f"success={item.get('success')} result={item.get('result')}"
+            )
+        return formatted
+
+    def _getRuntimeState(self) -> dict[str, Any]:
+        """Collect lightweight runtime state relevant to intent parsing."""
+
+        state = {}
+        homeAutomation = getattr(self.context, "homeAutomation", None)
+        if homeAutomation is not None and hasattr(homeAutomation, "getLights"):
+            try:
+                lights = []
+                for light in homeAutomation.getLights():
+                    lights.append(
+                        {
+                            "device_id": getattr(light, "device_id", ""),
+                            "name": getattr(light, "name", ""),
+                            "room": getattr(light, "metadata", {}).get("room", ""),
+                            "is_on": getattr(light, "is_on", None),
+                            "brightness": getattr(light, "brightness", None),
+                        }
+                    )
+                if lights:
+                    state["lights"] = lights
+            except Exception as error:
+                if self.logger:
+                    self.logger.debug(f"Runtime light context unavailable: {error}")
+        return state
+
+    def _rememberToolContext(self, intent: StructuredIntent, execution: dict[str, Any]):
+        """Preserve recent tool executions for follow-up commands."""
+
+        self.recentToolContext.append(
+            {
+                "intent": intent.intent,
+                "arguments": intent.arguments,
+                "success": execution.get("success", False),
+                "result": execution.get("result"),
+            }
+        )
+        if len(self.recentToolContext) > self.contextWindow:
+            self.recentToolContext = self.recentToolContext[-self.contextWindow:]
+
+    @staticmethod
+    def _looksContextual(userInput: str) -> bool:
+        """Return whether the user input likely needs prior context."""
+
+        tokens = IntentPipeline._tokenize(userInput)
+        contextualWords = {"it", "them", "that", "those", "there", "too", "also", "again", "same"}
+        return bool(tokens & contextualWords)
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        """Tokenize user text for lightweight relevance checks."""
+
+        cleaned = "".join(character.lower() if character.isalnum() else " " for character in str(text))
+        return {token for token in cleaned.split() if token}
 
     @staticmethod
     def _normalizeIntentPayload(payload: dict[str, Any]) -> dict[str, Any]:

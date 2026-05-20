@@ -71,6 +71,7 @@ class PromptBuilder:
         basePrompt: str,
         toolDefinitions: list[dict[str, Any]] | None = None,
         confidenceThreshold: float = 0.75,
+        contextualMemory: dict[str, Any] | None = None,
     ) -> str:
         """Build the strict prompt used for structured intent parsing."""
 
@@ -98,7 +99,47 @@ class PromptBuilder:
         else:
             sections.append("No tools are currently registered. Use conversation.respond.")
 
+        if contextualMemory:
+            sections.append(PromptBuilder._formatContextualMemory(contextualMemory))
+
         return "\n\n".join(sections)
+
+    @staticmethod
+    def _formatContextualMemory(contextualMemory: dict[str, Any]) -> str:
+        """Format contextual memory used to resolve follow-up references."""
+
+        lines = [
+            "Context for resolving references:",
+            "- Use this context to resolve words like it, them, that, there, also, and too.",
+            "- Prefer explicit user input over contextual memory when they conflict.",
+            "- If context is insufficient, keep confidence below the threshold.",
+        ]
+
+        memory = contextualMemory.get("memory") or {}
+        if memory:
+            lines.append("Long-term memory:")
+            for key, value in memory.items():
+                lines.append(f"- {key}: {value}")
+
+        recentToolContext = contextualMemory.get("recentToolContext") or []
+        if recentToolContext:
+            lines.append("Recent tool context:")
+            for item in recentToolContext:
+                lines.append(f"- {item}")
+
+        runtimeState = contextualMemory.get("runtimeState") or {}
+        if runtimeState:
+            lines.append("Current runtime state:")
+            for key, value in runtimeState.items():
+                lines.append(f"- {key}: {value}")
+
+        recentConversation = contextualMemory.get("recentConversation") or []
+        if recentConversation:
+            lines.append("Recent conversation summary:")
+            for item in recentConversation:
+                lines.append(f"- {item}")
+
+        return "\n".join(lines)
 
     @classmethod
     def buildPrompt(

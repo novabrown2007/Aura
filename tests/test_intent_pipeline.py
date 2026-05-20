@@ -23,10 +23,12 @@ class StubIntentManager:
         self.finalText = finalText
         self.offlineMode = False
         self.rawLogger = None
+        self.structuredCalls = []
 
-    def generateStructuredResponse(self, *_args, **_kwargs):
+    def generateStructuredResponse(self, *args, **kwargs):
         """Return the configured structured intent payload."""
 
+        self.structuredCalls.append({"args": args, "kwargs": kwargs})
         return LLMResponse(
             provider="test",
             success=True,
@@ -230,6 +232,51 @@ class IntentPipelineTests(unittest.TestCase):
         )
 
         self.assertTrue(result["success"], result)
+
+    def test_intent_prompt_injects_contextual_memory_and_prior_tool_context(self):
+        """Follow-up requests should receive memory and prior tool context."""
+
+        context = make_llm_context()
+        context.memoryManager.memory = {
+            "current_room": "bedroom",
+            "preferred_light_level": "20",
+        }
+        manager = StubIntentManager(
+            {
+                "intents": [
+                    {
+                        "intent": "test.turnOff",
+                        "arguments": {"room": "bedroom"},
+                        "confidence": 0.96,
+                    }
+                ],
+            }
+        )
+        pipeline = IntentPipeline(context, manager)
+        pipeline.recentToolContext.append(
+            {
+                "intent": "lights.setBrightness",
+                "arguments": {"room": "bedroom", "brightness": 20},
+                "success": True,
+                "result": {"device_id": "bedroom_lamp"},
+            }
+        )
+
+        pipeline.parseIntents(
+            "Turn them off too.",
+            "You are Aura.",
+            conversationHistory=[
+                ("user", "Dim the bedroom lights."),
+                ("aura", "The bedroom lights are dimmed."),
+            ],
+        )
+
+        prompt = manager.structuredCalls[0]["args"][0]
+        self.assertIn("Context for resolving references", prompt)
+        self.assertIn("current_room: bedroom", prompt)
+        self.assertIn("lights.setBrightness", prompt)
+        self.assertIn("bedroom_lamp", prompt)
+        self.assertIn("Dim the bedroom lights.", prompt)
 
 
 if __name__ == "__main__":

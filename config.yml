@@ -27,6 +27,7 @@ llm:
 
   intent:
     confidenceThreshold: 0.75
+    contextWindow: 6
 
 database:
   host: localhost
