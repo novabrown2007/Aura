@@ -25,9 +25,19 @@ class PromptBuilder:
             sections.append("\n".join(memoryLines))
 
         if toolDefinitions:
-            toolLines = ["Available tool definitions:"]
+            toolLines = [
+                "Available deterministic tools:",
+                "When a user asks Aura to perform an action, return a JSON object in this exact shape:",
+                '{"response":"short user-facing message","toolCalls":[{"toolName":"tool.name","arguments":{}}]}',
+                "Use toolCalls only for actions Aura should execute. For normal conversation, answer naturally.",
+                "Do not invent tools. Do not claim a tool was executed unless you returned it in toolCalls.",
+            ]
             for tool in toolDefinitions:
-                toolLines.append(f"- {tool.get('name')}: {tool.get('description', '')}")
+                arguments = tool.get("arguments", {})
+                toolLines.append(
+                    f"- {tool.get('name')}: {tool.get('description', '')} "
+                    f"Arguments: {arguments}"
+                )
             sections.append("\n".join(toolLines))
 
         return "\n\n".join(section for section in sections if section)
@@ -64,7 +74,6 @@ class PromptBuilder:
         historyText = cls.buildConversationHistory(conversationHistory)
         sections = [systemPrompt.strip()]
         if historyText:
-            sections.append(f"Previous conversation:\n{historyText}")
+            sections.append(f"Short-term conversation history:\n{historyText}")
         sections.append(f"User: {userPrompt}\nAura:")
         return "\n\n".join(section for section in sections if section)
-

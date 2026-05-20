@@ -115,6 +115,7 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
     )
     context.conversationHistory = StubHistory()
     context.memoryManager = StubMemory()
+    context.modules = {}
     return context
 
 
@@ -189,6 +190,66 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertTrue(response.success)
         self.assertEqual(response.provider, "fallback")
         self.assertEqual(response.text, "Recovered")
+
+    def test_system_prompt_includes_memory_and_tool_contract(self):
+        """The generic assistant prompt should expose memory and tool-call rules."""
+
+        handler = LLMHandler(make_llm_context())
+
+        prompt = handler._buildSystemPrompt()
+
+        self.assertIn("You are Aura, a private AI assistant", prompt)
+        self.assertIn("Known user information", prompt)
+        self.assertIn("- name: Nova", prompt)
+        self.assertIn("Available deterministic tools", prompt)
+        self.assertIn("calendar.createEvent", prompt)
+        self.assertIn('"toolCalls"', prompt)
+
+    def test_offline_prompt_excludes_tools_and_instructs_generic_action_response(self):
+        """Offline prompt should preserve context but avoid executable tools."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(offlineMode=True)
+        handler = LLMHandler(context)
+
+        prompt = handler._buildSystemPrompt()
+
+        self.assertIn("running in offline mode", prompt)
+        self.assertIn("Known user information", prompt)
+        self.assertIn("- name: Nova", prompt)
+        self.assertIn("cannot be completed in offline mode", prompt)
+        self.assertNotIn("Available deterministic tools", prompt)
+        self.assertNotIn("calendar.createEvent", prompt)
+        self.assertNotIn('"toolCalls"', prompt)
+
+    def test_generate_response_executes_calendar_tool_call(self):
+        """A JSON tool-call response should execute the matching backend function."""
+
+        calls = []
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text=(
+                    '{"response":"Added it to your calendar.",'
+                    '"toolCalls":[{"toolName":"calendar.createEvent","arguments":'
+                    '{"title":"Dentist","start_at":"2026-05-21 09:00:00"}}]}'
+                ),
+            )
+        )
+        context.calendar = SimpleNamespace(
+            createEvent=lambda **kwargs: calls.append(kwargs) or 42
+        )
+
+        handler = LLMHandler(context)
+        result = handler.generateResponse("Add dentist tomorrow at 9")
+
+        self.assertEqual(result, "Added it to your calendar.")
+        self.assertEqual(
+            calls,
+            [{"title": "Dentist", "start_at": "2026-05-21 09:00:00"}],
+        )
 
     def test_live_llm_connection_optional(self):
         """Validate that live llm connection optional behaves as expected."""
