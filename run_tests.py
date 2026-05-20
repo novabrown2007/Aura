@@ -10,6 +10,7 @@ SUITES = {
     "runtime_smoke": "tests.test_runtime_smoke",
     "config": "tests.test_config_loader",
     "logger": "tests.test_logger",
+    "sqlite": "tests.test_sqlite_database",
     "datetime_utils": "tests.test_datetime_utils",
     "notifications": "tests.test_notifications",
     "system": "tests.test_system",

@@ -100,6 +100,19 @@ class ConfigLoaderTests(unittest.TestCase):
             else:
                 os.environ["DISCORD_WEBHOOK_URL"] = old_discord_value
 
+    def test_missing_config_file_is_created_with_defaults(self):
+        """Aura should create a default config file instead of crashing."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yml"
+
+            config = ConfigLoader(path=str(config_path))
+
+            self.assertTrue(config_path.exists())
+            self.assertEqual(config.get("llm.activeProvider"), "gemini")
+            self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
+            self.assertEqual(config.get("threading.max_threads"), 10)
+
 
 if __name__ == "__main__":
     unittest.main()

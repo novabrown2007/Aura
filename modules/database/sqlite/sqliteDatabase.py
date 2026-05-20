@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
@@ -14,22 +15,32 @@ from modules.database.databaseTableManager import DatabaseTableManager
 class SQLiteCursor:
     """Small cursor wrapper that returns dict rows like the MySQL adapter."""
 
-    def __init__(self, cursor: sqlite3.Cursor):
+    def __init__(self, cursor: sqlite3.Cursor, lock: threading.RLock | None = None):
         """Store the raw SQLite cursor."""
 
         self.cursor = cursor
+        self.lock = lock
         self.lastrowid = cursor.lastrowid
 
     def fetchone(self):
         """Return one row as a dict."""
 
-        row = self.cursor.fetchone()
+        if self.lock is None:
+            row = self.cursor.fetchone()
+        else:
+            with self.lock:
+                row = self.cursor.fetchone()
         return dict(row) if row is not None else None
 
     def fetchall(self):
         """Return all rows as dicts."""
 
-        return [dict(row) for row in self.cursor.fetchall()]
+        if self.lock is None:
+            rows = self.cursor.fetchall()
+        else:
+            with self.lock:
+                rows = self.cursor.fetchall()
+        return [dict(row) for row in rows]
 
 
 class SQLiteDatabase(AuraModule):
@@ -54,6 +65,7 @@ class SQLiteDatabase(AuraModule):
         super().__init__()
         self.database_path = Path(database_path or "aura.sqlite3")
         self.connection: Optional[sqlite3.Connection] = None
+        self._lock = threading.RLock()
         self.logger = None
         self.database_name = str(self.database_path)
         self._configured_database_path = database_path
@@ -83,7 +95,7 @@ class SQLiteDatabase(AuraModule):
             return
 
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(str(self.database_path))
+        self.connection = sqlite3.connect(str(self.database_path), check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
 
         if self.logger:
@@ -93,8 +105,9 @@ class SQLiteDatabase(AuraModule):
         """Close the SQLite connection."""
 
         if self.connection is not None:
-            self.connection.close()
-            self.connection = None
+            with self._lock:
+                self.connection.close()
+                self.connection = None
             if self.logger:
                 self.logger.info("SQLite connection closed.")
 
@@ -108,8 +121,9 @@ class SQLiteDatabase(AuraModule):
     def execute(self, query: str, params: Tuple = ()):
         """Execute one query and commit changes."""
 
-        cursor = self._execute(query, params)
-        self.connection.commit()
+        with self._lock:
+            cursor = self._execute(query, params)
+            self.connection.commit()
         return cursor
 
     def fetchOne(self, query: str, params: Tuple = ()):
@@ -132,12 +146,14 @@ class SQLiteDatabase(AuraModule):
         normalized_params = self._normalizeParams(params)
 
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(normalized_query, normalized_params)
-            return SQLiteCursor(cursor)
+            with self._lock:
+                cursor = self.connection.cursor()
+                cursor.execute(normalized_query, normalized_params)
+                return SQLiteCursor(cursor, self._lock)
         except sqlite3.OperationalError as error:
             if self._isDuplicateColumnAdd(normalized_query, error):
-                return SQLiteCursor(self.connection.cursor())
+                with self._lock:
+                    return SQLiteCursor(self.connection.cursor(), self._lock)
             raise
 
     def _normalizeQuery(self, query: str) -> str:

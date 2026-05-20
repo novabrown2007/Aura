@@ -5,6 +5,56 @@ import yaml
 from pathlib import Path
 
 
+DEFAULT_CONFIG = {
+    "llm": {
+        "activeProvider": "gemini",
+        "fallbackProvider": "ollama",
+        "offlineMode": False,
+        "retryCount": 2,
+        "timeout": 30,
+        "ollama": {
+            "model": "llama3.1:8b",
+            "endpoint": "CHANGE_ME",
+        },
+        "gemini": {
+            "model": "gemini-2.5-flash",
+            "api_secret": "CHANGE_ME",
+        },
+        "history": {
+            "enabled": True,
+            "limit": 25,
+        },
+        "memory": {
+            "enabled": True,
+            "frequency": 20,
+            "semantic": {
+                "enabled": True,
+                "limit": 5,
+                "provider": "local",
+            },
+        },
+        "logging": {
+            "enabled": True,
+            "path": "logs/llm",
+        },
+        "intent": {
+            "confidenceThreshold": 0.75,
+            "contextWindow": 6,
+        },
+    },
+    "database": {
+        "host": "localhost",
+        "port": 3306,
+        "name": "aura",
+        "user": "CHANGE_ME",
+        "password": "CHANGE_ME",
+    },
+    "threading": {
+        "max_threads": 10,
+    },
+}
+
+
 class ConfigLoader:
     """
     Loads and provides access to Aura configuration stored in YAML.
@@ -65,7 +115,7 @@ class ConfigLoader:
         self._loadEnvFile()
 
         if not self.path.exists():
-            raise FileNotFoundError(f"Config file not found: {self.path}")
+            self._createDefaultConfig()
 
         with open(self.path, "r", encoding="utf-8") as file:
             loaded = yaml.safe_load(file)
@@ -83,6 +133,18 @@ class ConfigLoader:
             self.logger.info(f"Configuration loaded from {self.path}")
             keys = ", ".join(self.data.keys())
             self.logger.debug(f"Config sections loaded: {keys}")
+
+    def _createDefaultConfig(self):
+        """
+        Create a default configuration file when Aura starts without one.
+        """
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as file:
+            yaml.safe_dump(DEFAULT_CONFIG, file, sort_keys=False)
+
+        if self.logger:
+            self.logger.warning(f"Config file missing. Created default config at {self.path}")
 
     # --------------------------------------------------
     # Access
