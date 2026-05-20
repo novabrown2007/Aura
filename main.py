@@ -63,6 +63,9 @@ def shutdown(context):
     if context.scheduler:
         context.scheduler.stop()
 
+    if context.moduleLoader:
+        context.moduleLoader.shutdownModules()
+
     if context.database:
         context.database.close()
 

@@ -3,10 +3,15 @@
 from typing import Any, Optional, Tuple
 
 import mysql.connector
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from mysql.connector.pooling import PooledMySQLConnection
+from modules.base import AuraModule, ModuleMetadata
 from modules.database.databaseTableManager import DatabaseTableManager
 
+MySQLConnectorConnection = MySQLConnectionAbstract | PooledMySQLConnection
 
-class MySQLDatabase:
+
+class MySQLDatabase(AuraModule):
     """
     MySQL database interface for the Aura assistant.
 
@@ -19,8 +24,36 @@ class MySQLDatabase:
     - initialize()
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="mysqlDatabase",
+        version="1.0.0",
+        description="MySQL database adapter for Aura persistence.",
+        permissions=("database:connect", "database:read", "database:write"),
+        capabilities=("database", "mysql"),
+    )
+
+    def __init__(self, context=None):
         """Initialize `MySQLDatabase` with required dependencies and internal state."""
+
+        super().__init__()
+        self.host = None
+        self.port = None
+        self.user = None
+        self.password = None
+        self.database_name = None
+        self.connection_timeout = 5
+        self.logger = None
+        self.connection: Optional[MySQLConnectorConnection] = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context=None):
+        """Initialize the adapter from context or create schema when already configured."""
+
+        if context is None:
+            return self.initializeSchema()
+
+        super().initialize(context)
         self.context = context
 
         self.host = self.context.config.require("database.host")
@@ -30,11 +63,8 @@ class MySQLDatabase:
         self.database_name = self.context.config.require("database.name")
         self.connection_timeout = self.context.config.get("database.connection_timeout", 5)
 
-        self.logger = None
         if context.logger:
             self.logger = context.logger.getChild("Database")
-
-        self.connection: Optional[mysql.connector.MySQLConnection] = None
 
         if self.logger:
             self.logger.info("MySQL initialized.")
@@ -113,7 +143,7 @@ class MySQLDatabase:
     # Utility
     # --------------------------------------------------
 
-    def initialize(self):
+    def initializeSchema(self):
         """
         Initialize base database schema required by Aura.
         """

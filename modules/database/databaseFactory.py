@@ -17,7 +17,7 @@ def createDatabaseWithFallback(context):
     try:
         database = MySQLDatabase(context)
         database.connect()
-        database.initialize()
+        database.initializeSchema()
         return database
     except Exception as error:
         if logger:
@@ -25,5 +25,5 @@ def createDatabaseWithFallback(context):
 
     database = SQLiteDatabase(context)
     database.connect()
-    database.initialize()
+    database.initializeSchema()
     return database

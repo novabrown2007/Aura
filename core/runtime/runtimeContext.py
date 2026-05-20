@@ -76,6 +76,9 @@ class RuntimeContext:
             module instance
         """
 
+        self.moduleLoader = None
+        """Dynamic module loader and plugin registry."""
+
         # ----------------------------
         # Database
         # ----------------------------

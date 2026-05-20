@@ -1,11 +1,12 @@
 """System lifecycle facade for Aura."""
 
+from modules.base import AuraModule, ModuleMetadata
 from modules.system.reload import Reload
 from modules.system.restart import Restart
 from modules.system.shutdown import Shutdown
 
 
-class System:
+class System(AuraModule):
     """
     Expose system lifecycle actions through one runtime module.
 
@@ -13,7 +14,15 @@ class System:
     lifecycle action into its own class.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="system",
+        version="1.0.0",
+        description="System lifecycle controls for reload, restart, and shutdown.",
+        permissions=("system:lifecycle", "config:reload"),
+        capabilities=("shutdown", "restart", "reload"),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the system lifecycle facade.
 
@@ -22,6 +31,18 @@ class System:
                 Runtime context shared by the lifecycle actions.
         """
 
+        super().__init__()
+        self.logger = None
+        self.shutdownAction = None
+        self.restartAction = None
+        self.reloadAction = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the system module."""
+
+        super().initialize(context)
         self.context = context
         self.logger = context.logger.getChild("System") if context.logger else None
 
@@ -31,6 +52,11 @@ class System:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by system."""
+
+        return []
 
     def shutdown(self) -> bool:
         """
