@@ -307,6 +307,7 @@ jobs:
           PUSH_BRANCH: ${{ github.ref_name }}
           PUSH_AUTHOR: ${{ github.event.pusher.name }}
           PUSH_COMMITS_JSON: ${{ toJson(github.event.commits) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SOURCE_JOB_STATUS: ${{ needs.source_packages.result }}
           EXE_JOB_STATUS: ${{ needs.executables.result }}
           TEST_JOB_STATUS: ${{ needs.tests.result }}
@@ -399,22 +400,45 @@ jobs:
             "build/executables/aura_android.exe",
             "build/executables/aura_web.exe"
           )
-          $filePayload = @{
-            content = "Executables"
-          } | ConvertTo-Json -Depth 4 -Compress
-          $fileForm = @{
-            payload_json = $filePayload
-          }
-          $fileIndex = 0
+          $uploadedFiles = @()
+          $failedFiles = @()
           foreach ($path in $executablePaths) {
-            if (Test-Path $path) {
-              $fileForm["files[$fileIndex]"] = Get-Item $path
-              $fileIndex += 1
+            if (-not (Test-Path $path)) {
+              $failedFiles += "$path was not produced"
+              continue
+            }
+
+            $file = Get-Item $path
+            $sizeMb = [math]::Round($file.Length / 1MB, 2)
+            $filePayload = @{
+              content = "Executable: $($file.Name) ($sizeMb MB)"
+            } | ConvertTo-Json -Depth 4 -Compress
+            $fileForm = @{
+              payload_json = $filePayload
+              "files[0]" = $file
+            }
+
+            try {
+              Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -Form $fileForm
+              $uploadedFiles += "$($file.Name) ($sizeMb MB)"
+            } catch {
+              Write-Warning "Discord rejected $($file.Name): $($_.Exception.Message)"
+              $failedFiles += "$($file.Name) ($sizeMb MB)"
             }
           }
 
-          if ($fileIndex -gt 0) {
-            Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -Form $fileForm
-          } else {
-            Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -ContentType "application/json" -Body (@{ content = "Executables were not produced." } | ConvertTo-Json -Compress)
+          if ($failedFiles.Count -gt 0) {
+            $failedText = ($failedFiles -join "`n")
+            if ($failedText.Length -gt 1500) {
+              $failedText = $failedText.Substring(0, 1497) + "..."
+            }
+            $fallbackPayload = @{
+              content = "Executable upload fallback`n$failedText`nArtifacts: $env:RUN_URL"
+            } | ConvertTo-Json -Depth 4 -Compress
+            Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -ContentType "application/json" -Body $fallbackPayload
+          } elseif ($uploadedFiles.Count -eq 0) {
+            $missingPayload = @{
+              content = "Executables were not produced.`nArtifacts: $env:RUN_URL"
+            } | ConvertTo-Json -Depth 4 -Compress
+            Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -ContentType "application/json" -Body $missingPayload
           }
