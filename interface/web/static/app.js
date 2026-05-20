@@ -51,6 +51,7 @@ function showPage(pageId) {
     loadCalendars();
     loadCalendarView();
   }
+  if (pageId === "homeAutomationPage") loadHomeAutomationState();
 }
 
 function renderRows(container, rows, emptyText, actions = {}) {
@@ -262,6 +263,120 @@ function allCalendarRows(data) {
   ];
 }
 
+async function loadHomeAutomationState(refresh = false) {
+  try {
+    const data = await api(refresh ? "/api/home-automation/refresh" : "/api/home-automation/state", {
+      method: refresh ? "POST" : "GET",
+    });
+    renderHomeAutomation(data);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function renderHomeAutomation(data) {
+  const status = $("#homeAutomationStatus");
+  status.innerHTML = `
+    <h3>${escapeHtml(data.bridge_name || "Unavailable")}</h3>
+    <div class="muted">Connected: ${data.connected ? "Yes" : "No"}</div>
+    <div class="muted">Online devices: ${escapeHtml(data.online_devices ?? 0)}</div>
+    ${data.last_error ? `<p>${escapeHtml(data.last_error)}</p>` : ""}
+  `;
+  renderHomeLights(data.lights || []);
+  renderHomeCameras(data.cameras || []);
+  renderRows($("#homeAutomationDevices"), data.devices || [], "No devices.");
+}
+
+function renderHomeLights(rows) {
+  const container = $("#homeAutomationLights");
+  container.innerHTML = "";
+  if (!rows.length) {
+    container.innerHTML = `<div class="item-card muted">No lights.</div>`;
+    return;
+  }
+  rows.forEach((light) => {
+    const card = document.createElement("article");
+    card.className = "item-card";
+    card.innerHTML = `
+      <h3>${escapeHtml(light.name || light.device_id)}</h3>
+      <div class="muted">${light.is_on ? "On" : "Off"} · ${escapeHtml(light.brightness ?? 0)}%</div>
+      <div class="muted">${escapeHtml(light.color || "")} ${escapeHtml(light.color_temperature_kelvin || "")}K</div>
+      <div class="button-row">
+        <button data-light-action="on" type="button">On</button>
+        <button data-light-action="off" type="button">Off</button>
+        <button data-light-action="brightness" type="button">50%</button>
+        <button data-light-action="warm" type="button">Warm</button>
+        <button data-light-action="blue" type="button">Blue</button>
+      </div>
+    `;
+    $$("button", card).forEach((button) => button.addEventListener("click", () => controlLight(light.device_id, button.dataset.lightAction)));
+    container.append(card);
+  });
+}
+
+function renderHomeCameras(rows) {
+  const container = $("#homeAutomationCameras");
+  container.innerHTML = "";
+  if (!rows.length) {
+    container.innerHTML = `<div class="item-card muted">No cameras.</div>`;
+    return;
+  }
+  rows.forEach((camera) => {
+    const card = document.createElement("article");
+    card.className = "item-card";
+    card.innerHTML = `
+      <h3>${escapeHtml(camera.name || camera.device_id)}</h3>
+      <div class="muted">${escapeHtml(camera.status || "Idle")} · ${camera.is_streaming ? "Streaming" : "Stopped"}</div>
+      <div class="muted">${escapeHtml(camera.resolution || "")} snapshots: ${escapeHtml(camera.snapshot_count ?? 0)}</div>
+      <div class="button-row">
+        <button data-camera-action="start" type="button">Start</button>
+        <button data-camera-action="stop" type="button">Stop</button>
+        <button data-camera-action="snapshot" type="button">Snapshot</button>
+      </div>
+    `;
+    $$("button", card).forEach((button) => button.addEventListener("click", () => controlCamera(camera.device_id, button.dataset.cameraAction)));
+    container.append(card);
+  });
+}
+
+async function controlLight(deviceId, action) {
+  const routes = {
+    on: [`/api/home-automation/lights/${deviceId}/state`, { is_on: true }],
+    off: [`/api/home-automation/lights/${deviceId}/state`, { is_on: false }],
+    brightness: [`/api/home-automation/lights/${deviceId}/brightness`, { brightness: 50 }],
+    warm: [`/api/home-automation/lights/${deviceId}/temperature`, { kelvin: 2700 }],
+    blue: [`/api/home-automation/lights/${deviceId}/color`, { color: "blue" }],
+  };
+  try {
+    const [path, body] = routes[action];
+    await api(path, { method: "POST", body });
+    toast("Light updated.");
+    loadHomeAutomationState(true);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function controlCamera(deviceId, action) {
+  try {
+    await api(`/api/home-automation/cameras/${deviceId}/${action}`, { method: "POST", body: {} });
+    toast("Camera updated.");
+    loadHomeAutomationState(true);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function startHomeService(path, message) {
+  try {
+    await api(path, { method: "POST", body: {} });
+    toast(message);
+    loadHomeAutomationState(true);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 function groupByDate(rows) {
   return rows.reduce((grouped, row) => {
     const raw = row.start_at || row.due_at || row.remind_at || state.calendarDate;
@@ -394,6 +509,9 @@ function bindEvents() {
   });
   $("#closeNotifications").addEventListener("click", () => $("#notificationsDrawer").classList.add("hidden"));
   $("#profileButton").addEventListener("click", () => toast("Profile controls are not wired to a backend module yet."));
+  $("#refreshHomeAutomation").addEventListener("click", () => loadHomeAutomationState(true));
+  $("#startBridgeButton").addEventListener("click", () => startHomeService("/api/home-automation/bridge/start", "Bridge start requested."));
+  $("#startHubButton").addEventListener("click", () => startHomeService("/api/home-automation/hub/start", "Hub start requested."));
   $("#calendarDate").addEventListener("change", (event) => {
     state.calendarDate = event.target.value || state.calendarDate;
     loadCalendarView();

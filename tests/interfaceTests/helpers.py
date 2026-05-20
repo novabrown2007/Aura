@@ -1,5 +1,6 @@
 """Shared test doubles for interface tests."""
 
+from modules.home_automation.models import BridgeState, CameraDevice, LightDevice
 from tests.support.fakes import TestContext
 
 
@@ -141,6 +142,68 @@ class FakeCalendar:
         return [{"id": 1, "start_at": start_at, "end_at": end_at}]
 
 
+class FakeHomeAutomation:
+    """Home automation backend stub for interface route tests."""
+
+    def __init__(self):
+        self.state = BridgeState(
+            connected=True,
+            bridge_name="Home Automation Bridge",
+            lights=[LightDevice("light1", "Kitchen Light", "light", is_on=False, brightness=0)],
+            cameras=[CameraDevice("camera1", "Entry Camera", "camera")],
+        )
+        self.state.devices = [*self.state.lights, *self.state.cameras]
+
+    def getBridgeState(self):
+        return self.state
+
+    def refresh(self):
+        return self.state
+
+    def startBridge(self):
+        return {"status": "ok", "service": "bridge"}
+
+    def startHub(self):
+        return {"status": "ok", "service": "hub"}
+
+    def toggleLight(self, device_id, is_on, brightness=None):
+        light = self.state.lights[0]
+        light.is_on = is_on
+        if brightness is not None:
+            light.brightness = brightness
+        return light
+
+    def setLightBrightness(self, device_id, brightness):
+        self.state.lights[0].brightness = brightness
+        return self.state.lights[0]
+
+    def setLightTemperature(self, device_id, kelvin):
+        self.state.lights[0].color_temperature_kelvin = kelvin
+        return self.state.lights[0]
+
+    def setLightColor(self, device_id, color):
+        self.state.lights[0].color = color
+        return self.state.lights[0]
+
+    def startCameraStream(self, device_id):
+        self.state.cameras[0].is_streaming = True
+        return self.state.cameras[0]
+
+    def stopCameraStream(self, device_id):
+        self.state.cameras[0].is_streaming = False
+        return self.state.cameras[0]
+
+    def takeCameraSnapshot(self, device_id):
+        self.state.cameras[0].snapshot_count += 1
+        return self.state.cameras[0]
+
+    def getNotifications(self):
+        return []
+
+    def queueNotification(self, source, severity, category, title, message, device_id=""):
+        return {"status": "ok", "title": title}
+
+
 def makeInterfaceContext():
     """Build a context with enough backend services for interface tests."""
 
@@ -152,4 +215,5 @@ def makeInterfaceContext():
     context.reminders = FakeReminders()
     context.notifications = FakeNotifications()
     context.calendar = FakeCalendar()
+    context.homeAutomation = FakeHomeAutomation()
     return context

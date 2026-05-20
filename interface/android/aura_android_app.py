@@ -68,12 +68,14 @@ class AuraAndroidApp:
         self.remindersScreen = self._buildRemindersScreen()
         self.calendarScreen = self._buildCalendarScreen()
         self.notificationsScreen = self._buildNotificationsScreen()
+        self.homeAutomationScreen = self._buildHomeAutomationScreen()
 
         for screen in (
             self.chatScreen,
             self.remindersScreen,
             self.calendarScreen,
             self.notificationsScreen,
+            self.homeAutomationScreen,
         ):
             self.screenManager.add_widget(screen)
 
@@ -88,6 +90,7 @@ class AuraAndroidApp:
             ("Reminders", "reminders"),
             ("Calendar", "calendar"),
             ("Alerts", "notifications"),
+            ("Home", "home_automation"),
         ):
             row.add_widget(Button(text=name, on_release=lambda _btn, screen=target: self._showScreen(screen)))
         return row
@@ -102,6 +105,8 @@ class AuraAndroidApp:
             self._refreshCalendar()
         elif name == "notifications":
             self._refreshNotifications()
+        elif name == "home_automation":
+            self._refreshHomeAutomation()
 
     def _buildChatScreen(self):
         """Build chat screen."""
@@ -242,6 +247,56 @@ class AuraAndroidApp:
 
         self.notificationsList.text = self._formatRows(rows, empty="No notifications.")
 
+    def _buildHomeAutomationScreen(self):
+        """Build home automation screen."""
+
+        screen = Screen(name="home_automation")
+        root = BoxLayout(orientation="vertical", padding=12, spacing=8)
+        root.add_widget(self._nav())
+
+        actions = BoxLayout(orientation="horizontal", size_hint_y=None, height=48, spacing=8)
+        actions.add_widget(Button(text="Refresh", on_release=lambda _btn: self._refreshHomeAutomation()))
+        actions.add_widget(Button(text="Bridge", on_release=lambda _btn: self._startHomeAutomationBridge()))
+        actions.add_widget(Button(text="Hub", on_release=lambda _btn: self._startHomeAutomationHub()))
+        root.add_widget(actions)
+
+        self.homeAutomationList = Label(text="", size_hint_y=None)
+        self.homeAutomationList.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
+        scroll = ScrollView()
+        scroll.add_widget(self.homeAutomationList)
+        root.add_widget(scroll)
+        screen.add_widget(root)
+        return screen
+
+    def _refreshHomeAutomation(self):
+        """Load home automation state from the backend."""
+
+        try:
+            state = self.context.require("homeAutomation").refresh()
+        except Exception as error:
+            self.homeAutomationList.text = f"Error: {error}"
+            return
+
+        self.homeAutomationList.text = self._formatHomeAutomationState(state)
+
+    def _startHomeAutomationBridge(self):
+        """Request bridge service start."""
+
+        try:
+            response = self.context.require("homeAutomation").startBridge()
+            self.homeAutomationList.text = f"Bridge start requested.\n{response}"
+        except Exception as error:
+            self.homeAutomationList.text = f"Error: {error}"
+
+    def _startHomeAutomationHub(self):
+        """Request hub service start."""
+
+        try:
+            response = self.context.require("homeAutomation").startHub()
+            self.homeAutomationList.text = f"Hub start requested.\n{response}"
+        except Exception as error:
+            self.homeAutomationList.text = f"Error: {error}"
+
     def _buildCalendarScreen(self):
         """Build calendar screen."""
 
@@ -354,7 +409,7 @@ class AuraAndroidApp:
     def _formatRows(rows, empty: str) -> str:
         """Format backend rows for compact mobile display."""
 
-        prepared = [dict(row) for row in rows]
+        prepared = [AuraAndroidApp._rowToDict(row) for row in rows]
         if not prepared:
             return empty
 
@@ -373,3 +428,41 @@ class AuraAndroidApp:
             detail = row.get("description") or row.get("content") or row.get("notes") or ""
             lines.append(f"{kind}: {title}\n{when}\n{detail}".strip())
         return "\n\n".join(lines)
+
+    @staticmethod
+    def _formatHomeAutomationState(state) -> str:
+        """Format home automation state for compact mobile display."""
+
+        state_row = AuraAndroidApp._rowToDict(state)
+        lines = [
+            f"Bridge: {state_row.get('bridge_name', 'Unavailable')}",
+            f"Connected: {'Yes' if state_row.get('connected') else 'No'}",
+            f"Online devices: {state_row.get('online_devices', 0)}",
+        ]
+        if state_row.get("last_error"):
+            lines.append(f"Error: {state_row['last_error']}")
+
+        for title, key in (("Lights", "lights"), ("Cameras", "cameras"), ("Devices", "devices")):
+            rows = [AuraAndroidApp._rowToDict(row) for row in state_row.get(key, [])]
+            lines.append(f"\n{title}")
+            if not rows:
+                lines.append("None")
+                continue
+            for row in rows:
+                name = row.get("name") or row.get("device_id") or "Unknown"
+                detail = row.get("status") or row.get("category") or ""
+                if row.get("category") == "light":
+                    detail = f"{'On' if row.get('is_on') else 'Off'} {row.get('brightness', 0)}%"
+                lines.append(f"- {name}: {detail}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _rowToDict(row):
+        """Convert backend row-like values to dictionaries."""
+
+        if hasattr(row, "__dataclass_fields__"):
+            data = {key: getattr(row, key) for key in row.__dataclass_fields__}
+            if hasattr(row, "online_devices"):
+                data["online_devices"] = row.online_devices
+            return data
+        return dict(row)

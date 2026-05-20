@@ -1,3 +1,4 @@
 -r ../../requirements.txt
 
 # The web interface currently uses Python's standard-library HTTP server.
+# Home automation controls use the shared backend requirements only.
