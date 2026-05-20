@@ -9,6 +9,7 @@ from typing import Any
 
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
+from modules.llm.providers.base.providerCapabilities import ProviderCapabilities
 from modules.llm.utils.promptBuilder import PromptBuilder
 from modules.llm.utils.responseValidator import ResponseValidator
 
@@ -17,6 +18,14 @@ class GeminiProvider(LLMProvider):
     """Gemini provider using Google's official SDK when installed."""
 
     providerName = "gemini"
+    capabilities = ProviderCapabilities(
+        supportsStructuredOutput=True,
+        supportsStreaming=True,
+        supportsVision=True,
+        supportsFileSearch=True,
+        supportsUrlContext=True,
+        supportsToolCalling=False,
+    )
 
     def initialize(self):
         """Initialize the Gemini client from config or environment."""
@@ -85,12 +94,17 @@ class GeminiProvider(LLMProvider):
 
         for attempt in range(1, attempts + 1):
             finalPrompt = PromptBuilder.buildPrompt(prompt, "", conversationHistory)
-            response = self._callGemini(finalPrompt, forceJson=True)
+            response = self._callGemini(finalPrompt, forceJson=True, jsonSchema=schema)
             lastResponse = response
             if not response.success:
+                if self.logger:
+                    self.logger.warning(f"Gemini structured request failed on attempt {attempt}: {response.error}")
                 continue
 
             valid, parsed, error = ResponseValidator.parseJson(response.text)
+            if not valid:
+                repairedText = ResponseValidator.repairJsonText(response.text)
+                valid, parsed, error = ResponseValidator.parseJson(repairedText)
             if valid:
                 schemaValid, schemaError = ResponseValidator.validateSchema(parsed, schema)
                 if schemaValid:
@@ -110,6 +124,7 @@ class GeminiProvider(LLMProvider):
         self,
         prompt: str,
         forceJson: bool = False,
+        jsonSchema: dict[str, Any] | None = None,
     ) -> LLMResponse:
         """Call Gemini and normalize the SDK response."""
 
@@ -125,6 +140,8 @@ class GeminiProvider(LLMProvider):
             config = None
             if forceJson:
                 config = {"response_mime_type": "application/json"}
+                if jsonSchema is not None:
+                    config["response_json_schema"] = jsonSchema
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=prompt,

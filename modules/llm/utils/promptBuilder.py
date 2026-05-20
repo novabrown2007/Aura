@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from modules.llm.prompts import PROMPT_PROFILES
+
 
 class PromptBuilder:
     """Build clean prompt sections without binding callers to a provider."""
@@ -13,10 +15,12 @@ class PromptBuilder:
         basePrompt: str,
         memory: dict[str, Any] | None = None,
         toolDefinitions: list[dict[str, Any]] | None = None,
+        profile: str = "conversation",
     ) -> str:
         """Merge Aura's system prompt with optional memory and tool metadata."""
 
-        sections = [basePrompt.strip()]
+        profileBuilder = PROMPT_PROFILES.get(profile, PROMPT_PROFILES["conversation"])
+        sections = [profileBuilder(basePrompt).strip()]
 
         if memory:
             memoryLines = ["Known user information:"]
@@ -33,7 +37,7 @@ class PromptBuilder:
                 "Do not invent tools. Do not claim a tool was executed unless you returned it in toolCalls.",
             ]
             for tool in toolDefinitions:
-                arguments = tool.get("arguments", {})
+                arguments = tool.get("arguments") or tool.get("parameters", {})
                 toolLines.append(
                     f"- {tool.get('name')}: {tool.get('description', '')} "
                     f"Arguments: {arguments}"
@@ -61,6 +65,40 @@ class PromptBuilder:
             label = "Aura" if role.lower() in {"aura", "assistant"} else "User"
             lines.append(f"{label}: {content}")
         return "\n".join(lines)
+
+    @staticmethod
+    def buildIntentPrompt(
+        basePrompt: str,
+        toolDefinitions: list[dict[str, Any]] | None = None,
+        confidenceThreshold: float = 0.75,
+    ) -> str:
+        """Build the strict prompt used for structured intent parsing."""
+
+        sections = [
+            PROMPT_PROFILES["intentParsing"](basePrompt).strip(),
+            (
+                "Return exactly one JSON object with this shape:\n"
+                '{"response":"","intents":[{"intent":"tool.name","arguments":{},"confidence":0.0,"response":""}]}\n'
+                "Use one item in intents for each ordered action the user requested.\n"
+                "Each intent must be one registered tool name, or conversation.respond when no tool is needed.\n"
+                "Each arguments object must contain only the tool arguments required to execute that step.\n"
+                f"confidence must be 0.0 through 1.0. Use less than {confidenceThreshold} when unsure.\n"
+                "Do not execute tools. Do not return markdown."
+            ),
+        ]
+
+        if toolDefinitions:
+            toolLines = ["Registered Aura tools:"]
+            for tool in toolDefinitions:
+                toolLines.append(
+                    f"- {tool.get('name')}: {tool.get('description', '')} "
+                    f"category={tool.get('category')} parameters={tool.get('parameters')}"
+                )
+            sections.append("\n".join(toolLines))
+        else:
+            sections.append("No tools are currently registered. Use conversation.respond.")
+
+        return "\n\n".join(sections)
 
     @classmethod
     def buildPrompt(

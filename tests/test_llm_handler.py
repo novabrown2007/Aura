@@ -7,9 +7,13 @@ from unittest.mock import patch
 
 import requests
 
+from core.tools.tool import Tool
+from core.tools.toolExecutor import ToolExecutor
+from core.tools.toolRegistry import ToolRegistry
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.llmHandler import LLMHandler
+from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
 from tests.support.fakes import DictConfig
 
 
@@ -116,6 +120,18 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
     context.conversationHistory = StubHistory()
     context.memoryManager = StubMemory()
     context.modules = {}
+    context.toolRegistry = ToolRegistry(context)
+    context.toolExecutor = ToolExecutor(context)
+    context.toolRegistry.registerTool(
+        Tool(
+            name="calendar.createEvent",
+            description="Create a calendar event.",
+            parameters={"title": {"type": "string"}, "start_at": {"type": "string"}},
+            requiredParameters=("title", "start_at"),
+            module="calendar",
+            method="createEvent",
+        )
+    )
     return context
 
 
@@ -144,15 +160,18 @@ class LLMHandlerTests(unittest.TestCase):
 
         self.assertEqual(result, "I am currently unable to access my language model.")
 
-    @patch("modules.llm.providers.ollama.ollamaProvider.requests.post")
-    def test_generate_structured_response_uses_provider_validation(self, mock_post):
+    def test_generate_structured_response_uses_manager_validation(self):
         """Structured responses should be parsed and returned as dictionaries."""
 
-        mock_post.return_value = DummyResponse(
-            200,
-            {"response": '{"intent": "calendar.create", "confidence": 1}'},
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
+                provider="gemini",
+                success=True,
+                rawResponse={"intent": "calendar.create", "confidence": 1},
+            )
         )
-        handler = LLMHandler(make_llm_context())
+        handler = LLMHandler(context)
 
         result = handler.generateStructuredResponse(
             "Create a calendar event",
@@ -190,6 +209,17 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertTrue(response.success)
         self.assertEqual(response.provider, "fallback")
         self.assertEqual(response.text, "Recovered")
+
+    def test_ollama_rejects_structured_response_requests(self):
+        """Ollama should not be trusted for structured tool or intent parsing."""
+
+        provider = OllamaProvider(make_llm_context())
+        provider.initialize()
+
+        response = provider.generateStructuredResponse("system", "user", {"type": "object"})
+
+        self.assertFalse(response.success)
+        self.assertIn("offline conversation only", response.error)
 
     def test_system_prompt_includes_memory_and_tool_contract(self):
         """The generic assistant prompt should expose memory and tool-call rules."""

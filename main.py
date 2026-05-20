@@ -18,6 +18,8 @@ from core.threading.scheduler.scheduler import Scheduler
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
+from core.tools.toolExecutor import ToolExecutor
+from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 
@@ -99,6 +101,10 @@ def buildRuntimeContext():
     context.eventManager = EventManager(context)
     context.taskManager = TaskManager(context)
     context.scheduler = Scheduler(context)
+
+    # Tools
+    context.toolRegistry = ToolRegistry(context)
+    context.toolExecutor = ToolExecutor(context)
 
     # Database
     context.database = createDatabaseWithFallback(context)

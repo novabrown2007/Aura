@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 
@@ -62,14 +63,43 @@ class ResponseValidator:
             properties = schema.get("properties", {})
             for fieldName, fieldSchema in properties.items():
                 if fieldName in value:
-                    valid, error = ResponseValidator._validateSimpleType(
-                        value[fieldName],
-                        fieldSchema.get("type"),
-                    )
+                    valid, error = ResponseValidator._validateValue(value[fieldName], fieldSchema)
                     if not valid:
                         return False, f"{fieldName}: {error}"
 
         return True, None
+
+    @classmethod
+    def _validateValue(cls, value: Any, schema: dict[str, Any]) -> tuple[bool, str | None]:
+        """Validate nested JSON values for the subset Aura uses."""
+
+        valid, error = cls._validateSimpleType(value, schema.get("type"))
+        if not valid:
+            return valid, error
+
+        if schema.get("type") == "array" and isinstance(value, list):
+            itemSchema = schema.get("items")
+            if isinstance(itemSchema, dict):
+                for index, item in enumerate(value):
+                    itemValid, itemError = cls.validateSchema(item, itemSchema)
+                    if not itemValid:
+                        return False, f"Item {index}: {itemError}"
+
+        if schema.get("type") == "object" and isinstance(value, dict):
+            return cls.validateSchema(value, schema)
+
+        return True, None
+
+    @staticmethod
+    def repairJsonText(text: str) -> str:
+        """Apply conservative JSON repair for common model formatting mistakes."""
+
+        repaired = ResponseValidator.extractJsonObject(text)
+        repaired = repaired.replace("```json", "").replace("```", "").strip()
+        repaired = re.sub(r",\s*([}\]])", r"\1", repaired)
+        repaired = repaired.replace("\u201c", '"').replace("\u201d", '"')
+        repaired = repaired.replace("\u2018", "'").replace("\u2019", "'")
+        return repaired
 
     @staticmethod
     def _validateSimpleType(value: Any, expectedType: str | None) -> tuple[bool, str | None]:
@@ -92,4 +122,3 @@ class ResponseValidator:
         if not isinstance(value, expectedPythonType):
             return False, f"Expected {expectedType}."
         return True, None
-

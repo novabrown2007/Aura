@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from modules.llm.manager.llmManager import LLMManager
+from modules.llm.intent.intentPipeline import IntentPipeline
 from modules.llm.utils.responseValidator import ResponseValidator
 from modules.llm.utils.promptBuilder import PromptBuilder
 from modules.base import AuraModule, ModuleMetadata
@@ -37,6 +38,7 @@ class LLMHandler(AuraModule):
         self.history = None
         self.memory = None
         self.manager = None
+        self.intentPipeline = None
 
         if context is not None:
             self.initialize(context)
@@ -59,6 +61,7 @@ class LLMHandler(AuraModule):
         if self.manager is None:
             self.manager = LLMManager(context)
             context.llmManager = self.manager
+        self.intentPipeline = IntentPipeline(context, self.manager)
 
         if self.logger:
             self.logger.info("Initialized provider-neutral LLM handler.")
@@ -73,6 +76,11 @@ class LLMHandler(AuraModule):
 
         systemPrompt = self._buildSystemPrompt()
         conversationHistory = self._getConversationHistory()
+        if self._supportsIntentPipeline():
+            cleaned = self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory)
+            self._logConversation(userInput, cleaned)
+            return cleaned
+
         response = self.manager.generateResponse(systemPrompt, userInput, conversationHistory)
 
         if not response.success:
@@ -87,6 +95,15 @@ class LLMHandler(AuraModule):
 
         self._logConversation(userInput, cleaned)
         return cleaned
+
+    def _supportsIntentPipeline(self) -> bool:
+        """Return whether the current manager can provide structured intent parsing."""
+
+        return (
+            self.intentPipeline is not None
+            and hasattr(self.manager, "generateStructuredResponse")
+            and not self._isOfflineMode()
+        )
 
     def generateStructuredResponse(self, userInput: str, schema: dict) -> dict | None:
         """Generate structured JSON through the active provider."""
@@ -133,7 +150,8 @@ Rules:
         return PromptBuilder.buildSystemPrompt(
             basePrompt,
             memory=memoryData,
-            toolDefinitions=self._getToolDefinitions(),
+            toolDefinitions=self._getToolSchemas(),
+            profile="toolSelection",
         )
 
     def _buildOfflineSystemPrompt(self, memoryData: dict[str, Any]) -> str:
@@ -183,94 +201,13 @@ Rules:
             if self.logger:
                 self.logger.warning(f"Conversation logging failed: {error}")
 
-    def _getToolDefinitions(self) -> list[dict[str, Any]]:
-        """Return the tool contract exposed to the LLM."""
+    def _getToolSchemas(self) -> list[dict[str, Any]]:
+        """Return schemas exported by the central tool registry."""
 
-        return [
-            {
-                "name": "calendar.createEvent",
-                "description": "Create a calendar event.",
-                "arguments": {
-                    "title": "string, required",
-                    "start_at": "string datetime, required",
-                    "end_at": "string datetime, optional",
-                    "description": "string, optional",
-                    "location": "string, optional",
-                    "calendar_id": "integer, optional",
-                    "timezone": "string, optional",
-                },
-            },
-            {
-                "name": "calendar.createTask",
-                "description": "Create a calendar task.",
-                "arguments": {
-                    "title": "string, required",
-                    "due_at": "string datetime, optional",
-                    "description": "string, optional",
-                    "priority": "string, optional",
-                    "calendar_id": "integer, optional",
-                },
-            },
-            {
-                "name": "calendar.createReminder",
-                "description": "Create a calendar reminder.",
-                "arguments": {
-                    "title": "string, required",
-                    "remind_at": "string datetime, required",
-                    "notes": "string, optional",
-                    "calendar_id": "integer, optional",
-                },
-            },
-            {
-                "name": "reminders.createReminder",
-                "description": "Create a general reminder notification.",
-                "arguments": {
-                    "title": "string, required",
-                    "content": "string, required",
-                    "reminder_at": "string datetime, optional",
-                },
-            },
-            {
-                "name": "homeAutomation.toggleLight",
-                "description": "Turn a light on or off.",
-                "arguments": {
-                    "device_id": "string, required",
-                    "is_on": "boolean, required",
-                    "brightness": "integer, optional",
-                },
-            },
-            {
-                "name": "homeAutomation.setLightBrightness",
-                "description": "Set a light brightness.",
-                "arguments": {
-                    "device_id": "string, required",
-                    "brightness": "integer, required",
-                },
-            },
-            {
-                "name": "homeAutomation.setLightColor",
-                "description": "Set a light color.",
-                "arguments": {
-                    "device_id": "string, required",
-                    "color": "string, required",
-                },
-            },
-            {
-                "name": "homeAutomation.startCameraStream",
-                "description": "Start a camera stream.",
-                "arguments": {"device_id": "string, required"},
-            },
-            {
-                "name": "homeAutomation.stopCameraStream",
-                "description": "Stop a camera stream.",
-                "arguments": {"device_id": "string, required"},
-            },
-            {
-                "name": "homeAutomation.takeCameraSnapshot",
-                "description": "Take a camera snapshot.",
-                "arguments": {"device_id": "string, required"},
-            },
-        ]
+        registry = getattr(self.context, "toolRegistry", None)
+        if registry is None:
+            return []
+        return registry.exportSchemas(offlineMode=self._isOfflineMode())
 
     def _handleToolResponse(self, text: str) -> str | None:
         """Execute tool calls returned by the LLM JSON contract."""
@@ -284,15 +221,11 @@ Rules:
         if not isinstance(toolCalls, list) or not toolCalls:
             return responseText or None
 
-        results = []
-        for toolCall in toolCalls:
-            if not isinstance(toolCall, dict):
-                continue
-            toolName = str(toolCall.get("toolName") or toolCall.get("tool_name") or "")
-            arguments = toolCall.get("arguments") or {}
-            if not isinstance(arguments, dict):
-                arguments = {}
-            results.append(self._executeToolCall(toolName, arguments))
+        executor = getattr(self.context, "toolExecutor", None)
+        if executor is None:
+            return "I couldn't complete that because the tool executor is unavailable."
+
+        results = executor.executeToolCalls(toolCalls, offlineMode=self._isOfflineMode())
 
         successful = [result for result in results if result.get("success")]
         failed = [result for result in results if not result.get("success")]
@@ -314,46 +247,3 @@ Rules:
         if "toolCalls" not in parsed and "tool_calls" not in parsed:
             return None
         return parsed
-
-    def _executeToolCall(self, toolName: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        """Execute one deterministic Aura tool by name."""
-
-        toolMap = {
-            "calendar.createEvent": ("calendar", "createEvent", None),
-            "calendar.createTask": ("calendar", "createTask", None),
-            "calendar.createReminder": ("calendar", "createReminder", None),
-            "reminders.createReminder": ("reminders", "createReminder", {"module_of_origin": "llm"}),
-            "homeAutomation.toggleLight": ("homeAutomation", "toggleLight", None),
-            "homeAutomation.setLightBrightness": ("homeAutomation", "setLightBrightness", None),
-            "homeAutomation.setLightColor": ("homeAutomation", "setLightColor", None),
-            "homeAutomation.startCameraStream": ("homeAutomation", "startCameraStream", None),
-            "homeAutomation.stopCameraStream": ("homeAutomation", "stopCameraStream", None),
-            "homeAutomation.takeCameraSnapshot": ("homeAutomation", "takeCameraSnapshot", None),
-        }
-        if toolName not in toolMap:
-            return {"success": False, "toolName": toolName, "error": f"Unknown tool: {toolName}"}
-
-        moduleName, methodName, defaults = toolMap[toolName]
-        module = self._getToolModule(moduleName)
-        if module is None:
-            return {"success": False, "toolName": toolName, "error": f"Module unavailable: {moduleName}"}
-
-        callArguments = dict(defaults or {})
-        callArguments.update(arguments)
-        try:
-            result = getattr(module, methodName)(**callArguments)
-        except Exception as error:
-            if self.logger:
-                self.logger.warning(f"Tool call failed: {toolName}: {error}")
-            return {"success": False, "toolName": toolName, "error": str(error)}
-        return {"success": True, "toolName": toolName, "result": result}
-
-    def _getToolModule(self, moduleName: str):
-        """Resolve a loaded Aura module for tool execution."""
-
-        if hasattr(self.context, moduleName):
-            module = getattr(self.context, moduleName)
-            if module is not None:
-                return module
-        modules = getattr(self.context, "modules", {}) or {}
-        return modules.get(moduleName)

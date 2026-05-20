@@ -21,6 +21,13 @@ llm:
     enabled: true
     frequency: 20
 
+  logging:
+    enabled: true
+    path: logs/llm
+
+  intent:
+    confidenceThreshold: 0.75
+
 database:
   host: localhost
   port: 3306

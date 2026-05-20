@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from typing import Any
 
@@ -10,14 +9,18 @@ import requests
 
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
+from modules.llm.providers.base.providerCapabilities import ProviderCapabilities
 from modules.llm.utils.promptBuilder import PromptBuilder
-from modules.llm.utils.responseValidator import ResponseValidator
 
 
 class OllamaProvider(LLMProvider):
     """Local/offline LLM provider backed by Ollama's generate API."""
 
     providerName = "ollama"
+    capabilities = ProviderCapabilities(
+        supportsStructuredOutput=False,
+        supportsStreaming=False,
+    )
 
     def initialize(self):
         """Read Ollama configuration and mark the provider available."""
@@ -61,33 +64,13 @@ class OllamaProvider(LLMProvider):
         schema: dict,
         conversationHistory: list | None = None,
     ) -> LLMResponse:
-        """Generate JSON with lightweight validation and retry handling."""
+        """Reject trusted structured output requests in offline mode."""
 
-        structuredPrompt = self._buildStructuredPrompt(systemPrompt, userPrompt, schema)
-        attempts = max(int(self.retryCount), 0) + 1
-        lastResponse = LLMResponse(provider=self.providerName, success=False)
-
-        for attempt in range(1, attempts + 1):
-            response = self.generateResponse(structuredPrompt, "", conversationHistory)
-            lastResponse = response
-            if not response.success:
-                continue
-
-            valid, parsed, error = ResponseValidator.parseJson(response.text)
-            if valid:
-                schemaValid, schemaError = ResponseValidator.validateSchema(parsed, schema)
-                if schemaValid:
-                    response.rawResponse = parsed
-                    response.text = json.dumps(parsed)
-                    return response
-                error = schemaError
-
-            if self.logger:
-                self.logger.warning(f"Ollama structured response validation failed on attempt {attempt}: {error}")
-
-        lastResponse.success = False
-        lastResponse.error = lastResponse.error or "Ollama returned malformed structured output."
-        return lastResponse
+        return LLMResponse(
+            provider=self.providerName,
+            success=False,
+            error="Ollama is configured for offline conversation only and cannot provide trusted structured output.",
+        )
 
     def _sendGenerateRequest(self, payload: dict[str, Any]) -> LLMResponse:
         """Call Ollama and normalize the response."""
@@ -130,17 +113,6 @@ class OllamaProvider(LLMProvider):
             rawResponse=data,
             latency=latency,
             finishReason=data.get("done_reason"),
-        )
-
-    @staticmethod
-    def _buildStructuredPrompt(systemPrompt: str, userPrompt: str, schema: dict) -> str:
-        """Wrap a user prompt with JSON-only structured output instructions."""
-
-        return (
-            f"{systemPrompt.strip()}\n\n"
-            "Return only valid JSON. Do not include markdown fences or commentary.\n"
-            f"Required JSON schema:\n{json.dumps(schema, indent=2)}\n\n"
-            f"User request:\n{userPrompt}"
         )
 
     def _getLogger(self, name: str):

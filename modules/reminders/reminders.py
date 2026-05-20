@@ -2,6 +2,7 @@
 
 from modules.base import AuraModule, ModuleMetadata
 from core.threading.scheduler.schedule import Schedule
+from core.tools.tool import Tool
 
 
 class Reminders(AuraModule):
@@ -51,6 +52,26 @@ class Reminders(AuraModule):
 
         return []
 
+    def getTools(self):
+        """Return deterministic reminder tools exposed to Aura."""
+
+        return [
+            Tool(
+                name="reminders.createReminder",
+                description="Create a general reminder notification.",
+                parameters={
+                    "title": {"type": "string"},
+                    "content": {"type": "string"},
+                    "reminder_at": {"type": "string"},
+                    "module_of_origin": {"type": "string"},
+                },
+                requiredParameters=("title", "content"),
+                module="reminders",
+                method="createReminder",
+                safe=True,
+            )
+        ]
+
     def createRemindersTable(self):
         """
         Validate database availability for reminder persistence.
@@ -86,7 +107,7 @@ class Reminders(AuraModule):
         self,
         title: str,
         content: str,
-        module_of_origin: str,
+        module_of_origin: str = "llm",
         reminder_at: str = None,
     ):
         """

@@ -16,6 +16,8 @@ from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
 from modules.llm.providers.gemini.geminiProvider import GeminiProvider
 from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
+from modules.llm.utils.llmLogger import LLMLogger
+from modules.llm.utils.promptBuilder import PromptBuilder
 
 
 class LLMManager:
@@ -35,6 +37,7 @@ class LLMManager:
         self.fallbackProviderName = "ollama"
         self.offlineMode = False
         self.initialized = False
+        self.rawLogger = None
 
         if context is not None:
             self.initialize(context)
@@ -47,6 +50,7 @@ class LLMManager:
 
         config = self.context.config if self.context else None
         self.logger = self._getLogger("LLM.Manager")
+        self.rawLogger = LLMLogger(self.context)
         self.activeProviderName = self._getConfigValue(config, "llm.activeProvider", None)
         self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
         self.fallbackProviderName = self._getConfigValue(config, "llm.fallbackProvider", "ollama")
@@ -125,6 +129,45 @@ class LLMManager:
             conversationHistory=conversationHistory,
         )
 
+    def generateToolSelection(
+        self,
+        systemPrompt: str,
+        userPrompt: str,
+        toolSchemas: list[dict],
+        conversationHistory: list | None = None,
+    ) -> LLMResponse:
+        """Parse a user request into deterministic tool-call JSON."""
+
+        toolPrompt = PromptBuilder.buildSystemPrompt(
+            systemPrompt,
+            toolDefinitions=toolSchemas,
+            profile="toolSelection",
+        )
+        schema = {
+            "type": "object",
+            "required": ["response", "toolCalls"],
+            "properties": {
+                "response": {"type": "string"},
+                "toolCalls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["toolName", "arguments"],
+                        "properties": {
+                            "toolName": {"type": "string"},
+                            "arguments": {"type": "object"},
+                        },
+                    },
+                },
+            },
+        }
+        return self.generateStructuredResponse(
+            toolPrompt,
+            userPrompt,
+            schema,
+            conversationHistory=conversationHistory,
+        )
+
     def _routeRequest(
         self,
         methodName: str,
@@ -153,6 +196,16 @@ class LLMManager:
                 response = method(systemPrompt, userPrompt, schema, conversationHistory)
 
             lastResponse = response
+            if self.rawLogger:
+                self.rawLogger.logExchange(
+                    providerName,
+                    methodName,
+                    systemPrompt,
+                    userPrompt,
+                    response,
+                    schema=schema,
+                    conversationHistory=conversationHistory,
+                )
             if response.success:
                 return response
 
@@ -160,6 +213,17 @@ class LLMManager:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
 
         return lastResponse
+
+    def getProviderCapabilities(self, providerName: str | None = None):
+        """Return provider capability metadata."""
+
+        if providerName is not None:
+            provider = self.providers[providerName]
+            return provider.getCapabilities().asDict()
+        return {
+            name: provider.getCapabilities().asDict()
+            for name, provider in self.providers.items()
+        }
 
     def _getProviderOrder(self) -> list[str]:
         """Return the active/fallback provider order for the current mode."""

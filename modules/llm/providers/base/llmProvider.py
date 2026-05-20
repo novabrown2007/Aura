@@ -5,12 +5,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from modules.llm.models.llmResponse import LLMResponse
+from modules.llm.providers.base.providerCapabilities import ProviderCapabilities
 
 
 class LLMProvider(ABC):
     """Provider contract used by the model-agnostic LLM manager."""
 
     providerName = "base"
+    capabilities = ProviderCapabilities()
 
     def __init__(self, context=None):
         """Store shared context and prepare provider-local state."""
@@ -45,3 +47,8 @@ class LLMProvider(ABC):
         conversationHistory: list | None = None,
     ) -> LLMResponse:
         """Generate a JSON response that satisfies the supplied schema."""
+
+    def getCapabilities(self) -> ProviderCapabilities:
+        """Return provider feature support."""
+
+        return self.capabilities

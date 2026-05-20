@@ -79,6 +79,12 @@ class RuntimeContext:
         self.moduleLoader = None
         """Dynamic module loader and plugin registry."""
 
+        self.toolRegistry = None
+        """Registry of deterministic tools exposed by loaded modules."""
+
+        self.toolExecutor = None
+        """Executor responsible for validating and running registered tools."""
+
         # ----------------------------
         # Database
         # ----------------------------
