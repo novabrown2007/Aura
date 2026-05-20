@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-test:
+  source_packages:
+    name: Build Source Packages
     runs-on: windows-latest
 
     steps:
@@ -34,59 +35,130 @@ jobs:
           .\.venv\Scripts\python.exe -m pip install -r interface\windows\requirements.txt
           .\.venv\Scripts\python.exe -m pip install -r interface\android\requirements.txt
           .\.venv\Scripts\python.exe -m pip install -r interface\web\requirements.txt
-          .\.venv\Scripts\python.exe -m pip install pyinstaller
 
       - name: Build Windows source package
-        id: source_windows
-        continue-on-error: true
         shell: pwsh
         run: .\.venv\Scripts\python.exe interface\windows\build.py
 
       - name: Build Android source package
-        id: source_android
-        continue-on-error: true
         shell: pwsh
         run: .\.venv\Scripts\python.exe interface\android\build.py
 
       - name: Build Web source package
-        id: source_web
-        continue-on-error: true
         shell: pwsh
         run: .\.venv\Scripts\python.exe interface\web\build.py
 
-      - name: Build Windows interface executable
-        id: exe_windows
-        if: always()
-        continue-on-error: true
+      - name: Upload source packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-source-packages
+          path: build/interfaces/**
+          if-no-files-found: error
+
+  executables:
+    name: Build Executables
+    runs-on: windows-latest
+    needs: source_packages
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download source packages
+        uses: actions/download-artifact@v4
+        with:
+          name: aura-source-packages
+          path: build/interfaces
+
+      - name: Create virtual environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+      - name: Install executable build requirements
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip install -r build\interfaces\windows\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r build\interfaces\android\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r build\interfaces\web\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install pyinstaller
+
+      - name: Build Windows executable
         shell: pwsh
         run: |
           Push-Location build\interfaces\windows
           ..\..\..\.venv\Scripts\python.exe -m PyInstaller --onefile --name aura_windows run_aura_windows.py
           Pop-Location
 
-      - name: Build Android interface executable
-        id: exe_android
-        if: always()
-        continue-on-error: true
+      - name: Build Android executable
         shell: pwsh
         run: |
           Push-Location build\interfaces\android
           ..\..\..\.venv\Scripts\python.exe -m PyInstaller --onefile --name aura_android run_aura_android.py
           Pop-Location
 
-      - name: Build Web interface executable
-        id: exe_web
-        if: always()
-        continue-on-error: true
+      - name: Build Web executable
         shell: pwsh
         run: |
           Push-Location build\interfaces\web
           ..\..\..\.venv\Scripts\python.exe -m PyInstaller --onefile --name aura_web run_aura_web.py
           Pop-Location
 
+      - name: Stage executables
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\executables | Out-Null
+          Copy-Item build\interfaces\windows\dist\aura_windows.exe build\executables\aura_windows.exe
+          Copy-Item build\interfaces\android\dist\aura_android.exe build\executables\aura_android.exe
+          Copy-Item build\interfaces\web\dist\aura_web.exe build\executables\aura_web.exe
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-executables
+          path: build/executables/*.exe
+          if-no-files-found: error
+
+  tests:
+    name: Run Tests
+    runs-on: windows-latest
+    needs: executables
+    outputs:
+      windows: ${{ steps.test_windows.outcome }}
+      android: ${{ steps.test_android.outcome }}
+      web: ${{ steps.test_web.outcome }}
+      full: ${{ steps.test_full.outcome }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create virtual environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+      - name: Install requirements
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\windows\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\android\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\web\requirements.txt
+
       - name: Test Windows interface
         id: test_windows
-        if: always()
         continue-on-error: true
         shell: pwsh
         run: |
@@ -99,7 +171,6 @@ jobs:
 
       - name: Test Android interface
         id: test_android
-        if: always()
         continue-on-error: true
         shell: pwsh
         run: |
@@ -112,7 +183,6 @@ jobs:
 
       - name: Test Web interface
         id: test_web
-        if: always()
         continue-on-error: true
         shell: pwsh
         run: |
@@ -125,7 +195,6 @@ jobs:
 
       - name: Run full test suite
         id: test_full
-        if: always()
         continue-on-error: true
         shell: pwsh
         run: |
@@ -136,23 +205,53 @@ jobs:
           $output
           exit $exitCode
 
-      - name: Upload build outputs
+      - name: Upload test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aura-interface-builds
-          path: |
-            build/interfaces/aura_windows.zip
-            build/interfaces/aura_android.zip
-            build/interfaces/aura_web.zip
-            build/interfaces/windows/dist/aura_windows.exe
-            build/interfaces/android/dist/aura_android.exe
-            build/interfaces/web/dist/aura_web.exe
-            build/reports/tests/*.txt
+          name: aura-test-logs
+          path: build/reports/tests/*.txt
           if-no-files-found: warn
 
+      - name: Fail on test failure
+        if: always()
+        shell: pwsh
+        env:
+          TEST_WINDOWS_STATUS: ${{ steps.test_windows.outcome }}
+          TEST_ANDROID_STATUS: ${{ steps.test_android.outcome }}
+          TEST_WEB_STATUS: ${{ steps.test_web.outcome }}
+          TEST_FULL_STATUS: ${{ steps.test_full.outcome }}
+        run: |
+          $failed = @(
+            "Windows interface tests: $env:TEST_WINDOWS_STATUS",
+            "Android interface tests: $env:TEST_ANDROID_STATUS",
+            "Web interface tests: $env:TEST_WEB_STATUS",
+            "Full test suite: $env:TEST_FULL_STATUS"
+          ) | Where-Object { $_ -notmatch ": success$" }
+
+          if ($failed.Count -gt 0) {
+            $failed | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+
+  discord_log:
+    name: Log To Discord
+    runs-on: windows-latest
+    if: always() && github.event_name == 'push'
+    needs:
+      - source_packages
+      - executables
+      - tests
+
+    steps:
+      - name: Download executables
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: aura-executables
+          path: build/executables
+
       - name: Send Discord push log
-        if: always() && github.event_name == 'push'
         shell: pwsh
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -160,16 +259,13 @@ jobs:
           PUSH_BRANCH: ${{ github.ref_name }}
           PUSH_AUTHOR: ${{ github.event.pusher.name }}
           PUSH_COMMITS_JSON: ${{ toJson(github.event.commits) }}
-          SOURCE_WINDOWS_STATUS: ${{ steps.source_windows.outcome }}
-          SOURCE_ANDROID_STATUS: ${{ steps.source_android.outcome }}
-          SOURCE_WEB_STATUS: ${{ steps.source_web.outcome }}
-          EXE_WINDOWS_STATUS: ${{ steps.exe_windows.outcome }}
-          EXE_ANDROID_STATUS: ${{ steps.exe_android.outcome }}
-          EXE_WEB_STATUS: ${{ steps.exe_web.outcome }}
-          TEST_WINDOWS_STATUS: ${{ steps.test_windows.outcome }}
-          TEST_ANDROID_STATUS: ${{ steps.test_android.outcome }}
-          TEST_WEB_STATUS: ${{ steps.test_web.outcome }}
-          TEST_FULL_STATUS: ${{ steps.test_full.outcome }}
+          SOURCE_JOB_STATUS: ${{ needs.source_packages.result }}
+          EXE_JOB_STATUS: ${{ needs.executables.result }}
+          TEST_JOB_STATUS: ${{ needs.tests.result }}
+          TEST_WINDOWS_STATUS: ${{ needs.tests.outputs.windows }}
+          TEST_ANDROID_STATUS: ${{ needs.tests.outputs.android }}
+          TEST_WEB_STATUS: ${{ needs.tests.outputs.web }}
+          TEST_FULL_STATUS: ${{ needs.tests.outputs.full }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:DISCORD_WEBHOOK_URL)) {
             Write-Host "DISCORD_WEBHOOK_URL secret is not configured; skipping Discord push log."
@@ -191,36 +287,25 @@ jobs:
             $commitText = $commitText.Substring(0, 997) + "..."
           }
 
+          function Format-Status($value) {
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              return "skipped"
+            }
+            return $value
+          }
+
           $testStatus = @(
-            "Windows interface: $env:TEST_WINDOWS_STATUS",
-            "Android interface: $env:TEST_ANDROID_STATUS",
-            "Web interface: $env:TEST_WEB_STATUS",
-            "Full suite: $env:TEST_FULL_STATUS"
+            "Windows interface: $(Format-Status $env:TEST_WINDOWS_STATUS)",
+            "Android interface: $(Format-Status $env:TEST_ANDROID_STATUS)",
+            "Web interface: $(Format-Status $env:TEST_WEB_STATUS)",
+            "Full suite: $(Format-Status $env:TEST_FULL_STATUS)"
           ) -join "`n"
 
-          $statuses = @(
-            $env:SOURCE_WINDOWS_STATUS,
-            $env:SOURCE_ANDROID_STATUS,
-            $env:SOURCE_WEB_STATUS,
-            $env:EXE_WINDOWS_STATUS,
-            $env:EXE_ANDROID_STATUS,
-            $env:EXE_WEB_STATUS,
-            $env:TEST_WINDOWS_STATUS,
-            $env:TEST_ANDROID_STATUS,
-            $env:TEST_WEB_STATUS,
-            $env:TEST_FULL_STATUS
-          )
-          $overallStatus = if ($statuses -contains "failure" -or $statuses -contains "cancelled") { "failure" } else { "success" }
-
-          $executablePaths = @(
-            "build/interfaces/windows/dist/aura_windows.exe",
-            "build/interfaces/android/dist/aura_android.exe",
-            "build/interfaces/web/dist/aura_web.exe"
-          )
-          $missingExecutables = $executablePaths | Where-Object { -not (Test-Path $_) }
-          if ($missingExecutables.Count -gt 0) {
-            Write-Warning "Some executables are missing and will not be attached: $($missingExecutables -join ', ')"
-          }
+          $overallStatus = if (
+            $env:SOURCE_JOB_STATUS -eq "success" -and
+            $env:EXE_JOB_STATUS -eq "success" -and
+            $env:TEST_JOB_STATUS -eq "success"
+          ) { "success" } else { "failure" }
 
           $payload = @{
             content = $env:REPOSITORY_NAME
@@ -261,6 +346,11 @@ jobs:
 
           Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -ContentType "application/json" -Body $payload
 
+          $executablePaths = @(
+            "build/executables/aura_windows.exe",
+            "build/executables/aura_android.exe",
+            "build/executables/aura_web.exe"
+          )
           $filePayload = @{
             content = "Executables"
           } | ConvertTo-Json -Depth 4 -Compress
@@ -279,37 +369,4 @@ jobs:
             Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -Form $fileForm
           } else {
             Invoke-RestMethod -Method Post -Uri $env:DISCORD_WEBHOOK_URL -ContentType "application/json" -Body (@{ content = "Executables were not produced." } | ConvertTo-Json -Compress)
-          }
-
-      - name: Fail workflow on build or test failure
-        if: always()
-        shell: pwsh
-        env:
-          SOURCE_WINDOWS_STATUS: ${{ steps.source_windows.outcome }}
-          SOURCE_ANDROID_STATUS: ${{ steps.source_android.outcome }}
-          SOURCE_WEB_STATUS: ${{ steps.source_web.outcome }}
-          EXE_WINDOWS_STATUS: ${{ steps.exe_windows.outcome }}
-          EXE_ANDROID_STATUS: ${{ steps.exe_android.outcome }}
-          EXE_WEB_STATUS: ${{ steps.exe_web.outcome }}
-          TEST_WINDOWS_STATUS: ${{ steps.test_windows.outcome }}
-          TEST_ANDROID_STATUS: ${{ steps.test_android.outcome }}
-          TEST_WEB_STATUS: ${{ steps.test_web.outcome }}
-          TEST_FULL_STATUS: ${{ steps.test_full.outcome }}
-        run: |
-          $failed = @(
-            "Windows source package: $env:SOURCE_WINDOWS_STATUS",
-            "Android source package: $env:SOURCE_ANDROID_STATUS",
-            "Web source package: $env:SOURCE_WEB_STATUS",
-            "Windows executable: $env:EXE_WINDOWS_STATUS",
-            "Android executable: $env:EXE_ANDROID_STATUS",
-            "Web executable: $env:EXE_WEB_STATUS",
-            "Windows interface tests: $env:TEST_WINDOWS_STATUS",
-            "Android interface tests: $env:TEST_ANDROID_STATUS",
-            "Web interface tests: $env:TEST_WEB_STATUS",
-            "Full test suite: $env:TEST_FULL_STATUS"
-          ) | Where-Object { $_ -notmatch ": success$" }
-
-          if ($failed.Count -gt 0) {
-            $failed | ForEach-Object { Write-Error $_ }
-            exit 1
           }
