@@ -15,8 +15,10 @@ Responsibilities
 import json
 import requests
 
+from modules.base import AuraModule, ModuleMetadata
 
-class MemoryManager:
+
+class MemoryManager(AuraModule):
     """
     Manages long-term memory for the Aura assistant.
 
@@ -27,7 +29,15 @@ class MemoryManager:
     Memory is stored in the database so it persists across sessions.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="memoryManager",
+        version="1.0.0",
+        description="Long-term memory storage and extraction.",
+        permissions=("database:read", "database:write", "network:http"),
+        capabilities=("memory",),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the memory manager.
 
@@ -36,6 +46,19 @@ class MemoryManager:
                 Global runtime context.
         """
 
+        super().__init__()
+        self.logger = None
+        self.database = None
+        self.config = None
+        self.endpoint = None
+        self.model = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the memory manager module."""
+
+        super().initialize(context)
         self.context = context
 
         self.logger = None
@@ -53,6 +76,11 @@ class MemoryManager:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by memory manager."""
+
+        return []
 
     # --------------------------------------------------
     # Database Setup

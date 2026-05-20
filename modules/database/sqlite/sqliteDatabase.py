@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
+from modules.base import AuraModule, ModuleMetadata
 from modules.database.databaseTableManager import DatabaseTableManager
 
 
@@ -31,7 +32,7 @@ class SQLiteCursor:
         return [dict(row) for row in self.cursor.fetchall()]
 
 
-class SQLiteDatabase:
+class SQLiteDatabase(AuraModule):
     """
     SQLite database adapter used when MySQL is unavailable.
 
@@ -39,16 +40,39 @@ class SQLiteDatabase:
     normalizes the small subset that SQLite cannot parse.
     """
 
-    def __init__(self, context, database_path: Optional[str] = None):
+    metadata = ModuleMetadata(
+        name="sqliteDatabase",
+        version="1.0.0",
+        description="SQLite fallback database adapter for Aura persistence.",
+        permissions=("filesystem:read", "filesystem:write", "database:read", "database:write"),
+        capabilities=("database", "sqlite"),
+    )
+
+    def __init__(self, context=None, database_path: Optional[str] = None):
         """Initialize the adapter with a local database path."""
 
+        super().__init__()
+        self.database_path = Path(database_path or "aura.sqlite3")
+        self.connection: Optional[sqlite3.Connection] = None
+        self.logger = None
+        self.database_name = str(self.database_path)
+        self._configured_database_path = database_path
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context=None):
+        """Initialize from context or create schema when already configured."""
+
+        if context is None:
+            return self.initializeSchema()
+
+        super().initialize(context)
         self.context = context
         configured_path = None
         if getattr(context, "config", None) is not None:
             configured_path = context.config.get("database.sqlite_path")
 
-        self.database_path = Path(database_path or configured_path or "aura.sqlite3")
-        self.connection: Optional[sqlite3.Connection] = None
+        self.database_path = Path(self._configured_database_path or configured_path or "aura.sqlite3")
         self.logger = context.logger.getChild("SQLiteDatabase") if context.logger else None
         self.database_name = str(self.database_path)
 
@@ -74,7 +98,7 @@ class SQLiteDatabase:
             if self.logger:
                 self.logger.info("SQLite connection closed.")
 
-    def initialize(self):
+    def initializeSchema(self):
         """Initialize the Aura schema in SQLite."""
 
         if self.logger:

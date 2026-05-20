@@ -5,8 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+from modules.base import AuraModule, ModuleMetadata
 
-class Notifications:
+
+class Notifications(AuraModule):
     """
     Store and query queued notifications.
 
@@ -15,7 +17,15 @@ class Notifications:
     name that created the notification.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="notifications",
+        version="1.0.0",
+        description="Notification persistence and lifecycle state.",
+        permissions=("database:read", "database:write"),
+        capabilities=("notifications",),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the notifications service.
 
@@ -24,6 +34,16 @@ class Notifications:
                 Runtime context providing database access and optional logging.
         """
 
+        super().__init__()
+        self.database = None
+        self.logger = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the notifications module."""
+
+        super().initialize(context)
         self.context = context
         self.database = context.database
         self.logger = context.logger.getChild("Notifications") if context.logger else None
@@ -32,6 +52,11 @@ class Notifications:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by notifications."""
+
+        return []
 
     def createNotificationsTable(self):
         """

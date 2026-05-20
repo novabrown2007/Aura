@@ -3,6 +3,15 @@
 from modules.system.system import System
 
 
+MODULE_METADATA = System.metadata
+
+
+def createModule(context=None):
+    """Create the system Aura module adapter."""
+
+    return System()
+
+
 def register(context):
     """
     Register the system lifecycle module with the runtime context.

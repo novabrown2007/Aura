@@ -1,6 +1,9 @@
 """Language-model integration code for `conversationHistory` in Aura."""
 
-class ConversationHistory:
+from modules.base import AuraModule, ModuleMetadata
+
+
+class ConversationHistory(AuraModule):
     """
     Manages conversation history for Aura.
 
@@ -11,7 +14,15 @@ class ConversationHistory:
     in memory for fast access.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="conversationHistory",
+        version="1.0.0",
+        description="Conversation history persistence for LLM prompts.",
+        permissions=("database:read", "database:write"),
+        capabilities=("conversation-history",),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the conversation history manager.
 
@@ -20,6 +31,16 @@ class ConversationHistory:
                 Global runtime context.
         """
 
+        super().__init__()
+        self.logger = None
+        self.database = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the conversation history module."""
+
+        super().initialize(context)
         self.context = context
 
         self.logger = None
@@ -32,6 +53,11 @@ class ConversationHistory:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by conversation history."""
+
+        return []
 
     # --------------------------------------------------
     # Database Setup

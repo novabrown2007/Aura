@@ -16,8 +16,10 @@ Responsibilities
 
 import requests
 
+from modules.base import AuraModule, ModuleMetadata
 
-class LLMHandler:
+
+class LLMHandler(AuraModule):
     """
     Handles interaction with the local language model.
 
@@ -25,7 +27,15 @@ class LLMHandler:
     API, and returning the generated responses.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="llm",
+        version="1.0.0",
+        description="LLM prompt construction and response generation.",
+        permissions=("network:http", "database:read", "database:write"),
+        capabilities=("conversation", "memory"),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the LLM handler.
 
@@ -34,6 +44,22 @@ class LLMHandler:
                 Global runtime context.
         """
 
+        super().__init__()
+        self.logger = None
+        self.endpoint = None
+        self.model = None
+        self.history_enabled = True
+        self.history_limit = 25
+        self.memory_enabled = True
+        self.history = None
+        self.memory = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the LLM module."""
+
+        super().initialize(context)
         self.context = context
         # Logger
         self.logger = None
@@ -53,6 +79,11 @@ class LLMHandler:
         self.memory = context.memoryManager
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled directly by the LLM."""
+
+        return []
 
 
     # --------------------------------------------------

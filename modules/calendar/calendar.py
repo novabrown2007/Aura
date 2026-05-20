@@ -10,11 +10,12 @@ from zoneinfo import ZoneInfo
 
 from core.threading.events.events import Event
 from core.threading.scheduler.schedule import Schedule
+from modules.base import AuraModule, ModuleMetadata
 
 RECURRENCE_TYPES = {"daily", "weekly", "monthly", "yearly"}
 
 
-class Calendar:
+class Calendar(AuraModule):
     """
     Calendar backend for calendars, events, tasks, and reminders.
 
@@ -23,7 +24,16 @@ class Calendar:
     attendees, and search/filter queries for backend callers.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="calendar",
+        version="1.0.0",
+        description="Private calendar, tasks, events, and scheduling assistant.",
+        dependencies=("notifications",),
+        permissions=("database:read", "database:write", "scheduler:write"),
+        capabilities=("calendar", "tasks", "reminders"),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the calendar module and register reminder polling.
 
@@ -33,6 +43,16 @@ class Calendar:
                 manager used by the rest of Aura.
         """
 
+        super().__init__()
+        self.database = None
+        self.logger = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the calendar module."""
+
+        super().initialize(context)
         self.context = context
         self.database = context.database
         self.logger = context.logger.getChild("Calendar") if context.logger else None
@@ -42,6 +62,11 @@ class Calendar:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by calendar."""
+
+        return []
 
     def _registerReminderPollingSchedule(self):
         """

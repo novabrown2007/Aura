@@ -1,90 +1,320 @@
-"""
-Aura Module Loader
+"""Dynamic Aura module discovery, loading, and hot reload."""
 
-This component automatically discovers and loads modules
-from the `modules/` directory at runtime.
-
-Modules can register themselves with the system by exposing
-a `register(context)` function.
-
-This allows Aura to support a plugin-style architecture
-where new features can be added simply by placing new
-modules in the modules directory.
-"""
+from __future__ import annotations
 
 import importlib
 import pkgutil
+import sys
+from dataclasses import dataclass
+from types import ModuleType
+
+from modules.base import AuraModule, ModuleMetadata
+
+
+@dataclass
+class ModuleDescriptor:
+    """Discovered module package and resolved metadata."""
+
+    package_name: str
+    import_path: str
+    metadata: ModuleMetadata
+    enabled: bool
+
+
+class LegacyRegisteredModule(AuraModule):
+    """Adapter for packages that still expose only `register(context)`."""
+
+    def __init__(self, metadata: ModuleMetadata, package: ModuleType):
+        """Create a legacy adapter."""
+
+        super().__init__()
+        self.metadata = metadata
+        self.package = package
+
+    def initialize(self, context):
+        """Call the legacy package register hook."""
+
+        super().initialize(context)
+        self.package.register(context)
+        context.registerModule(self.metadata.name, self)
 
 
 class ModuleLoader:
-    """
-    Automatically loads Aura modules.
+    """Discover and manage Aura modules from the `modules` package."""
 
-    The ModuleLoader scans the `modules` package for available
-    submodules and imports them dynamically. If a module exposes
-    a `register()` function, it will be executed to allow the
-    module to register itself with the RuntimeContext.
-    """
+    RESERVED_PACKAGES = {"base", "database", "llm"}
 
-    def __init__(self, context):
-        """
-        Initialize the module loader.
-
-        Args:
-            context (RuntimeContext):
-                Global runtime context.
-        """
+    def __init__(self, context, package_name: str = "modules"):
+        """Initialize the module loader."""
 
         self.context = context
+        self.package_name = package_name
         self.logger = context.logger.getChild("ModuleLoader") if context.logger else None
+        self.descriptors: dict[str, ModuleDescriptor] = {}
+        self.loadedModules: dict[str, AuraModule] = {}
+        self.disabledModules: set[str] = set()
+        self.context.moduleLoader = self
 
         if self.logger:
             self.logger.info("Initialized.")
 
-    # --------------------------------------------------
-    # Module Discovery
-    # --------------------------------------------------
-
     def loadModules(self):
-        """
-        Discover and load modules from the `modules` package.
+        """Discover and load enabled modules in dependency order."""
 
-        Each discovered module is imported dynamically. If the
-        module provides a `register(context)` function, it will
-        be executed to allow the module to register itself with
-        the runtime system.
-        """
+        self.descriptors = self.discoverModules()
+        for name in self._resolveLoadOrder():
+            descriptor = self.descriptors[name]
+            if descriptor.enabled:
+                try:
+                    self.loadModule(name)
+                except Exception as error:
+                    if self.logger:
+                        self.logger.error(f"Failed to load module '{name}': {error}")
+        return dict(self.loadedModules)
+
+    def discoverModules(self):
+        """Discover importable module packages and read their metadata."""
+
+        root_package = importlib.import_module(self.package_name)
+        descriptors = {}
+        for module_info in pkgutil.iter_modules(root_package.__path__):
+            if module_info.name in self.RESERVED_PACKAGES:
+                continue
+            import_path = f"{self.package_name}.{module_info.name}"
+            package = importlib.import_module(import_path)
+            if not self._isLoadablePackage(package):
+                continue
+            metadata = self._readMetadata(module_info.name, package)
+            enabled = self._isEnabled(metadata.name)
+            descriptors[metadata.name] = ModuleDescriptor(
+                package_name=module_info.name,
+                import_path=import_path,
+                metadata=metadata,
+                enabled=enabled,
+            )
+        return descriptors
+
+    def loadModule(self, name: str):
+        """Load one enabled module and its dependencies."""
+
+        if name in self.loadedModules:
+            return self.loadedModules[name]
+        if name not in self.descriptors:
+            raise KeyError(f"Unknown Aura module: {name}")
+
+        descriptor = self.descriptors[name]
+        if not descriptor.enabled:
+            self.disabledModules.add(name)
+            return None
+
+        for dependency in descriptor.metadata.dependencies:
+            if dependency in self.descriptors and not self.descriptors[dependency].enabled:
+                raise RuntimeError(f"Required Aura module dependency is disabled: {dependency}")
+            if dependency not in self.loadedModules:
+                self.loadModule(dependency)
+
+        package = importlib.import_module(descriptor.import_path)
+        module_instance = self._createModule(package, descriptor.metadata)
+        module_instance.initialize(self.context)
+        setattr(self.context, name, module_instance)
+        self.loadedModules[name] = module_instance
+        self._registerContextModule(name, module_instance)
 
         if self.logger:
-            self.logger.info("Loading modules.")
+            self.logger.info(f"Loaded module: {name}")
+        return module_instance
 
-        import modules
+    def unloadModule(self, name: str):
+        """Shutdown and unregister one loaded module."""
 
-        # Iterate through all modules in the modules package
-        for module_info in pkgutil.iter_modules(modules.__path__):
+        module = self.loadedModules.pop(name, None)
+        if module is None:
+            return False
 
-            module_name = module_info.name
+        module.shutdown()
+        self.context.modules.pop(name, None)
+        context_attribute = getattr(module, "context_attribute", None)
+        if context_attribute:
+            self.context.modules.pop(context_attribute, None)
+            if hasattr(self.context, context_attribute):
+                setattr(self.context, context_attribute, None)
+        if self.logger:
+            self.logger.info(f"Unloaded module: {name}")
+        return True
 
-            # Skip base module directory
-            if module_name == "base":
-                continue
+    def shutdownModules(self):
+        """Shutdown all loaded modules in reverse load order."""
 
-            try:
+        for name in list(reversed(list(self.loadedModules))):
+            self.unloadModule(name)
 
-                # Dynamically import module
-                module = importlib.import_module(f"modules.{module_name}")
+    def reloadModule(self, name: str):
+        """Hot reload one module package and initialize a fresh instance."""
 
-                # Allow module to register itself
-                if hasattr(module, "register"):
+        if name not in self.descriptors:
+            self.descriptors = self.discoverModules()
+        if name not in self.descriptors:
+            raise KeyError(f"Unknown Aura module: {name}")
 
-                    module.register(self.context)
+        descriptor = self.descriptors[name]
+        self.unloadModule(name)
+        self._reloadPackageTree(descriptor.import_path)
 
-                    if self.logger:
-                        self.logger.info(f"Loaded module: {module_name}")
+        package = importlib.import_module(descriptor.import_path)
+        descriptor.metadata = self._readMetadata(descriptor.package_name, package)
+        descriptor.enabled = self._isEnabled(descriptor.metadata.name)
+        return self.loadModule(descriptor.metadata.name)
 
-            except Exception as error:
+    def enableModule(self, name: str):
+        """Enable a module for this runtime and load it."""
 
-                if self.logger:
-                    self.logger.error(
-                        f"Failed to load module '{module_name}': {error}"
-                    )
+        if name not in self.descriptors:
+            self.descriptors = self.discoverModules()
+        if name not in self.descriptors:
+            raise KeyError(f"Unknown Aura module: {name}")
+        self.descriptors[name].enabled = True
+        self.disabledModules.discard(name)
+        return self.loadModule(name)
+
+    def disableModule(self, name: str):
+        """Disable and unload a module for this runtime."""
+
+        if name in self.descriptors:
+            self.descriptors[name].enabled = False
+        self.disabledModules.add(name)
+        return self.unloadModule(name)
+
+    def getMetadata(self, name: str | None = None):
+        """Return metadata for one module or all discovered modules."""
+
+        if not self.descriptors:
+            self.descriptors = self.discoverModules()
+        if name is not None:
+            return self.descriptors[name].metadata
+        return {key: descriptor.metadata for key, descriptor in self.descriptors.items()}
+
+    def listCapabilities(self):
+        """Return capabilities advertised by loaded modules."""
+
+        capabilities = {}
+        for name, module in self.loadedModules.items():
+            capabilities[name] = list(module.metadata.capabilities)
+        return capabilities
+
+    def listPermissions(self):
+        """Return permissions requested by loaded modules."""
+
+        permissions = {}
+        for name, module in self.loadedModules.items():
+            permissions[name] = list(module.metadata.permissions)
+        return permissions
+
+    def _resolveLoadOrder(self):
+        """Return module names ordered by dependencies."""
+
+        ordered = []
+        visiting = set()
+        visited = set()
+
+        def visit(name):
+            if name in visited:
+                return
+            if name in visiting:
+                raise RuntimeError(f"Circular Aura module dependency involving {name}")
+            if name not in self.descriptors:
+                raise KeyError(f"Missing Aura module dependency: {name}")
+
+            visiting.add(name)
+            for dependency in self.descriptors[name].metadata.dependencies:
+                visit(dependency)
+            visiting.remove(name)
+            visited.add(name)
+            ordered.append(name)
+
+        for name in sorted(self.descriptors):
+            visit(name)
+        return ordered
+
+    def _readMetadata(self, fallback_name: str, package: ModuleType):
+        """Read module metadata from a package."""
+
+        raw_metadata = getattr(package, "MODULE_METADATA", None)
+        if isinstance(raw_metadata, ModuleMetadata):
+            return raw_metadata
+        if isinstance(raw_metadata, dict):
+            return ModuleMetadata.fromDict(raw_metadata)
+        if hasattr(package, "getMetadata"):
+            metadata = package.getMetadata()
+            if isinstance(metadata, ModuleMetadata):
+                return metadata
+            if isinstance(metadata, dict):
+                return ModuleMetadata.fromDict(metadata)
+        return ModuleMetadata(name=fallback_name)
+
+    def _createModule(self, package: ModuleType, metadata: ModuleMetadata):
+        """Create a module instance from a package."""
+
+        if hasattr(package, "createModule"):
+            module = package.createModule(self.context)
+            if not isinstance(module, AuraModule):
+                raise TypeError(f"{metadata.name}.createModule() must return an AuraModule.")
+            return module
+        if hasattr(package, "AuraModule"):
+            module = package.AuraModule()
+            if not isinstance(module, AuraModule):
+                raise TypeError(f"{metadata.name}.AuraModule must inherit modules.base.AuraModule.")
+            return module
+        if hasattr(package, "register"):
+            return LegacyRegisteredModule(metadata, package)
+        raise TypeError(f"{metadata.name} does not expose createModule(), AuraModule, or register().")
+
+    def _registerContextModule(self, name: str, module):
+        """Register a module against RuntimeContext or a lightweight context."""
+
+        if hasattr(self.context, "registerModule"):
+            self.context.registerModule(name, module)
+            return
+        if not hasattr(self.context, "modules") or getattr(self.context, "modules") is None:
+            self.context.modules = {}
+        self.context.modules[name] = module
+
+    @staticmethod
+    def _isLoadablePackage(package: ModuleType):
+        """Return whether a package exposes a module load hook."""
+
+        return any(
+            hasattr(package, attribute)
+            for attribute in ("createModule", "AuraModule", "register")
+        )
+
+    def _isEnabled(self, module_name: str):
+        """Return whether a module is enabled by config."""
+
+        config = getattr(self.context, "config", None)
+        if config is None or not hasattr(config, "get"):
+            return True
+
+        module_config = config.get(f"modules.{module_name}", None)
+        if isinstance(module_config, dict) and "enabled" in module_config:
+            return bool(module_config["enabled"])
+
+        enabled_modules = config.get("modules.enabled", None)
+        if isinstance(enabled_modules, list):
+            return module_name in enabled_modules
+
+        disabled_modules = config.get("modules.disabled", [])
+        if isinstance(disabled_modules, list) and module_name in disabled_modules:
+            return False
+
+        return True
+
+    @staticmethod
+    def _reloadPackageTree(import_path: str):
+        """Reload a package and already-imported children."""
+
+        loaded_names = [
+            name for name in sys.modules
+            if name == import_path or name.startswith(f"{import_path}.")
+        ]
+        for module_name in sorted(loaded_names, key=len, reverse=True):
+            importlib.reload(sys.modules[module_name])

@@ -1,18 +1,38 @@
 """Reminder persistence and notification queueing for Aura."""
 
+from modules.base import AuraModule, ModuleMetadata
 from core.threading.scheduler.schedule import Schedule
 
 
-class Reminders:
+class Reminders(AuraModule):
     """
     Reminder data layer for creating, listing, deleting, and queueing reminders.
     """
 
-    def __init__(self, context):
+    metadata = ModuleMetadata(
+        name="reminders",
+        version="1.0.0",
+        description="Reminder creation, storage, and due reminder processing.",
+        dependencies=("notifications",),
+        permissions=("database:read", "database:write", "scheduler:write"),
+        capabilities=("reminders", "notifications"),
+    )
+
+    def __init__(self, context=None):
         """
         Initialize the reminder manager and ensure schema exists.
         """
 
+        super().__init__()
+        self.database = None
+        self.logger = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context):
+        """Initialize the reminders module."""
+
+        super().initialize(context)
         self.context = context
         self.database = context.database
 
@@ -25,6 +45,11 @@ class Reminders:
 
         if self.logger:
             self.logger.info("Initialized.")
+
+    def getIntents(self):
+        """Return intents handled by reminders."""
+
+        return []
 
     def createRemindersTable(self):
         """

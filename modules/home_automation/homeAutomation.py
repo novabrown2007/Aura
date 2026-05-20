@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from modules.base import AuraModule, ModuleMetadata
 from modules.home_automation.bridgeConnection import BridgeConnection
 from modules.home_automation.config import HomeAutomationConfig, buildHomeAutomationConfig
 from modules.home_automation.models import (
@@ -14,20 +15,49 @@ from modules.home_automation.models import (
 from modules.home_automation.serviceControl import ServiceControlConnection
 
 
-class HomeAutomation:
+class HomeAutomation(AuraModule):
     """Coordinates home automation bridge state and device actions."""
 
-    def __init__(self, context, config: HomeAutomationConfig | None = None):
+    metadata = ModuleMetadata(
+        name="homeAutomation",
+        version="1.0.0",
+        description="Home automation bridge, service control, and device state.",
+        permissions=("network:http", "process:service-control"),
+        capabilities=("home-automation", "device-control"),
+    )
+
+    def __init__(self, context=None, config: HomeAutomationConfig | None = None):
+        """Initialize home automation state when a context is supplied."""
+
+        super().__init__()
+        self.config = config
+        self.logger = None
+        self.bridge = None
+        self.serviceControl = None
+        if context is not None:
+            self.initialize(context)
+
+    def initialize(self, context=None) -> BridgeState | None:
+        """Initialize the module or, with no context, connect to the bridge."""
+
+        if context is None:
+            return self.bridge.connect()
+
+        super().initialize(context)
         self.context = context
-        self.config = config or buildHomeAutomationConfig(context)
+        self.config = self.config or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
         self.bridge = BridgeConnection(self.config.bridge)
         self.serviceControl = ServiceControlConnection(self.config.control)
+        return None
 
-    def initialize(self) -> BridgeState:
-        """Initialize the bridge state."""
+    def shutdown(self):
+        """Shutdown home automation resources."""
 
-        return self.bridge.connect()
+    def getIntents(self):
+        """Return intents handled by home automation."""
+
+        return []
 
     def refresh(self) -> BridgeState:
         """Refresh bridge state."""

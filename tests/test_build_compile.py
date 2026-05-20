@@ -10,7 +10,7 @@ class BuildCompileTests(unittest.TestCase):
     def test_python_files_compile(self):
         """Validate that python files compile behaves as expected."""
         root = Path(__file__).resolve().parents[1]
-        excludes = {"venv", "__pycache__", ".git", ".idea"}
+        excludes = {"venv", ".venv", "__pycache__", ".git", ".idea", "build", "dist", "logs"}
         failures = []
 
         for py_file in root.rglob("*.py"):
