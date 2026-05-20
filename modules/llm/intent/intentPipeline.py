@@ -278,7 +278,15 @@ class IntentPipeline:
         """Return memory entries useful for resolving contextual references."""
 
         memoryManager = getattr(self.context, "memoryManager", None)
-        if memoryManager is None or not hasattr(memoryManager, "getMemory"):
+        if memoryManager is None:
+            return {}
+
+        if hasattr(memoryManager, "summarizeMemories"):
+            relevant = memoryManager.summarizeMemories(userInput)
+            if relevant:
+                return relevant
+
+        if not hasattr(memoryManager, "getMemory"):
             return {}
 
         memory = memoryManager.getMemory() or {}

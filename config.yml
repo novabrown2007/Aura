@@ -20,6 +20,10 @@ llm:
   memory:
     enabled: true
     frequency: 20
+    semantic:
+      enabled: true
+      limit: 5
+      provider: local
 
   logging:
     enabled: true

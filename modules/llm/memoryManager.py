@@ -13,6 +13,7 @@ Responsibilities
 """
 
 from modules.base import AuraModule, ModuleMetadata
+from modules.llm.memory.semanticMemoryStore import SemanticMemoryStore
 
 
 class MemoryManager(AuraModule):
@@ -48,6 +49,9 @@ class MemoryManager(AuraModule):
         self.database = None
         self.config = None
         self.llmManager = None
+        self.semanticStore = None
+        self.semanticEnabled = True
+        self.semanticLimit = 5
         if context is not None:
             self.initialize(context)
 
@@ -64,6 +68,9 @@ class MemoryManager(AuraModule):
         self.database = context.database
         self.config = context.config
         self.llmManager = getattr(context, "llmManager", None)
+        self.semanticEnabled = bool(self.config.get("llm.memory.semantic.enabled", True))
+        self.semanticLimit = int(self.config.get("llm.memory.semantic.limit", 5))
+        self.semanticStore = SemanticMemoryStore(self.database) if self.semanticEnabled else None
 
         self._initializeDatabase()
 
@@ -243,6 +250,80 @@ Rules:
         if self.logger:
             self.logger.debug(f"Memory updated: {key}")
 
+        self.setSemanticMemory(
+            key,
+            value,
+            summary=value,
+            memoryType="fact",
+            topics=[key],
+            importance=importance,
+            source="key_value",
+        )
+
+    def setSemanticMemory(
+        self,
+        key: str,
+        content: str,
+        summary: str = "",
+        memoryType: str = "fact",
+        topics: list[str] | None = None,
+        relationships: dict | None = None,
+        importance: int = 1,
+        source: str = "manual",
+    ):
+        """Store a long-term semantic memory for contextual retrieval."""
+
+        if not self.semanticEnabled or self.semanticStore is None:
+            return
+        self.semanticStore.upsertMemory(
+            key,
+            content,
+            summary=summary,
+            memoryType=memoryType,
+            topics=topics,
+            relationships=relationships,
+            importance=importance,
+            source=source,
+        )
+
+    def retrieveRelevantMemories(self, query: str, limit: int | None = None) -> list[dict]:
+        """Retrieve ranked memories relevant to a query or discussion."""
+
+        if self.semanticEnabled and self.semanticStore is not None:
+            return self.semanticStore.search(query, limit=limit or self.semanticLimit)
+
+        memory = self.getMemory()
+        tokens = self._tokenize(query)
+        ranked = []
+        for key, value in memory.items():
+            text = f"{key} {value}".lower()
+            score = sum(1 for token in tokens if token in text)
+            if score:
+                ranked.append(
+                    {
+                        "memory_key": key,
+                        "content": value,
+                        "summary": value,
+                        "memory_type": "fact",
+                        "topics": [key],
+                        "relationships": {},
+                        "importance": 1,
+                        "score": float(score),
+                    }
+                )
+        ranked.sort(key=lambda item: item["score"], reverse=True)
+        return ranked[: int(limit or self.semanticLimit)]
+
+    def summarizeMemories(self, query: str, limit: int | None = None) -> dict[str, str]:
+        """Return relevant memories in prompt-friendly key/value form."""
+
+        memories = self.retrieveRelevantMemories(query, limit=limit)
+        return {
+            str(memory.get("memory_key")): str(memory.get("summary") or memory.get("content") or "")
+            for memory in memories
+            if memory.get("memory_key")
+        }
+
     def getMemory(self):
         """
         Retrieve all stored memory.
@@ -297,6 +378,8 @@ Rules:
             "DELETE FROM memory WHERE memory_key = ?",
             (key,)
         )
+        if self.semanticStore is not None:
+            self.semanticStore.delete(key)
         if self.logger:
             self.logger.debug(f"Memory deleted: {key}")
 
@@ -315,5 +398,14 @@ Rules:
         self.database.execute(
             "DELETE FROM memory"
         )
+        if self.semanticStore is not None:
+            self.semanticStore.clear()
         if self.logger:
             self.logger.warning("All memory cleared")
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        """Tokenize text for fallback memory retrieval."""
+
+        cleaned = "".join(character.lower() if character.isalnum() else " " for character in str(text))
+        return {token for token in cleaned.split() if token}

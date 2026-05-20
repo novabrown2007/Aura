@@ -53,6 +53,7 @@ class InMemoryDatabase:
         """Initialize `InMemoryDatabase` with required dependencies and internal state."""
         self._conversation_rows = []
         self._memory_rows = {}
+        self._semantic_memory_rows = {}
         self._command_logs = []
         self._conversation_id = 0
         self.connection = SimpleNamespace(is_connected=lambda: True)
@@ -89,6 +90,36 @@ class InMemoryDatabase:
             self._conversation_rows.clear()
             return None
 
+        if "insert into semantic_memory" in normalized:
+            (
+                key,
+                content,
+                summary,
+                memory_type,
+                topics,
+                relationships,
+                importance,
+                source,
+                embedding,
+                updated_at,
+            ) = params
+            existing = self._semantic_memory_rows.get(key, {})
+            created_at = existing.get("created_at", updated_at)
+            self._semantic_memory_rows[key] = {
+                "memory_key": key,
+                "content": content,
+                "summary": summary,
+                "memory_type": memory_type,
+                "topics": topics,
+                "relationships": relationships,
+                "importance": importance,
+                "source": source,
+                "embedding": embedding,
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+            return None
+
         if "insert into memory" in normalized:
             key, value, importance = params
             self._memory_rows[key] = {
@@ -96,6 +127,15 @@ class InMemoryDatabase:
                 "value": value,
                 "importance": importance,
             }
+            return None
+
+        if normalized.startswith("delete from semantic_memory where memory_key"):
+            key = params[0]
+            self._semantic_memory_rows.pop(key, None)
+            return None
+
+        if normalized.startswith("delete from semantic_memory"):
+            self._semantic_memory_rows.clear()
             return None
 
         if normalized.startswith("delete from memory where memory_key"):
@@ -166,10 +206,14 @@ class InMemoryDatabase:
                 for row in self._memory_rows.values()
             ]
 
+        if "from semantic_memory" in normalized:
+            return [dict(row) for row in self._semantic_memory_rows.values()]
+
         if "from information_schema.tables" in normalized:
             return [
                 {"table_name": "conversation_history"},
                 {"table_name": "memory"},
+                {"table_name": "semantic_memory"},
                 {"table_name": "command_logs"},
                 {"table_name": "system_info"},
             ]

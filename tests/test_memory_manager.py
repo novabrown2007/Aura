@@ -100,6 +100,33 @@ class MemoryManagerTests(unittest.TestCase):
 
         self.assertEqual(self.memory.getMemory(), {})
 
+    def test_set_memory_indexes_semantic_memory_for_retrieval(self):
+        """Stored memories should be retrievable by semantic relevance."""
+
+        self.memory.setMemory("bedroom_lights", "The bedroom has two smart lamps.", importance=3)
+        self.memory.setMemory("favorite_food", "Nova likes pizza.", importance=1)
+
+        results = self.memory.retrieveRelevantMemories("turn off the bedroom lamps", limit=1)
+
+        self.assertEqual(results[0]["memory_key"], "bedroom_lights")
+        self.assertIn("smart lamps", results[0]["content"])
+
+    def test_summarize_memories_returns_prompt_ready_relevant_memory(self):
+        """Semantic summaries should be formatted as key/value prompt context."""
+
+        self.memory.setSemanticMemory(
+            "current_room",
+            "Nova is currently in the bedroom.",
+            summary="bedroom",
+            topics=["room", "location", "bedroom"],
+            relationships={"contains": ["bedroom_lights"]},
+            importance=5,
+        )
+
+        summary = self.memory.summarizeMemories("turn them off too")
+
+        self.assertEqual(summary["current_room"], "bedroom")
+
 
 if __name__ == "__main__":
     unittest.main()
