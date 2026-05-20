@@ -15,7 +15,7 @@ SUITES = {
     "short_memory": "tests.test_conversation_history",
     "long_memory": "tests.test_memory_manager",
     "calendar": "tests.test_calendar",
-    "interfaces": "tests.test_interfaces",
+    "interfaces": "tests.interfaceTests",
     "llm": "tests.test_llm_handler",
     "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",

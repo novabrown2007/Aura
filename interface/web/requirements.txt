@@ -1,0 +1,3 @@
+-r ../../requirements.txt
+
+# The web interface currently uses Python's standard-library HTTP server.
