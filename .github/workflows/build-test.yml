@@ -13,6 +13,7 @@ jobs:
   source_packages:
     name: Build Source Packages
     runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -61,6 +62,7 @@ jobs:
   executables:
     name: Build Executables
     runs-on: windows-latest
+    timeout-minutes: 45
     needs: source_packages
 
     steps:
@@ -90,6 +92,7 @@ jobs:
           .\.venv\Scripts\python.exe -m pip install pyinstaller
 
       - name: Build Windows executable
+        timeout-minutes: 10
         shell: pwsh
         run: |
           Push-Location build\interfaces\windows
@@ -100,6 +103,10 @@ jobs:
         timeout-minutes: 15
         shell: pwsh
         run: |
+          $env:KIVY_GL_BACKEND = "angle_sdl2"
+          $env:KIVY_WINDOW = "sdl2"
+          $env:KIVY_IMAGE = "sdl2"
+          $env:KIVY_TEXT = "sdl2"
           New-Item -ItemType Directory -Force -Path build\pyinstaller-hooks | Out-Null
           @'
           from kivy.tools.packaging.pyinstaller_hooks import add_dep_paths, get_deps_minimal
@@ -125,6 +132,7 @@ jobs:
           Pop-Location
 
       - name: Build Web executable
+        timeout-minutes: 10
         shell: pwsh
         run: |
           Push-Location build\interfaces\web
@@ -149,6 +157,7 @@ jobs:
   tests:
     name: Run Tests
     runs-on: windows-latest
+    timeout-minutes: 30
     needs: executables
     outputs:
       windows: ${{ steps.test_windows.outcome }}
@@ -261,6 +270,7 @@ jobs:
   discord_log:
     name: Log To Discord
     runs-on: windows-latest
+    timeout-minutes: 10
     if: always() && github.event_name == 'push'
     needs:
       - source_packages
