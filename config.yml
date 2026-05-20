@@ -1,6 +1,17 @@
 llm:
-  model: llama3.1:8b
-  endpoint: http://localhost:11434/api/generate
+  activeProvider: gemini
+  fallbackProvider: ollama
+  offlineMode: false
+  retryCount: 2
+  timeout: 30
+
+  ollama:
+    model: llama3.1:8b
+    endpoint: CHANGE_ME
+
+  gemini:
+    model: gemini-2.5-flash
+    api_secret: CHANGE_ME
 
   history:
     enabled: true
@@ -8,13 +19,26 @@ llm:
 
   memory:
     enabled: true
+    frequency: 20
+    semantic:
+      enabled: true
+      limit: 5
+      provider: local
+
+  logging:
+    enabled: true
+    path: logs/llm
+
+  intent:
+    confidenceThreshold: 0.75
+    contextWindow: 6
 
 database:
   host: localhost
   port: 3306
   name: aura
-  user: change_me
-  password: change_me
+  user: CHANGE_ME
+  password: CHANGE_ME
 
 threading:
   max_threads: 10

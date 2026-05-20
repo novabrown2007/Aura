@@ -79,6 +79,12 @@ class RuntimeContext:
         self.moduleLoader = None
         """Dynamic module loader and plugin registry."""
 
+        self.toolRegistry = None
+        """Registry of deterministic tools exposed by loaded modules."""
+
+        self.toolExecutor = None
+        """Executor responsible for validating and running registered tools."""
+
         # ----------------------------
         # Database
         # ----------------------------
@@ -92,6 +98,9 @@ class RuntimeContext:
 
         self.llm = None
         """LLM handler responsible for model interaction."""
+
+        self.llmManager = None
+        """Provider-neutral manager responsible for all model access."""
 
         self.conversationHistory = None
         """Stores active conversation context."""

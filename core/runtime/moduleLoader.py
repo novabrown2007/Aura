@@ -119,6 +119,7 @@ class ModuleLoader:
         setattr(self.context, name, module_instance)
         self.loadedModules[name] = module_instance
         self._registerContextModule(name, module_instance)
+        self._registerModuleTools(module_instance)
 
         if self.logger:
             self.logger.info(f"Loaded module: {name}")
@@ -131,6 +132,7 @@ class ModuleLoader:
         if module is None:
             return False
 
+        self._unregisterModuleTools(module)
         module.shutdown()
         self.context.modules.pop(name, None)
         context_attribute = getattr(module, "context_attribute", None)
@@ -234,6 +236,23 @@ class ModuleLoader:
         for name in sorted(self.descriptors):
             visit(name)
         return ordered
+
+    def _registerModuleTools(self, module):
+        """Register tools exposed by a loaded module."""
+
+        registry = getattr(self.context, "toolRegistry", None)
+        if registry is None or not hasattr(module, "getTools"):
+            return
+        registry.registerTools(module.getTools())
+
+    def _unregisterModuleTools(self, module):
+        """Unregister tools exposed by an unloaded module."""
+
+        registry = getattr(self.context, "toolRegistry", None)
+        if registry is None or not hasattr(module, "getTools"):
+            return
+        for tool in module.getTools():
+            registry.unregisterTool(tool.name)
 
     def _readMetadata(self, fallback_name: str, package: ModuleType):
         """Read module metadata from a package."""

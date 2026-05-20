@@ -28,6 +28,7 @@ class DatabaseTableManager:
         self.createCommandLogsTable()
         self.createConversationHistoryTable()
         self.createMemoryTable()
+        self.createSemanticMemoryTable()
         self.createNotificationsTable()
         self.createRemindersTable()
         self.createCalendarCalendarsTable()
@@ -87,6 +88,27 @@ class DatabaseTableManager:
                 memory_key VARCHAR(255) PRIMARY KEY,
                 value TEXT,
                 importance INTEGER DEFAULT 1,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+    def createSemanticMemoryTable(self):
+        """Create the semantic_memory table."""
+
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS semantic_memory (
+                memory_key VARCHAR(255) PRIMARY KEY,
+                content TEXT NOT NULL,
+                summary TEXT,
+                memory_type VARCHAR(64) DEFAULT 'fact',
+                topics TEXT,
+                relationships TEXT,
+                importance INTEGER DEFAULT 1,
+                source VARCHAR(128) DEFAULT 'memory',
+                embedding TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """

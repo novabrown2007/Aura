@@ -8,6 +8,7 @@ import unittest
 SUITES = {
     "build": "tests.test_build_compile",
     "runtime_smoke": "tests.test_runtime_smoke",
+    "config": "tests.test_config_loader",
     "logger": "tests.test_logger",
     "datetime_utils": "tests.test_datetime_utils",
     "notifications": "tests.test_notifications",
@@ -18,6 +19,8 @@ SUITES = {
     "interfaces": "tests.interfaceTests",
     "home_automation": "tests.test_home_automation",
     "module_loader": "tests.test_module_loader",
+    "tools": "tests.test_tool_system",
+    "intent_pipeline": "tests.test_intent_pipeline",
     "llm": "tests.test_llm_handler",
     "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",

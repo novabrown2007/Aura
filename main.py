@@ -18,9 +18,12 @@ from core.threading.scheduler.scheduler import Scheduler
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
+from core.tools.toolExecutor import ToolExecutor
+from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 
+from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
 from modules.llm.memoryManager import MemoryManager
@@ -66,6 +69,9 @@ def shutdown(context):
     if context.moduleLoader:
         context.moduleLoader.shutdownModules()
 
+    if context.llmManager:
+        context.llmManager.shutdown()
+
     if context.database:
         context.database.close()
 
@@ -96,10 +102,15 @@ def buildRuntimeContext():
     context.taskManager = TaskManager(context)
     context.scheduler = Scheduler(context)
 
+    # Tools
+    context.toolRegistry = ToolRegistry(context)
+    context.toolExecutor = ToolExecutor(context)
+
     # Database
     context.database = createDatabaseWithFallback(context)
 
     # LLM
+    context.llmManager = LLMManager(context)
     context.memoryManager = MemoryManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)

@@ -34,6 +34,10 @@ class ConversationHistory(AuraModule):
         super().__init__()
         self.logger = None
         self.database = None
+        self.historyLimit = 25
+        self.memoryEnabled = True
+        self.memoryFrequency = 20
+        self.loggedSinceMemory = 0
         if context is not None:
             self.initialize(context)
 
@@ -48,6 +52,10 @@ class ConversationHistory(AuraModule):
             self.logger = context.logger.getChild("LLM.ConversationHistory")
 
         self.database = context.database
+        config = context.config
+        self.historyLimit = int(config.get("llm.history.limit", 25))
+        self.memoryEnabled = bool(config.get("llm.memory.enabled", True))
+        self.memoryFrequency = int(config.get("llm.memory.frequency", 20))
 
         self._initializeDatabase()
 
@@ -99,6 +107,7 @@ class ConversationHistory(AuraModule):
             """,
             (role, content)
         )
+        self._trimToHistoryLimit()
 
     def getRecentMessages(self, limit: int = 15):
         """
@@ -150,9 +159,12 @@ class ConversationHistory(AuraModule):
             raise ValueError(f"Invalid message author: {author}")
 
         self.add(author, content)
+        self.loggedSinceMemory += 1
 
         if self.logger:
             self.logger.debug(f"Logged message from {author}")
+
+        self._maybeTriggerMemoryExtraction()
 
 
     # --------------------------------------------------
@@ -173,3 +185,47 @@ class ConversationHistory(AuraModule):
 
         if self.logger:
             self.logger.info("Conversation history cleared")
+
+    def _trimToHistoryLimit(self):
+        """Keep only the configured number of short-term history messages."""
+
+        if not self.database or self.historyLimit <= 0:
+            return
+
+        self.database.execute(
+            """
+            DELETE FROM conversation_history
+            WHERE id NOT IN (
+                SELECT id FROM (
+                    SELECT id
+                    FROM conversation_history
+                    ORDER BY id DESC
+                    LIMIT ?
+                ) AS recent_history
+            )
+            """,
+            (self.historyLimit,),
+        )
+
+    def _maybeTriggerMemoryExtraction(self):
+        """Run memory extraction after the configured number of logged messages."""
+
+        if not self.memoryEnabled or self.memoryFrequency <= 0:
+            return
+        if self.loggedSinceMemory < self.memoryFrequency:
+            return
+
+        self.loggedSinceMemory = 0
+        memoryManager = getattr(self.context, "memoryManager", None)
+        if memoryManager is None:
+            return
+
+        messages = self.getRecentMessages(limit=self.historyLimit)
+        if not messages:
+            return
+
+        try:
+            memoryManager.learnFromHistory(messages)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Memory extraction from history failed: {error}")

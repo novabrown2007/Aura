@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from core.threading.events.events import Event
 from core.threading.scheduler.schedule import Schedule
+from core.tools.tool import Tool
 from modules.base import AuraModule, ModuleMetadata
 
 RECURRENCE_TYPES = {"daily", "weekly", "monthly", "yearly"}
@@ -67,6 +68,58 @@ class Calendar(AuraModule):
         """Return intents handled by calendar."""
 
         return []
+
+    def getTools(self):
+        """Return deterministic calendar tools exposed to Aura."""
+
+        return [
+            Tool(
+                name="calendar.createEvent",
+                description="Create a calendar event.",
+                parameters={
+                    "title": {"type": "string"},
+                    "start_at": {"type": "string"},
+                    "end_at": {"type": "string"},
+                    "description": {"type": "string"},
+                    "location": {"type": "string"},
+                    "calendar_id": {"type": "integer"},
+                    "timezone": {"type": "string"},
+                },
+                requiredParameters=("title", "start_at"),
+                module="calendar",
+                method="createEvent",
+                safe=True,
+            ),
+            Tool(
+                name="calendar.createTask",
+                description="Create a calendar task.",
+                parameters={
+                    "title": {"type": "string"},
+                    "due_at": {"type": "string"},
+                    "description": {"type": "string"},
+                    "priority": {"type": "string"},
+                    "calendar_id": {"type": "integer"},
+                },
+                requiredParameters=("title",),
+                module="calendar",
+                method="createTask",
+                safe=True,
+            ),
+            Tool(
+                name="calendar.createReminder",
+                description="Create a calendar reminder.",
+                parameters={
+                    "title": {"type": "string"},
+                    "remind_at": {"type": "string"},
+                    "notes": {"type": "string"},
+                    "calendar_id": {"type": "integer"},
+                },
+                requiredParameters=("title", "remind_at"),
+                module="calendar",
+                method="createReminder",
+                safe=True,
+            ),
+        ]
 
     def _registerReminderPollingSchedule(self):
         """
