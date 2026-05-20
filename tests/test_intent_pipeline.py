@@ -136,6 +136,101 @@ class IntentPipelineTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("admin permission", result["error"])
 
+    def test_handler_executes_multi_step_tool_chain_in_order(self):
+        """A compound request should execute each parsed tool in sequence."""
+
+        calls = []
+        context = make_llm_context()
+        context.toolRegistry.registerTool(
+            Tool(
+                name="test.firstStep",
+                description="Run the first test step.",
+                parameters={"value": {"type": "string"}},
+                requiredParameters=("value",),
+                module="firstModule",
+                method="run",
+            )
+        )
+        context.toolRegistry.registerTool(
+            Tool(
+                name="test.secondStep",
+                description="Run the second test step.",
+                parameters={"value": {"type": "string"}},
+                requiredParameters=("value",),
+                module="secondModule",
+                method="run",
+            )
+        )
+        context.llmManager = StubIntentManager(
+            {
+                "response": "Running both steps.",
+                "intents": [
+                    {
+                        "intent": "test.firstStep",
+                        "arguments": {"value": "dim lights"},
+                        "confidence": 0.96,
+                    },
+                    {
+                        "intent": "test.secondStep",
+                        "arguments": {"value": "start music"},
+                        "confidence": 0.93,
+                    },
+                ],
+            },
+            finalText="Both steps are done.",
+        )
+        context.firstModule = SimpleNamespace(
+            run=lambda **kwargs: calls.append(("first", kwargs)) or {"ok": True}
+        )
+        context.secondModule = SimpleNamespace(
+            run=lambda **kwargs: calls.append(("second", kwargs)) or {"ok": True}
+        )
+
+        handler = LLMHandler(context)
+        reply = handler.generateResponse("Do two related actions.")
+
+        self.assertEqual(reply, "Both steps are done.")
+        self.assertEqual(
+            calls,
+            [
+                ("first", {"value": "dim lights"}),
+                ("second", {"value": "start music"}),
+            ],
+        )
+
+    def test_harness_compares_expected_tool_chain(self):
+        """The harness should support ordered multi-step intent cases."""
+
+        context = make_llm_context()
+        manager = StubIntentManager(
+            {
+                "intents": [
+                    {
+                        "intent": "test.firstStep",
+                        "arguments": {"value": "dim lights"},
+                        "confidence": 0.96,
+                    },
+                    {
+                        "intent": "test.secondStep",
+                        "arguments": {"value": "start music"},
+                        "confidence": 0.93,
+                    },
+                ],
+            }
+        )
+        pipeline = IntentPipeline(context, manager)
+        harness = IntentTestHarness(pipeline)
+
+        result = harness.testToolChain(
+            "Do two related actions.",
+            [
+                {"tool": "test.firstStep", "arguments": {"value": "dim lights"}},
+                {"tool": "test.secondStep", "arguments": {"value": "start music"}},
+            ],
+        )
+
+        self.assertTrue(result["success"], result)
+
 
 if __name__ == "__main__":
     unittest.main()
