@@ -9,7 +9,7 @@ def createDatabaseWithFallback(context):
     Create and initialize the configured database, falling back to SQLite.
 
     MySQL remains the preferred database. SQLite is used only when MySQL cannot
-    connect or initialize, allowing local interfaces to open for development.
+    connect or initialize, allowing local backend development without MySQL.
     """
 
     logger = context.logger.getChild("DatabaseFactory") if context.logger else None

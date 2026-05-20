@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - master
-      - "interface/**"
   pull_request:
     branches:
       - master
-      - "interface/**"
   workflow_dispatch:
 
 jobs:

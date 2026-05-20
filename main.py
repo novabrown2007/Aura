@@ -4,9 +4,6 @@ Aura Assistant - Main Entry Point
 This file bootstraps the headless Aura runtime by creating the
 RuntimeContext, initializing all core subsystems, loading backend modules,
 and managing the application lifecycle.
-
-This migration version intentionally contains no interface package setup.
-Interfaces will attach later through separate frontend/adaptor packages.
 """
 
 from core.runtime.runtimeContext import RuntimeContext

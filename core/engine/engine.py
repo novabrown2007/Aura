@@ -1,16 +1,11 @@
 """Headless runtime engine for Aura."""
 
 from time import sleep
-from typing import Optional
 
 
 class Engine:
     """
-    Run Aura as a headless service and expose request-processing helpers.
-
-    The engine no longer owns a terminal loop. Interfaces can attach in other
-    branches and submit input through the InputManager or through the engine's
-    `handleInput()` convenience wrapper.
+    Run Aura as a backend service.
     """
 
     def __init__(self, context):
@@ -28,7 +23,7 @@ class Engine:
 
     def run(self, poll_interval: float = 0.1):
         """
-        Keep the runtime alive until an attached interface requests shutdown.
+        Keep the runtime alive until shutdown is requested.
 
         Args:
             poll_interval:
@@ -43,11 +38,3 @@ class Engine:
 
         if self.logger:
             self.logger.info("Engine stopped")
-
-    def handleInput(self, text: str, source: str = "api", metadata: Optional[dict] = None) -> dict:
-        """
-        Process one interface request through the runtime pipeline.
-        """
-
-        input_manager = self.context.require("inputManager")
-        return input_manager.submit(text=text, source=source, metadata=metadata)

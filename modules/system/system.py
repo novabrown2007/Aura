@@ -9,8 +9,8 @@ class System:
     """
     Expose system lifecycle actions through one runtime module.
 
-    The facade keeps the public API simple for interface branches while still
-    separating each lifecycle action into its own class.
+    The facade keeps the public API simple while still separating each
+    lifecycle action into its own class.
     """
 
     def __init__(self, context):

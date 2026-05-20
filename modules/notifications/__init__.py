@@ -7,8 +7,8 @@ def register(context):
     """
     Register the notifications service with the runtime context.
 
-    Interfaces can use this service as a backend API for creating and reading
-    notification records without depending on any specific frontend.
+    Runtime modules can use this service for creating and reading notification
+    records.
     """
 
     context.notifications = Notifications(context)

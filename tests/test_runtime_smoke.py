@@ -1,4 +1,4 @@
-"""Smoke tests for Aura's headless runtime API."""
+"""Smoke tests for Aura's backend runtime."""
 
 import threading
 import time
@@ -6,16 +6,13 @@ import unittest
 from types import SimpleNamespace
 
 from core.engine.engine import Engine
-from core.interface.io.inputManager import InputManager
-from core.interface.io.outputManager import OutputManager
-from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
 from core.runtime.datetimeUtils import DateTimeUtils
 from tests.support.fakes import InMemoryDatabase, make_context
 
 
 class RuntimeSmokeTests(unittest.TestCase):
-    """Ensure the runtime boots without a CLI and processes API requests."""
+    """Ensure the backend runtime boots and idles until shutdown."""
 
     def setUp(self):
         """Build a lightweight runtime context for headless processing tests."""
@@ -38,24 +35,7 @@ class RuntimeSmokeTests(unittest.TestCase):
             generateResponse=lambda text: f"llm:{text}",
         )
         self.context.interpreter = Interpreter(self.context)
-        self.context.intentRouter = IntentRouter(self.context)
-        self.context.outputManager = OutputManager(self.context)
-        self.context.inputManager = InputManager(self.context)
         self.context.engine = Engine(self.context)
-
-    def test_engine_handles_input_through_headless_api(self):
-        """Ensure engine request handling returns a packet and publishes output."""
-
-        packet = self.context.engine.handleInput("Hello there", source="test")
-
-        self.assertEqual(packet["source"], "test")
-        self.assertEqual(packet["input"], "Hello there")
-        self.assertEqual(packet["intent"], "llm")
-        self.assertEqual(packet["response"], "llm:Hello there")
-        self.assertEqual(
-            self.context.outputManager.getLastMessage()["response"],
-            "llm:Hello there",
-        )
 
     def test_engine_run_waits_headlessly_until_shutdown(self):
         """Ensure the engine loop stays idle until the runtime is told to stop."""

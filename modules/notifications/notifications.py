@@ -8,12 +8,11 @@ from typing import Optional
 
 class Notifications:
     """
-    Store and query notifications for any Aura interface branch.
+    Store and query queued notifications.
 
-    Notifications are persisted in the database and exposed through a small,
-    interface-agnostic API. Other modules can queue alerts by supplying a
-    title, content body, due datetime, and the module or system name that
-    created the notification.
+    Notifications are persisted in the database. Other modules can queue alerts
+    by supplying a title, content body, due datetime, and the module or system
+    name that created the notification.
     """
 
     def __init__(self, context):
@@ -174,33 +173,6 @@ class Notifications:
             row for row in rows
             if row.get("notification_at") is not None and row["notification_at"] <= comparison_time
         ]
-
-    def executeNotification(self, notification_id: int):
-        """
-        Placeholder execution hook for interface branches.
-
-        Interface-specific branches should override or wrap this behavior with
-        the appropriate delivery mechanism for desktop, web, mobile, or API
-        notification handling.
-        """
-
-        raise NotImplementedError(
-            "Notification execution is interface-specific and is not implemented on master."
-        )
-
-    def sendNotification(self, notification_id: int):
-        """
-        Safe send wrapper used by modules that treat notifications as alerts.
-
-        On `master`, notification delivery is interface-specific, so this
-        method degrades to a no-op when execution has not been implemented by
-        an interface branch yet.
-        """
-
-        try:
-            return self.executeNotification(notification_id)
-        except NotImplementedError:
-            return None
 
     def markDelivered(self, notification_id: int):
         """

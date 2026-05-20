@@ -167,14 +167,5 @@ class NotificationsTests(unittest.TestCase):
 
         self.assertEqual(database.notifications, [])
 
-    def test_execute_notification_is_a_master_branch_placeholder(self):
-        """Execution should remain unimplemented on master for interface branches to override."""
-
-        notifications, _database = self._create_notifications()
-
-        with self.assertRaises(NotImplementedError):
-            notifications.executeNotification(1)
-
-
 if __name__ == "__main__":
     unittest.main()

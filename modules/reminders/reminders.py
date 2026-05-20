@@ -1,11 +1,11 @@
-"""Reminder persistence and scheduled alert delivery for Aura."""
+"""Reminder persistence and notification queueing for Aura."""
 
 from core.threading.scheduler.schedule import Schedule
 
 
 class Reminders:
     """
-    Reminder data layer for creating, listing, deleting, and sending reminders.
+    Reminder data layer for creating, listing, deleting, and queueing reminders.
     """
 
     def __init__(self, context):
@@ -75,7 +75,7 @@ class Reminders:
             module_of_origin:
                 Name of the module or system that created the reminder.
             reminder_at:
-                Optional scheduled datetime for sending the reminder.
+                Optional scheduled datetime for queueing the reminder notification.
         """
 
         if not self.database:
@@ -164,11 +164,11 @@ class Reminders:
 
     def processDueReminders(self):
         """
-        Find due reminders and send them through the notifications module.
+        Find due reminders and queue matching notification records.
 
         Returns:
             list[dict]:
-                Due reminder rows that were sent during this poll cycle.
+                Due reminder rows that were processed during this poll cycle.
         """
 
         if not self.database:
@@ -193,7 +193,7 @@ class Reminders:
 
     def sendReminder(self, reminder_id: int):
         """
-        Turn one reminder into a notification and trigger notification sending.
+        Turn one reminder into a queued notification.
         """
 
         reminder = self.getReminder(reminder_id)
@@ -207,7 +207,6 @@ class Reminders:
             reminder.get("content") or "",
             self.context.dtUtil.toPreferredDateTime(reminder["reminder_at"]),
         )
-        notifications.sendNotification(notification_id)
 
         self.database.execute(
             """

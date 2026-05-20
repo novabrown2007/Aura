@@ -5,34 +5,24 @@
 
 ## Overview
 
-Aura is a modular personal assistant framework built around a headless core runtime.
+Aura is a backend-only personal assistant runtime.
 
-The `master` branch is intentionally interface-neutral. It contains the runtime,
-threading systems, routing, LLM integration, database-backed memory/history,
-calendar/reminder backends, and interface-agnostic input/output APIs. It does not
-ship with a CLI or desktop frontend.
-
-Interface-specific work is intended to live in separate branches that call into
-the core runtime through the shared API surface.
+The `master` branch contains shared runtime systems, persistence, scheduling,
+LLM integration, memory/history, calendar, reminder, notification, and system
+lifecycle backends. It intentionally does not ship UI, CLI, desktop, mobile,
+web, speech, or other user-facing interface code.
 
 ## Current Architecture
 
 Aura currently includes:
 
 - A headless runtime engine
-- Interface-agnostic `InputManager` and `OutputManager`
 - Runtime context and module loading
 - Scheduler, task manager, and event manager
 - MySQL-backed persistence
 - Conversation history and long-term memory
 - Calendar backend with events, tasks, reminders, recurrence, exceptions, and timezone support
 - Standalone reminders backend
-
-The runtime is designed so an interface branch can attach by calling:
-
-- `context.inputManager.submit(...)`
-- `context.engine.handleInput(...)`
-- `context.outputManager.subscribe(...)`
 
 ## Branch Intent
 
@@ -43,7 +33,7 @@ That means this branch should contain:
 - shared runtime systems
 - backend modules
 - storage and scheduling logic
-- interface-independent APIs
+- backend service APIs
 
 That means this branch should not contain:
 
@@ -51,6 +41,8 @@ That means this branch should not contain:
 - desktop UI implementations
 - mobile UI implementations
 - web interface implementations
+- speech input/output implementations
+- generated application bundles or UI build artifacts
 
 ## Logging
 

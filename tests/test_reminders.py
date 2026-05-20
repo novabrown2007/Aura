@@ -95,7 +95,6 @@ class _RecordingNotifications:
         """Initialize captured calls and deterministic IDs."""
 
         self.created = []
-        self.sent = []
         self.next_id = 100
 
     def createNotification(self, source_module, title, content, timestamp):
@@ -106,14 +105,9 @@ class _RecordingNotifications:
         self.next_id += 1
         return value
 
-    def sendNotification(self, notification_id):
-        """Record notification sending."""
-
-        self.sent.append(notification_id)
-
 
 class RemindersTests(unittest.TestCase):
-    """Validate reminder CRUD and notification delivery behavior."""
+    """Validate reminder CRUD and notification queueing behavior."""
 
     def _create_reminders(self):
         """Build a reminder service with lightweight runtime doubles."""
@@ -179,8 +173,8 @@ class RemindersTests(unittest.TestCase):
         self.assertEqual(rows[0]["title"], "A")
         self.assertEqual(rows[1]["title"], "B")
 
-    def test_send_reminder_creates_and_sends_notification(self):
-        """Sending a reminder should create a notification and mark the reminder as sent."""
+    def test_send_reminder_creates_notification(self):
+        """Processing a reminder should queue a notification and mark the reminder as sent."""
 
         reminders, database, notifications, _scheduler = self._create_reminders()
         reminders.createReminder("Stretch", "Stand up.", "system", "12:00 24/03/2026")
@@ -192,12 +186,11 @@ class RemindersTests(unittest.TestCase):
             notifications.created,
             [("system", "Stretch", "Stand up.", "12:00 24/03/2026")],
         )
-        self.assertEqual(notifications.sent, [100])
         self.assertEqual(database.rows[0]["notification_id"], 100)
         self.assertEqual(database.rows[0]["sent_at"], "now")
 
-    def test_process_due_reminders_sends_each_pending_due_reminder(self):
-        """The scheduler poller should send due reminders through notifications."""
+    def test_process_due_reminders_queues_each_pending_due_reminder(self):
+        """The scheduler poller should queue due reminders through notifications."""
 
         reminders, database, notifications, _scheduler = self._create_reminders()
         reminders.createReminder("A", "First", "system", "08:00 24/03/2026")
@@ -207,7 +200,6 @@ class RemindersTests(unittest.TestCase):
 
         self.assertEqual(len(rows), 2)
         self.assertEqual(len(notifications.created), 2)
-        self.assertEqual(notifications.sent, [100, 101])
         self.assertEqual(database.rows[0]["sent_at"], "now")
         self.assertEqual(database.rows[1]["sent_at"], "now")
 

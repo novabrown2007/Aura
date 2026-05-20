@@ -19,9 +19,8 @@ class Calendar:
     Calendar backend for calendars, events, tasks, and reminders.
 
     This module is the storage and query foundation for Aura's private
-    calendar system. It handles recurring events, reminder delivery,
-    attendees, and search/filter queries so future command and interface
-    layers can stay thin.
+    calendar system. It handles recurring events, reminder queueing,
+    attendees, and search/filter queries for backend callers.
     """
 
     def __init__(self, context):

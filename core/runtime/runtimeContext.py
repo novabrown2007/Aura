@@ -6,7 +6,7 @@ class RuntimeContext:
 
     The RuntimeContext acts as a dependency container for all major
     subsystems within Aura. It allows different components of the system
-    (engine, modules, interfaces, database, etc.) to access shared services
+    (engine, modules, database, etc.) to access shared services
     without creating circular imports.
 
     The engine initializes the RuntimeContext and populates its attributes
@@ -107,16 +107,6 @@ class RuntimeContext:
         """Processes raw user input into structured intents."""
 
         # ----------------------------
-        # Interfaces
-        # ----------------------------
-
-        self.inputManager = None
-        """Handles input from user interfaces (text, speech, API, etc.)."""
-
-        self.outputManager = None
-        """Handles responses to user interfaces."""
-
-        # ----------------------------
         # Config / Constants
         # ----------------------------
 
@@ -124,7 +114,7 @@ class RuntimeContext:
         """Configuration dictionary loaded during startup."""
 
         self.should_exit = False
-        """Signal used by interfaces and modules to stop the active runtime loop."""
+        """Signal used by modules to stop the active runtime loop."""
 
         self.restart_requested = False
         """Signal used to request a full runtime restart after shutdown completes."""
