@@ -192,6 +192,7 @@ jobs:
 
       - name: Test Windows interface
         id: test_windows
+        timeout-minutes: 5
         continue-on-error: true
         shell: pwsh
         run: |
@@ -204,9 +205,15 @@ jobs:
 
       - name: Test Android interface
         id: test_android
+        timeout-minutes: 5
         continue-on-error: true
         shell: pwsh
         run: |
+          $env:KIVY_DOC = "1"
+          $env:KIVY_NO_ARGS = "1"
+          $env:KIVY_WINDOW = "mock"
+          $env:KIVY_AUDIO = "mock"
+          $env:KIVY_GL_BACKEND = "mock"
           New-Item -ItemType Directory -Force -Path build\reports\tests | Out-Null
           $output = & .\.venv\Scripts\python.exe -m unittest tests.interfaceTests.test_android_interface -v 2>&1
           $exitCode = $LASTEXITCODE
@@ -216,6 +223,7 @@ jobs:
 
       - name: Test Web interface
         id: test_web
+        timeout-minutes: 5
         continue-on-error: true
         shell: pwsh
         run: |
@@ -228,9 +236,15 @@ jobs:
 
       - name: Run full test suite
         id: test_full
+        timeout-minutes: 20
         continue-on-error: true
         shell: pwsh
         run: |
+          $env:KIVY_DOC = "1"
+          $env:KIVY_NO_ARGS = "1"
+          $env:KIVY_WINDOW = "mock"
+          $env:KIVY_AUDIO = "mock"
+          $env:KIVY_GL_BACKEND = "mock"
           New-Item -ItemType Directory -Force -Path build\reports\tests | Out-Null
           $output = & .\.venv\Scripts\python.exe run_tests.py --suite all 2>&1
           $exitCode = $LASTEXITCODE
