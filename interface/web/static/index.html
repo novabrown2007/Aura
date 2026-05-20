@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aura</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <main class="content">
+      <header class="topbar">
+        <button class="icon-button" id="sidebarToggle" type="button" title="Toggle navigation">=</button>
+        <h1>Aura</h1>
+        <div class="top-actions">
+          <button class="nav-action" id="notificationsButton" type="button">Alerts</button>
+          <button class="nav-action" id="profileButton" type="button">Profile</button>
+        </div>
+      </header>
+
+      <section class="page active" id="chatPage" aria-labelledby="chatNav">
+        <div class="chat-panel">
+          <div class="transcript" id="transcript">
+            <div class="message aura"><strong>Aura</strong><span>Web interface initialized.</span></div>
+          </div>
+        </div>
+        <form class="composer" id="chatForm">
+          <input id="chatInput" type="text" autocomplete="off" placeholder="Ask Aura...">
+          <button class="primary" type="submit">Send</button>
+        </form>
+      </section>
+
+      <section class="page" id="remindersPage" aria-labelledby="remindersNav">
+        <div class="panel-header">
+          <h2>Reminders</h2>
+          <button class="primary" id="newReminderButton" type="button">Create Reminder</button>
+        </div>
+        <div class="list-panel" id="remindersList"></div>
+      </section>
+
+      <section class="page" id="calendarPage" aria-labelledby="calendarNav">
+        <div class="calendar-layout">
+          <section class="calendar-main">
+            <div class="panel-header">
+              <h2>Calendar</h2>
+              <button class="primary" id="newEventButton" type="button">Create Event</button>
+            </div>
+            <div class="view-tabs" id="calendarTabs">
+              <button data-view="day" type="button">Day</button>
+              <button data-view="week" type="button">Week</button>
+              <button data-view="month" type="button">Month</button>
+              <button data-view="year" type="button">Year</button>
+            </div>
+            <div class="range-controls">
+              <button id="prevRange" type="button">Previous</button>
+              <input id="calendarDate" type="date">
+              <button id="todayRange" type="button">Today</button>
+              <button id="nextRange" type="button">Next</button>
+              <select id="calendarSelect"></select>
+            </div>
+            <div class="calendar-summary" id="calendarSummary"></div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </section>
+
+          <aside class="tools-panel">
+            <h2>Tools</h2>
+            <div class="tool-tabs" id="toolTabs">
+              <button data-tool="event" type="button">Event</button>
+              <button data-tool="task" type="button">Task</button>
+              <button data-tool="reminder" type="button">Reminder</button>
+              <button data-tool="calendar" type="button">Calendar</button>
+              <button data-tool="search" type="button">Search</button>
+              <button data-tool="advanced" type="button">Advanced</button>
+            </div>
+
+            <form class="tool-form active" id="eventTool" data-tool-panel="event">
+              <input name="id" placeholder="Event ID for update/delete">
+              <input name="title" placeholder="Title">
+              <input name="start_at" placeholder="Start, YYYY-MM-DD HH:MM">
+              <input name="end_at" placeholder="End, YYYY-MM-DD HH:MM">
+              <input name="description" placeholder="Description">
+              <input name="location" placeholder="Location">
+              <input name="attendees" placeholder="Attendees, comma-separated">
+              <input name="categories" placeholder="Categories, comma-separated">
+              <select name="recurrence_type">
+                <option value="">No recurrence</option>
+                <option>daily</option>
+                <option>weekly</option>
+                <option>monthly</option>
+                <option>yearly</option>
+              </select>
+              <input name="recurrence_interval" placeholder="Recurrence interval">
+              <input name="recurrence_until" placeholder="Recurrence until">
+              <div class="button-row">
+                <button class="primary" data-action="create-event" type="submit">Create</button>
+                <button data-action="update-event" type="button">Update</button>
+                <button data-action="delete-event" type="button">Delete</button>
+              </div>
+            </form>
+
+            <form class="tool-form" id="taskTool" data-tool-panel="task">
+              <input name="id" placeholder="Task ID for update/delete">
+              <input name="title" placeholder="Title">
+              <input name="description" placeholder="Description">
+              <input name="due_at" placeholder="Due, YYYY-MM-DD HH:MM">
+              <input name="priority" placeholder="Priority">
+              <select name="status">
+                <option value="">Status</option>
+                <option>pending</option>
+                <option>in_progress</option>
+                <option>completed</option>
+                <option>cancelled</option>
+              </select>
+              <input name="categories" placeholder="Categories, comma-separated">
+              <input name="recurrence_type" placeholder="Recurrence type">
+              <input name="recurrence_interval" placeholder="Recurrence interval">
+              <div class="button-row">
+                <button class="primary" data-action="create-task" type="submit">Create</button>
+                <button data-action="update-task" type="button">Update</button>
+                <button data-action="delete-task" type="button">Delete</button>
+              </div>
+            </form>
+
+            <form class="tool-form" id="calendarReminderTool" data-tool-panel="reminder">
+              <input name="id" placeholder="Calendar reminder ID for update/delete">
+              <input name="title" placeholder="Title">
+              <input name="content" placeholder="Content">
+              <input name="remind_at" placeholder="Remind at, YYYY-MM-DD HH:MM">
+              <input name="linked_event_id" placeholder="Linked event ID">
+              <input name="linked_task_id" placeholder="Linked task ID">
+              <input name="recurrence_type" placeholder="Recurrence type">
+              <input name="recurrence_interval" placeholder="Recurrence interval">
+              <div class="button-row">
+                <button class="primary" data-action="create-calendar-reminder" type="submit">Create</button>
+                <button data-action="update-calendar-reminder" type="button">Update</button>
+                <button data-action="delete-calendar-reminder" type="button">Delete</button>
+              </div>
+            </form>
+
+            <form class="tool-form" id="calendarTool" data-tool-panel="calendar">
+              <input name="name" placeholder="Calendar name">
+              <input name="description" placeholder="Description">
+              <input name="color" placeholder="Color, #3ea6ff">
+              <input name="timezone" placeholder="Timezone, UTC">
+              <select name="visibility">
+                <option>private</option>
+                <option>shared</option>
+                <option>public</option>
+              </select>
+              <label class="checkbox-line"><input name="is_default" type="checkbox"> Default calendar</label>
+              <button class="primary" data-action="create-calendar" type="submit">Create Calendar</button>
+            </form>
+
+            <form class="tool-form" id="searchTool" data-tool-panel="search">
+              <input name="query" placeholder="Search calendar">
+              <button class="primary" data-action="search-calendar" type="submit">Search</button>
+              <div class="tool-results" id="searchResults"></div>
+            </form>
+
+            <form class="tool-form" id="advancedTool" data-tool-panel="advanced">
+              <select name="kind">
+                <option value="event">Event</option>
+                <option value="task">Task</option>
+                <option value="reminder">Reminder</option>
+              </select>
+              <input name="id" placeholder="Item ID">
+              <input name="occurrence_at" placeholder="Occurrence datetime">
+              <input name="title" placeholder="Override title">
+              <input name="start_at" placeholder="Override start">
+              <input name="end_at" placeholder="Override end/due/remind">
+              <select name="scope">
+                <option value="all">All</option>
+                <option value="one">One occurrence</option>
+                <option value="following">Following</option>
+              </select>
+              <div class="button-row">
+                <button data-action="check-conflicts" type="button">Conflicts</button>
+                <button data-action="update-occurrence" type="button">Occurrence</button>
+                <button data-action="cancel-occurrence" type="button">Cancel</button>
+                <button data-action="update-series" type="button">Series</button>
+                <button data-action="delete-series" type="button">Delete Series</button>
+              </div>
+              <div class="tool-results" id="advancedResults"></div>
+            </form>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">Aura</div>
+      <button class="side-button active" id="chatNav" data-page="chatPage" type="button"><span>...</span><b>Chat</b></button>
+      <button class="side-button" id="remindersNav" data-page="remindersPage" type="button"><span>R</span><b>Reminders</b></button>
+      <button class="side-button" id="calendarNav" data-page="calendarPage" type="button"><span>[]</span><b>Calendar</b></button>
+    </aside>
+  </div>
+
+  <div class="drawer hidden" id="notificationsDrawer">
+    <div class="drawer-panel">
+      <div class="panel-header">
+        <h2>Notifications</h2>
+        <button id="closeNotifications" type="button">Close</button>
+      </div>
+      <div id="notificationsList"></div>
+    </div>
+  </div>
+
+  <dialog id="reminderDialog">
+    <form method="dialog" id="reminderForm">
+      <h2>Create Reminder</h2>
+      <input name="title" placeholder="Title" required>
+      <input name="content" placeholder="Content">
+      <input name="reminder_at" placeholder="Reminder at, YYYY-MM-DD HH:MM">
+      <div class="button-row">
+        <button value="cancel" type="button" data-close-dialog>Cancel</button>
+        <button class="primary" value="default" type="submit">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="eventDialog">
+    <form method="dialog" id="eventForm">
+      <h2>Create Event</h2>
+      <input name="title" placeholder="Title" required>
+      <input name="start_at" placeholder="Start, YYYY-MM-DD HH:MM" required>
+      <input name="end_at" placeholder="End, YYYY-MM-DD HH:MM">
+      <input name="description" placeholder="Description">
+      <div class="button-row">
+        <button value="cancel" type="button" data-close-dialog>Cancel</button>
+        <button class="primary" value="default" type="submit">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

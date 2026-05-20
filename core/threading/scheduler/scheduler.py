@@ -155,7 +155,7 @@ class Scheduler:
 
         for schedule in self.schedules.values():
 
-            if schedule.should_run():
+            if schedule.shouldRun():
 
                 if self.logger:
                     self.logger.debug(f"Running schedule: {schedule.name}")
@@ -169,4 +169,4 @@ class Scheduler:
 
                 self.context.taskManager.submitTask(task)
 
-                schedule.mark_ran()
+                schedule.markRan()
