@@ -9,9 +9,9 @@ Aura is a personal assistant runtime with shared backend systems and separate
 interface packages in one master branch.
 
 The backend owns runtime startup, persistence, scheduling, LLM integration,
-memory/history, calendar, reminders, notifications, and system lifecycle logic.
-Each interface package is kept isolated so platform-specific builds can include
-only the files needed for that target.
+memory/history, calendar, reminders, notifications, home automation, and system
+lifecycle logic. Each interface package is kept isolated so platform-specific
+builds can include only the files needed for that target.
 
 ## Project Structure
 
@@ -19,6 +19,8 @@ only the files needed for that target.
 config/                 Runtime configuration loading
 core/                   Engine, runtime context, router, threading systems
 modules/                Backend modules and persistence integrations
+modules/home_automation/
+                        Home automation bridge, device, and service-control backend
 interface/windows/      Windows visual interface
 interface/android/      Android visual interface
 interface/web/          Web visual interface and static assets
@@ -59,6 +61,11 @@ python -m pip install -r interface/web/requirements.txt
 
 ## Interfaces
 
+All visual interfaces expose chat, reminders, calendar, notifications, and home
+automation controls. Home automation UI features can refresh bridge state, show
+lights/cameras/devices, and request bridge or hub service startup. The web UI
+also exposes direct light and camera controls.
+
 Windows:
 
 ```python
@@ -81,6 +88,67 @@ Default local web URL:
 
 ```text
 http://127.0.0.1:8765/
+```
+
+## Home Automation
+
+The `modules.home_automation` backend is registered as:
+
+```python
+context.homeAutomation
+```
+
+It talks to two external services:
+
+- the home automation bridge for devices, lights, cameras, and bridge notifications
+- the service-control endpoint for starting the bridge and hub services
+
+Supported backend operations include:
+
+- bridge connect/refresh/state
+- list devices, lights, and cameras
+- light on/off, brightness, color temperature, and color
+- camera stream start/stop and snapshot
+- bridge notification list/queue
+- start bridge and start hub service-control requests
+
+Configuration can be supplied through `config.yml` under `home_automation`:
+
+```yaml
+home_automation:
+  refresh_interval_seconds: 5.0
+  bridge:
+    host: 127.0.0.1
+    port: 8080
+    use_ssl: false
+    api_token: ""
+    timeout_seconds: 3.0
+  control:
+    host: 127.0.0.1
+    port: 8091
+    use_ssl: false
+    api_token: ""
+    timeout_seconds: 5.0
+    start_bridge_path: /control/startbridge
+    start_hub_path: /control/starthub
+```
+
+Environment variable fallbacks are also supported:
+
+```text
+HOME_AUTOMATION_BRIDGE_HOST
+HOME_AUTOMATION_BRIDGE_PORT
+HOME_AUTOMATION_BRIDGE_SSL
+HOME_AUTOMATION_BRIDGE_TOKEN
+HOME_AUTOMATION_BRIDGE_TIMEOUT
+HOME_AUTOMATION_CONTROL_HOST
+HOME_AUTOMATION_CONTROL_PORT
+HOME_AUTOMATION_CONTROL_SSL
+HOME_AUTOMATION_CONTROL_TOKEN
+HOME_AUTOMATION_CONTROL_TIMEOUT
+HOME_AUTOMATION_START_BRIDGE_PATH
+HOME_AUTOMATION_START_HUB_PATH
+HOME_AUTOMATION_REFRESH_SECONDS
 ```
 
 ## Platform Builds
@@ -159,6 +227,7 @@ python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory
 python run_tests.py --suite calendar
 python run_tests.py --suite interfaces
+python run_tests.py --suite home_automation
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration

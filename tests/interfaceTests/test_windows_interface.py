@@ -16,6 +16,7 @@ class WindowsInterfaceTests(unittest.TestCase):
 
     def test_windows_build_plan_includes_only_windows_interface(self):
         plan = createBundlePlan("windows")
+        self.assertIn("modules", plan.included_paths)
         self.assertIn("interface/windows", plan.included_paths)
         self.assertNotIn("interface/android", plan.included_paths)
         self.assertNotIn("interface/web", plan.included_paths)

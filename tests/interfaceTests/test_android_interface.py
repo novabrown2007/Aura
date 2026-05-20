@@ -25,6 +25,7 @@ class AndroidInterfaceTests(unittest.TestCase):
 
     def test_android_build_plan_includes_only_android_interface(self):
         plan = createBundlePlan("android")
+        self.assertIn("modules", plan.included_paths)
         self.assertIn("interface/android", plan.included_paths)
         self.assertNotIn("interface/windows", plan.included_paths)
         self.assertNotIn("interface/web", plan.included_paths)

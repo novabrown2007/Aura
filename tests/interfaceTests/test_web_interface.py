@@ -25,6 +25,7 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_web_build_plan_includes_only_web_interface(self):
         plan = createBundlePlan("web")
+        self.assertIn("modules", plan.included_paths)
         self.assertIn("interface/web", plan.included_paths)
         self.assertNotIn("interface/windows", plan.included_paths)
         self.assertNotIn("interface/android", plan.included_paths)
@@ -45,6 +46,13 @@ class WebInterfaceTests(unittest.TestCase):
         static_root = Path(__file__).resolve().parents[2] / "interface" / "web" / "static"
         for filename in ("index.html", "styles.css", "app.js"):
             self.assertTrue((static_root / filename).is_file(), filename)
+
+    def test_static_assets_include_home_automation_ui(self):
+        static_root = Path(__file__).resolve().parents[2] / "interface" / "web" / "static"
+
+        self.assertIn("Home Automation", (static_root / "index.html").read_text(encoding="utf-8"))
+        self.assertIn("/api/home-automation/refresh", (static_root / "app.js").read_text(encoding="utf-8"))
+        self.assertIn(".home-layout", (static_root / "styles.css").read_text(encoding="utf-8"))
 
     def test_chat_route_uses_interpreter_and_router(self):
         response = self.handler._dispatchApi(
