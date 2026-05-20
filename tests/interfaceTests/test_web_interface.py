@@ -122,6 +122,31 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.context.calendar.created_reminders[0]["event_id"], 10)
         self.assertEqual(self.context.calendar.created_reminders[0]["notes"], "Pack laptop")
 
+    def test_home_automation_routes_call_backend(self):
+        state = self.handler._dispatchApi("GET", "/api/home-automation/state", {}, {})
+        self.assertEqual(state.bridge_name, "Home Automation Bridge")
+
+        refreshed = self.handler._dispatchApi("POST", "/api/home-automation/refresh", {}, {})
+        self.assertEqual(refreshed.lights[0].name, "Kitchen Light")
+
+        bridge = self.handler._dispatchApi("POST", "/api/home-automation/bridge/start", {}, {})
+        self.assertEqual(bridge["service"], "bridge")
+
+        hub = self.handler._dispatchApi("POST", "/api/home-automation/hub/start", {}, {})
+        self.assertEqual(hub["service"], "hub")
+
+        light = self.handler._dispatchApi(
+            "POST",
+            "/api/home-automation/lights/light1/state",
+            {},
+            {"is_on": True, "brightness": 60},
+        )
+        self.assertTrue(light.is_on)
+        self.assertEqual(light.brightness, 60)
+
+        camera = self.handler._dispatchApi("POST", "/api/home-automation/cameras/camera1/start", {}, {})
+        self.assertTrue(camera.is_streaming)
+
     def test_json_safe_formats_dates(self):
         value = self.handler._jsonSafe(
             {"today": date(2026, 5, 20), "stamp": datetime(2026, 5, 20, 12, 30)}

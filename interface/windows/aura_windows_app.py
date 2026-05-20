@@ -100,6 +100,9 @@ class AuraWindowsApp:
         self.calendarNavButton = self._createSidebarButton("[]", "Calendar", self._showCalendarPage)
         self.calendarNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
 
+        self.homeAutomationNavButton = self._createSidebarButton("HA", "Home", self._showHomeAutomationPage)
+        self.homeAutomationNavButton.pack(side=TOP, fill=X, padx=12, pady=(0, 10))
+
         header = Frame(self.contentFrame, bg=WINDOW_BG)
         header.pack(fill=X, pady=(0, 10))
 
@@ -173,10 +176,12 @@ class AuraWindowsApp:
         self.chatPage = Frame(self.pageContainer, bg=WINDOW_BG)
         self.remindersPage = Frame(self.pageContainer, bg=WINDOW_BG)
         self.calendarPage = Frame(self.pageContainer, bg=WINDOW_BG)
+        self.homeAutomationPage = Frame(self.pageContainer, bg=WINDOW_BG)
 
         self._buildChatPage()
         self._buildRemindersPage()
         self._buildCalendarPage()
+        self._buildHomeAutomationPage()
         self._buildNotificationsOverlay()
         self._buildReminderComposerOverlay()
         self._buildCalendarEventComposerOverlay()
@@ -543,6 +548,75 @@ class AuraWindowsApp:
         """Build Google/Apple inspired calendar management controls."""
 
         self._renderCalendarMiniMonth()
+
+    def _buildHomeAutomationPage(self):
+        """Build the home automation page."""
+
+        container = Frame(
+            self.homeAutomationPage,
+            bg=PANEL_BG,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            bd=0,
+        )
+        container.pack(fill=BOTH, expand=True)
+
+        header = Frame(container, bg=PANEL_BG)
+        header.pack(fill=X, padx=18, pady=(18, 12))
+
+        Label(
+            header,
+            text="Home Automation",
+            bg=PANEL_BG,
+            fg=TEXT_PRIMARY,
+            font=("Segoe UI Semibold", 14),
+        ).pack(side=LEFT)
+
+        Button(
+            header,
+            text="Refresh",
+            command=self._refreshHomeAutomation,
+            bg=ACCENT,
+            fg="#08111d",
+            activebackground=ACCENT_ACTIVE,
+            activeforeground="#08111d",
+            relief="flat",
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=6,
+        ).pack(side="right")
+
+        actions = Frame(container, bg=PANEL_BG)
+        actions.pack(fill=X, padx=18, pady=(0, 12))
+
+        for label, command in (
+            ("Start Bridge", self._startHomeAutomationBridge),
+            ("Start Hub", self._startHomeAutomationHub),
+        ):
+            Button(
+                actions,
+                text=label,
+                command=command,
+                bg=NAV_INACTIVE,
+                fg=TEXT_PRIMARY,
+                activebackground=NAV_INACTIVE_ACTIVE,
+                activeforeground=TEXT_PRIMARY,
+                relief="flat",
+                font=("Segoe UI Semibold", 10),
+                padx=12,
+                pady=6,
+            ).pack(side=LEFT, padx=(0, 8))
+
+        self.homeAutomationSummaryLabel = Label(
+            container,
+            text="Home automation state has not been loaded.",
+            bg=PANEL_BG,
+            fg=TEXT_MUTED,
+            justify=LEFT,
+            anchor="nw",
+            font=("Consolas", 10),
+        )
+        self.homeAutomationSummaryLabel.pack(fill=BOTH, expand=True, padx=18, pady=(0, 18))
 
         tools = Frame(container, bg=TRANSCRIPT_BG)
         tools.pack(fill=X, padx=12, pady=(0, 12))
@@ -1158,6 +1232,7 @@ class AuraWindowsApp:
             "chat": self.chatPage,
             "reminders": self.remindersPage,
             "calendar": self.calendarPage,
+            "home_automation": self.homeAutomationPage,
         }
 
         for name, page in pages.items():
@@ -1180,6 +1255,7 @@ class AuraWindowsApp:
             "chat": self.chatNavButton,
             "reminders": self.remindersNavButton,
             "calendar": self.calendarNavButton,
+            "home_automation": self.homeAutomationNavButton,
         }
 
         for name, button in buttons.items():
@@ -1209,6 +1285,14 @@ class AuraWindowsApp:
         """Activate the calendar page."""
 
         self._showPage("calendar")
+        if self.sidebarVisible:
+            self._toggleSidebar()
+
+    def _showHomeAutomationPage(self):
+        """Activate the home automation page."""
+
+        self._showPage("home_automation")
+        self._refreshHomeAutomation(use_cached=True)
         if self.sidebarVisible:
             self._toggleSidebar()
 
@@ -2810,6 +2894,68 @@ class AuraWindowsApp:
             return dt_util.toPreferredDateTime(str(timestamp_value))
         except Exception:
             return str(timestamp_value)
+
+    def _refreshHomeAutomation(self, use_cached: bool = False):
+        """Refresh and render home automation state."""
+
+        try:
+            automation = self.context.require("homeAutomation")
+            state = automation.getBridgeState() if use_cached else automation.refresh()
+            self.homeAutomationSummaryLabel.config(text=self._formatHomeAutomationState(state), fg=TEXT_PRIMARY)
+        except Exception as error:
+            self.homeAutomationSummaryLabel.config(text=f"Error: {error}", fg=TEXT_MUTED)
+
+    def _startHomeAutomationBridge(self):
+        """Request bridge service start."""
+
+        try:
+            response = self.context.require("homeAutomation").startBridge()
+            self.homeAutomationSummaryLabel.config(text=f"Bridge start requested.\n{response}", fg=TEXT_PRIMARY)
+        except Exception as error:
+            self.homeAutomationSummaryLabel.config(text=f"Error: {error}", fg=TEXT_MUTED)
+
+    def _startHomeAutomationHub(self):
+        """Request hub service start."""
+
+        try:
+            response = self.context.require("homeAutomation").startHub()
+            self.homeAutomationSummaryLabel.config(text=f"Hub start requested.\n{response}", fg=TEXT_PRIMARY)
+        except Exception as error:
+            self.homeAutomationSummaryLabel.config(text=f"Error: {error}", fg=TEXT_MUTED)
+
+    def _formatHomeAutomationState(self, state):
+        """Format home automation state for display."""
+
+        lines = [
+            f"Bridge: {getattr(state, 'bridge_name', 'Unavailable')}",
+            f"Connected: {'Yes' if getattr(state, 'connected', False) else 'No'}",
+            f"Online devices: {getattr(state, 'online_devices', 0)}",
+        ]
+        if getattr(state, "last_error", ""):
+            lines.append(f"Last error: {state.last_error}")
+
+        for title, rows in (
+            ("Lights", getattr(state, "lights", [])),
+            ("Cameras", getattr(state, "cameras", [])),
+            ("Devices", getattr(state, "devices", [])),
+        ):
+            lines.append("")
+            lines.append(title)
+            if not rows:
+                lines.append("  None")
+                continue
+            for row in rows:
+                name = getattr(row, "name", getattr(row, "device_id", "Unknown"))
+                device_id = getattr(row, "device_id", "")
+                category = getattr(row, "category", "")
+                if category == "light":
+                    detail = f"{'on' if getattr(row, 'is_on', False) else 'off'} {getattr(row, 'brightness', 0)}%"
+                elif category == "camera":
+                    detail = f"{getattr(row, 'status', 'Idle')} streaming={getattr(row, 'is_streaming', False)}"
+                else:
+                    detail = category
+                lines.append(f"  {name} ({device_id}): {detail}")
+        return "\n".join(lines)
 
     def run(self):
         """Start the Tk event loop."""

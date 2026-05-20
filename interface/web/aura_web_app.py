@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+from dataclasses import asdict, is_dataclass
 from datetime import date, datetime, timedelta
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -151,7 +152,72 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
         if path.startswith("/api/calendar/"):
             return self._dispatchCalendarApi(method, path, query, body)
 
+        if path.startswith("/api/home-automation/"):
+            return self._dispatchHomeAutomationApi(method, path, query, body)
+
         raise ValueError("Unsupported API route.")
+
+    def _dispatchHomeAutomationApi(self, method: str, path: str, query: dict, body: dict):
+        automation = self.aura_context.require("homeAutomation")
+
+        if method == "GET" and path == "/api/home-automation/state":
+            return automation.getBridgeState()
+
+        if method == "POST" and path == "/api/home-automation/refresh":
+            return automation.refresh()
+
+        if method == "POST" and path == "/api/home-automation/bridge/start":
+            return automation.startBridge()
+
+        if method == "POST" and path == "/api/home-automation/hub/start":
+            return automation.startHub()
+
+        if method == "GET" and path == "/api/home-automation/notifications":
+            return automation.getNotifications()
+
+        if method == "POST" and path == "/api/home-automation/notifications":
+            return automation.queueNotification(
+                source=str(body.get("source") or "web"),
+                severity=str(body.get("severity") or "info"),
+                category=str(body.get("category") or "system"),
+                title=self._required(body, "title"),
+                message=self._required(body, "message"),
+                device_id=str(body.get("device_id") or ""),
+            )
+
+        if method == "POST" and path.startswith("/api/home-automation/lights/"):
+            parts = self._routeParts(path, "/api/home-automation/lights/")
+            if len(parts) != 2:
+                raise ValueError("Invalid light route.")
+            device_id, action = parts
+            if action == "state":
+                return automation.toggleLight(
+                    device_id,
+                    bool(body.get("is_on")),
+                    self._optionalInt(body.get("brightness")),
+                )
+            if action == "brightness":
+                return automation.setLightBrightness(device_id, int(self._required(body, "brightness")))
+            if action == "temperature":
+                return automation.setLightTemperature(device_id, int(self._required(body, "kelvin")))
+            if action == "color":
+                return automation.setLightColor(device_id, self._required(body, "color"))
+            raise ValueError("Unsupported light action.")
+
+        if method == "POST" and path.startswith("/api/home-automation/cameras/"):
+            parts = self._routeParts(path, "/api/home-automation/cameras/")
+            if len(parts) != 2:
+                raise ValueError("Invalid camera route.")
+            device_id, action = parts
+            if action == "start":
+                return automation.startCameraStream(device_id)
+            if action == "stop":
+                return automation.stopCameraStream(device_id)
+            if action == "snapshot":
+                return automation.takeCameraSnapshot(device_id)
+            raise ValueError("Unsupported camera action.")
+
+        raise ValueError("Unsupported home automation API route.")
 
     def _dispatchCalendarApi(self, method: str, path: str, query: dict, body: dict):
         calendar = self.aura_context.require("calendar")
@@ -439,6 +505,11 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
             raise ValueError("Invalid route ID.")
         return int(tail)
 
+    @staticmethod
+    def _routeParts(path: str, prefix: str) -> list[str]:
+        tail = path.removeprefix(prefix).strip("/")
+        return [part for part in tail.split("/") if part]
+
     @classmethod
     def _cleanFields(cls, body: dict):
         ignored = {"id", "kind", "fields", "occurrence_at", "scope", "linked_event_id", "linked_task_id"}
@@ -450,6 +521,8 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
 
     @classmethod
     def _jsonSafe(cls, value):
+        if is_dataclass(value):
+            return cls._jsonSafe(asdict(value))
         if isinstance(value, dict):
             return {str(key): cls._jsonSafe(item) for key, item in value.items()}
         if isinstance(value, (list, tuple)):

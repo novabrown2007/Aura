@@ -185,6 +185,34 @@
           </aside>
         </div>
       </section>
+
+      <section class="page" id="homeAutomationPage" aria-labelledby="homeAutomationNav">
+        <div class="panel-header">
+          <h2>Home Automation</h2>
+          <button class="primary" id="refreshHomeAutomation" type="button">Refresh</button>
+        </div>
+        <div class="home-layout">
+          <section class="home-status">
+            <div class="button-row">
+              <button id="startBridgeButton" type="button">Start Bridge</button>
+              <button id="startHubButton" type="button">Start Hub</button>
+            </div>
+            <div class="item-card" id="homeAutomationStatus"></div>
+          </section>
+          <section class="list-panel">
+            <h2>Lights</h2>
+            <div id="homeAutomationLights"></div>
+          </section>
+          <section class="list-panel">
+            <h2>Cameras</h2>
+            <div id="homeAutomationCameras"></div>
+          </section>
+          <section class="list-panel">
+            <h2>Devices</h2>
+            <div id="homeAutomationDevices"></div>
+          </section>
+        </div>
+      </section>
     </main>
 
     <aside class="sidebar" id="sidebar">
@@ -192,6 +220,7 @@
       <button class="side-button active" id="chatNav" data-page="chatPage" type="button"><span>...</span><b>Chat</b></button>
       <button class="side-button" id="remindersNav" data-page="remindersPage" type="button"><span>R</span><b>Reminders</b></button>
       <button class="side-button" id="calendarNav" data-page="calendarPage" type="button"><span>[]</span><b>Calendar</b></button>
+      <button class="side-button" id="homeAutomationNav" data-page="homeAutomationPage" type="button"><span>HA</span><b>Home</b></button>
     </aside>
   </div>
 

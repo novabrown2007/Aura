@@ -263,6 +263,23 @@ dialog {
   gap: 14px;
 }
 
+.home-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.home-status,
+.home-layout .list-panel {
+  min-height: 180px;
+}
+
+.home-layout .list-panel h2 {
+  padding: 4px 6px 12px;
+  font-size: 18px;
+}
+
 .calendar-main,
 .tools-panel {
   min-height: calc(100vh - 86px);
@@ -455,6 +472,10 @@ dialog form {
   }
 
   .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .home-layout {
     grid-template-columns: 1fr;
   }
 }
