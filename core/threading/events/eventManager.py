@@ -121,6 +121,14 @@ class EventManager:
                 f"Emitting event '{event.name}' to {len(listeners)} listener(s)"
             )
 
+        observability = getattr(self.context, "observability", None)
+        if observability is not None:
+            observability.recordTrace(
+                "event",
+                event.name,
+                details={"listener_count": len(listeners), "payload_keys": sorted(event.data.keys())},
+            )
+
         for callback in listeners:
             try:
                 callback(event)
