@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from core.tools.tool import Tool
 from core.tools.toolExecutor import ToolExecutor
+from core.tools.toolOrchestrator import ToolOrchestrator
 from core.tools.toolRegistry import ToolRegistry
 from tests.support.fakes import make_context
 
@@ -19,6 +20,7 @@ class ToolSystemTests(unittest.TestCase):
         self.context = make_context()
         self.context.toolRegistry = ToolRegistry(self.context)
         self.context.toolExecutor = ToolExecutor(self.context)
+        self.context.toolOrchestrator = ToolOrchestrator(self.context)
         self.context.calendar = SimpleNamespace(
             createEvent=lambda **kwargs: self.calls.append(kwargs) or 7
         )
@@ -81,6 +83,33 @@ class ToolSystemTests(unittest.TestCase):
 
         self.assertFalse(result["success"])
         self.assertEqual(self.calls, [])
+
+    def test_orchestrator_exports_module_owned_tool_schemas(self):
+        """Orchestrator should expose schemas from registered module tools."""
+
+        self.context.toolRegistry.registerTool(self.tool)
+
+        schemas = self.context.toolOrchestrator.exportSchemas()
+
+        self.assertEqual(schemas[0]["name"], "calendar.createEvent")
+        self.assertIn("intents", ToolOrchestrator.TOOL_INTENT_SCHEMA["properties"])
+        self.assertIn("toolCalls", ToolOrchestrator.TOOL_CALL_ENVELOPE_SCHEMA["properties"])
+
+    def test_orchestrator_executes_tool_envelope(self):
+        """Orchestrator should execute LLM-selected calls through ToolExecutor."""
+
+        self.context.toolRegistry.registerTool(self.tool)
+        envelope = (
+            '{"response": "Scheduled.", "toolCalls": ['
+            '{"toolName": "calendar.createEvent", '
+            '"arguments": {"title": "Dentist", "start_at": "2026-05-21 09:00:00"}}'
+            "]}"
+        )
+
+        result = self.context.toolOrchestrator.executeToolEnvelope(envelope)
+
+        self.assertEqual(result, "Scheduled.")
+        self.assertEqual(self.calls[0]["title"], "Dentist")
 
 
 if __name__ == "__main__":

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.intent.intentPipeline import IntentPipeline
-from modules.llm.utils.responseValidator import ResponseValidator
 from modules.llm.utils.promptBuilder import PromptBuilder
 from modules.base import AuraModule, ModuleMetadata
 
@@ -21,7 +21,7 @@ class LLMHandler(AuraModule):
 
     metadata = ModuleMetadata(
         name="llm",
-        version="1.1.0",
+        version="1.2.0",
         description="Provider-neutral LLM prompt handling and response generation.",
         permissions=("network:http", "database:read", "database:write"),
         capabilities=("conversation", "memory", "llm"),
@@ -39,6 +39,7 @@ class LLMHandler(AuraModule):
         self.memory = None
         self.manager = None
         self.intentPipeline = None
+        self.tools = None
 
         if context is not None:
             self.initialize(context)
@@ -61,6 +62,7 @@ class LLMHandler(AuraModule):
         if self.manager is None:
             self.manager = LLMManager(context)
             context.llmManager = self.manager
+        self.tools = getattr(context, "toolOrchestrator", None) or ToolOrchestrator(context)
         self.intentPipeline = IntentPipeline(context, self.manager)
 
         if self.logger:
@@ -204,46 +206,9 @@ Rules:
     def _getToolSchemas(self) -> list[dict[str, Any]]:
         """Return schemas exported by the central tool registry."""
 
-        registry = getattr(self.context, "toolRegistry", None)
-        if registry is None:
-            return []
-        return registry.exportSchemas(offlineMode=self._isOfflineMode())
+        return self.tools.exportSchemas(offlineMode=self._isOfflineMode())
 
     def _handleToolResponse(self, text: str) -> str | None:
         """Execute tool calls returned by the LLM JSON contract."""
 
-        parsed = self._parseToolResponse(text)
-        if parsed is None:
-            return None
-
-        responseText = str(parsed.get("response") or "").strip()
-        toolCalls = parsed.get("toolCalls") or parsed.get("tool_calls") or []
-        if not isinstance(toolCalls, list) or not toolCalls:
-            return responseText or None
-
-        executor = getattr(self.context, "toolExecutor", None)
-        if executor is None:
-            return "I couldn't complete that because the tool executor is unavailable."
-
-        results = executor.executeToolCalls(toolCalls, offlineMode=self._isOfflineMode())
-
-        successful = [result for result in results if result.get("success")]
-        failed = [result for result in results if not result.get("success")]
-        if failed and not successful:
-            return f"I couldn't complete that: {failed[0].get('error')}"
-        if responseText:
-            return responseText
-        if successful:
-            return "Done."
-        return None
-
-    @staticmethod
-    def _parseToolResponse(text: str) -> dict[str, Any] | None:
-        """Parse the JSON tool-call envelope if the model returned one."""
-
-        valid, parsed, _ = ResponseValidator.parseJson(text)
-        if not valid or not isinstance(parsed, dict):
-            return None
-        if "toolCalls" not in parsed and "tool_calls" not in parsed:
-            return None
-        return parsed
+        return self.tools.executeToolEnvelope(text, offlineMode=self._isOfflineMode())

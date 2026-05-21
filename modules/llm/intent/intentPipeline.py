@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.structuredIntent import StructuredIntent
 from modules.llm.utils.promptBuilder import PromptBuilder
 from modules.llm.utils.responseValidator import ResponseValidator
@@ -12,34 +13,12 @@ from modules.llm.utils.responseValidator import ResponseValidator
 class IntentPipeline:
     """Parse, validate, execute, and answer user requests through Aura tools."""
 
-    INTENT_SCHEMA = {
-        "type": "object",
-        "required": ["intents"],
-        "properties": {
-            "response": {"type": "string"},
-            "intents": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "required": ["intent", "arguments", "confidence"],
-                    "properties": {
-                        "intent": {"type": "string"},
-                        "arguments": {"type": "object"},
-                        "confidence": {"type": "number"},
-                        "response": {"type": "string"},
-                    },
-                },
-            },
-        },
-    }
-
-    CONVERSATION_INTENTS = {"", "none", "conversation", "conversation.respond"}
-
     def __init__(self, context, manager):
         """Bind the pipeline to runtime services."""
 
         self.context = context
         self.manager = manager
+        self.tools = getattr(context, "toolOrchestrator", None) or ToolOrchestrator(context)
         self.logger = context.logger.getChild("LLM.Intent") if getattr(context, "logger", None) else None
         self.threshold = self._getConfigValue("llm.intent.confidenceThreshold", 0.75)
         self.rawLogger = getattr(manager, "rawLogger", None)
@@ -70,7 +49,7 @@ class IntentPipeline:
             self._logStage("VALIDATION", f"Confidence below threshold: {lowest.confidence}")
             return self.askClarification(lowest)
 
-        if all(intent.intent in self.CONVERSATION_INTENTS for intent in intents):
+        if all(self.tools.isConversationIntent(intent.intent) for intent in intents):
             self._logStage("VALIDATION", "Conversation intent")
             return self._generateConversationReply(baseSystemPrompt, userInput, conversationHistory)
 
@@ -115,8 +94,7 @@ class IntentPipeline:
     ) -> dict[str, Any]:
         """Ask the structured provider to interpret user input as ordered intents."""
 
-        registry = getattr(self.context, "toolRegistry", None)
-        toolSchemas = registry.exportSchemas(offlineMode=self._isOfflineMode()) if registry else []
+        toolSchemas = self.tools.exportSchemas(offlineMode=self._isOfflineMode())
         contextualMemory = self.buildContextualMemory(userInput, conversationHistory)
         systemPrompt = PromptBuilder.buildIntentPrompt(
             baseSystemPrompt,
@@ -127,7 +105,7 @@ class IntentPipeline:
         response = self.manager.generateStructuredResponse(
             systemPrompt,
             userInput,
-            self.INTENT_SCHEMA,
+            self.tools.TOOL_INTENT_SCHEMA,
             conversationHistory,
         )
         if not response.success:
@@ -135,8 +113,8 @@ class IntentPipeline:
         if not isinstance(response.rawResponse, dict):
             return {"success": False, "error": "Intent response was not a JSON object."}
 
-        normalized = self._normalizeIntentPayload(response.rawResponse)
-        valid, error = ResponseValidator.validateSchema(normalized, self.INTENT_SCHEMA)
+        normalized = self.tools.normalizeIntentPayload(response.rawResponse)
+        valid, error = ResponseValidator.validateSchema(normalized, self.tools.TOOL_INTENT_SCHEMA)
         if not valid:
             return {"success": False, "error": error or "Intent schema validation failed."}
         intents = [StructuredIntent.fromDict(intent) for intent in normalized["intents"]]
@@ -161,23 +139,12 @@ class IntentPipeline:
     def validateIntent(self, intent: StructuredIntent) -> dict[str, Any]:
         """Validate tool existence and arguments before execution."""
 
-        executor = getattr(self.context, "toolExecutor", None)
-        if executor is None:
-            return {"success": False, "error": "Tool executor is unavailable."}
-
-        valid, error = executor.validateToolCall(
-            intent.intent,
-            intent.arguments,
-            offlineMode=self._isOfflineMode(),
-        )
-        return {"success": valid, "error": error}
+        return self.tools.validateIntent(intent, offlineMode=self._isOfflineMode())
 
     def validateIntents(self, intents: list[StructuredIntent]) -> dict[str, Any]:
         """Validate every non-conversation intent before executing the chain."""
 
         for intent in intents:
-            if intent.intent in self.CONVERSATION_INTENTS:
-                continue
             validation = self.validateIntent(intent)
             if not validation["success"]:
                 return validation
@@ -186,12 +153,8 @@ class IntentPipeline:
     def executeIntent(self, intent: StructuredIntent, confirmed: bool = False) -> dict[str, Any]:
         """Execute a validated intent through the deterministic tool executor."""
 
-        executor = getattr(self.context, "toolExecutor", None)
-        if executor is None:
-            return {"success": False, "toolName": intent.intent, "error": "Tool executor is unavailable."}
-        return executor.executeToolCall(
-            intent.intent,
-            intent.arguments,
+        return self.tools.executeIntent(
+            intent,
             offlineMode=self._isOfflineMode(),
             confirmed=confirmed,
         )
@@ -205,7 +168,7 @@ class IntentPipeline:
 
         executions = []
         for intent in intents:
-            if intent.intent in self.CONVERSATION_INTENTS:
+            if self.tools.isConversationIntent(intent.intent):
                 continue
             execution = self.executeIntent(intent, confirmed=confirmed)
             executions.append(execution)
@@ -390,26 +353,6 @@ class IntentPipeline:
 
         cleaned = "".join(character.lower() if character.isalnum() else " " for character in str(text))
         return {token for token in cleaned.split() if token}
-
-    @staticmethod
-    def _normalizeIntentPayload(payload: dict[str, Any]) -> dict[str, Any]:
-        """Accept both the new chain shape and the old single-intent shape."""
-
-        if isinstance(payload.get("intents"), list):
-            return payload
-        if "intent" in payload:
-            return {
-                "response": payload.get("response", ""),
-                "intents": [
-                    {
-                        "intent": payload.get("intent", ""),
-                        "arguments": payload.get("arguments", {}),
-                        "confidence": payload.get("confidence", 0.0),
-                        "response": payload.get("response", ""),
-                    }
-                ],
-            }
-        return payload
 
     def _logStage(self, stage: str, message: str):
         """Log a readable structured pipeline stage."""

@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.4.0
+**Version:** 1.5.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -169,6 +169,17 @@ Existing event-driven integrations include:
 - `reminders` emits `notifications.create` instead of directly calling notifications
 - home automation emits `lights.changed` after light state changes
 - observability records event traces automatically
+
+## Tool Ownership
+
+Tool ownership lives outside the LLM layer. Modules expose deterministic tools
+through their `getTools()` methods, the module loader registers those tools in
+`context.toolRegistry`, and `context.toolOrchestrator` owns the schemas,
+validation, and execution contract.
+
+LLM components only reason over exported tool schemas and return candidate tool
+calls. Actual execution flows through `ToolExecutor`, which calls the owning
+module method after validation.
 
 ## Autonomous Tasks
 
