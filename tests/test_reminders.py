@@ -3,6 +3,7 @@
 import unittest
 from types import SimpleNamespace
 
+from core.threading.events.eventManager import EventManager
 from modules.reminders.reminders import Reminders
 from tests.support.fakes import make_context
 
@@ -125,6 +126,20 @@ class RemindersTests(unittest.TestCase):
                 "notifications": notifications,
                 "scheduler": scheduler,
             },
+        )
+        context.eventManager = EventManager(context)
+        context.eventManager.subscribe(
+            "notifications.create",
+            lambda event: event.data.update(
+                {
+                    "notification_id": notifications.createNotification(
+                        event.data.get("source_module"),
+                        event.data.get("title"),
+                        event.data.get("content"),
+                        event.data.get("timestamp"),
+                    )
+                }
+            ),
         )
         reminders = Reminders(context)
         return reminders, database, notifications, scheduler

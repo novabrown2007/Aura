@@ -98,11 +98,7 @@ class TaskManager:
 
         # Emit completion event if event system exists
         if self.context.eventManager:
-            from core.threading.events.events import Event
-
-            self.context.eventManager.emit(
-                Event("task_completed", {"task": task})
-            )
+            self.context.eventManager.emit("task_completed", {"task": task})
 
     # --------------------------------------------------
     # Task Access

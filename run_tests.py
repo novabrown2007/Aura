@@ -12,6 +12,7 @@ SUITES = {
     "logger": "tests.test_logger",
     "sqlite": "tests.test_sqlite_database",
     "datetime_utils": "tests.test_datetime_utils",
+    "events": "tests.test_events",
     "notifications": "tests.test_notifications",
     "system": "tests.test_system",
     "short_memory": "tests.test_conversation_history",

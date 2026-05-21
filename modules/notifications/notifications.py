@@ -37,6 +37,7 @@ class Notifications(AuraModule):
         super().__init__()
         self.database = None
         self.logger = None
+        self._subscribed_events = False
         if context is not None:
             self.initialize(context)
 
@@ -49,6 +50,7 @@ class Notifications(AuraModule):
         self.logger = context.logger.getChild("Notifications") if context.logger else None
 
         self.createNotificationsTable()
+        self._subscribeToEvents()
 
         if self.logger:
             self.logger.info("Initialized.")
@@ -67,6 +69,37 @@ class Notifications(AuraModule):
 
         if not self.database and self.logger:
             self.logger.warning("Notifications started without a database.")
+
+    def _subscribeToEvents(self):
+        """Subscribe to notification queue requests from other modules."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None or self._subscribed_events:
+            return
+
+        event_manager.subscribe("notifications.create", self._handleCreateNotificationEvent)
+        self._subscribed_events = True
+
+    def shutdown(self):
+        """Unsubscribe from runtime events."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None or not self._subscribed_events:
+            return
+
+        event_manager.unsubscribe("notifications.create", self._handleCreateNotificationEvent)
+        self._subscribed_events = False
+
+    def _handleCreateNotificationEvent(self, event):
+        """Create a notification from an event payload."""
+
+        notification_id = self.createNotification(
+            source_module=event.data.get("source_module", "event"),
+            title=event.data.get("title", ""),
+            content=event.data.get("content", ""),
+            timestamp=event.data.get("timestamp"),
+        )
+        event.data["notification_id"] = notification_id
 
     def createNotification(
         self,

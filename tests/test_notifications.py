@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import patch
 
+from core.threading.events.eventManager import EventManager
 from modules.notifications.notifications import Notifications
 from tests.support.fakes import make_context
 
@@ -102,13 +103,14 @@ class NotificationsTests(unittest.TestCase):
 
         database = _NotificationDatabase()
         context = make_context(database=database)
+        context.eventManager = EventManager(context)
         notifications = Notifications(context)
-        return notifications, database
+        return notifications, database, context.eventManager
 
     def test_create_notification_persists_requested_fields(self):
         """Creating a notification should store title, content, datetime, and source module."""
 
-        notifications, database = self._create_notifications()
+        notifications, database, _event_manager = self._create_notifications()
 
         notification_id = notifications.createNotification(
             source_module="system",
@@ -127,7 +129,7 @@ class NotificationsTests(unittest.TestCase):
     def test_list_due_notifications_returns_pending_items_before_cutoff(self):
         """Due notification lookup should return only pending rows at or before the comparison time."""
 
-        notifications, _database = self._create_notifications()
+        notifications, _database, _event_manager = self._create_notifications()
         notifications.createNotification("calendar", "A", "First", "08:00 24/03/2026")
         notifications.createNotification("calendar", "B", "Second", "20:00 24/03/2026")
 
@@ -140,7 +142,7 @@ class NotificationsTests(unittest.TestCase):
     def test_marking_notification_updates_lifecycle_state(self, mock_datetime):
         """Delivered, read, and dismissed operations should update row state."""
 
-        notifications, database = self._create_notifications()
+        notifications, database, _event_manager = self._create_notifications()
         notifications.createNotification("calendar", "A", "First", "08:00 24/03/2026")
 
         mock_datetime.utcnow.return_value.strftime.return_value = "2026-03-24 09:00:00"
@@ -160,12 +162,30 @@ class NotificationsTests(unittest.TestCase):
     def test_delete_notification_removes_row(self):
         """Deleting a notification should remove it from storage."""
 
-        notifications, database = self._create_notifications()
+        notifications, database, _event_manager = self._create_notifications()
         notifications.createNotification("calendar", "A", "First", "08:00 24/03/2026")
 
         notifications.deleteNotification(1)
 
         self.assertEqual(database.notifications, [])
+
+    def test_create_notification_event_persists_notification_id_on_event(self):
+        """Notification module should handle decoupled queue events."""
+
+        _notifications, database, event_manager = self._create_notifications()
+
+        event = event_manager.emit(
+            "notifications.create",
+            {
+                "source_module": "calendar",
+                "title": "A",
+                "content": "First",
+                "timestamp": "08:00 24/03/2026",
+            },
+        )
+
+        self.assertEqual(event.data["notification_id"], 1)
+        self.assertEqual(database.notifications[0]["source_module"], "calendar")
 
 if __name__ == "__main__":
     unittest.main()

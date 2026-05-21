@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, Mapping, Optional, cast
 from zoneinfo import ZoneInfo
 
-from core.threading.events.events import Event
 from core.threading.scheduler.schedule import Schedule
 from core.tools.tool import Tool
 from modules.base import AuraModule, ModuleMetadata
@@ -1398,19 +1397,17 @@ class Calendar(AuraModule):
 
             if getattr(self.context, "eventManager", None):
                 self.context.eventManager.emit(
-                    Event(
-                        "calendar_reminder_triggered",
-                        {
-                            "id": reminder_id,
-                            "calendar_id": row.get("calendar_id"),
-                            "event_id": row.get("event_id"),
-                            "task_id": row.get("task_id"),
-                            "title": row.get("title"),
-                            "notes": row.get("notes"),
-                            "remind_at": row.get("remind_at"),
-                            "created_at": row.get("created_at"),
-                        },
-                    )
+                    "calendar_reminder_triggered",
+                    {
+                        "id": reminder_id,
+                        "calendar_id": row.get("calendar_id"),
+                        "event_id": row.get("event_id"),
+                        "task_id": row.get("task_id"),
+                        "title": row.get("title"),
+                        "notes": row.get("notes"),
+                        "remind_at": row.get("remind_at"),
+                        "created_at": row.get("created_at"),
+                    },
                 )
 
         return rows
@@ -1827,8 +1824,8 @@ class Calendar(AuraModule):
         if event_id is None or recurrence_type:
             return
 
-        reminders = getattr(self.context, "reminders", None)
-        if reminders is None:
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None:
             return
 
         reminder_display_time = remind_at
@@ -1837,11 +1834,14 @@ class Calendar(AuraModule):
                 self._convertStoredDateTimeToDisplay(remind_at, timezone)
             )
 
-        reminders.createReminder(
-            title=str(title),
-            content=str(content or title),
-            module_of_origin=f"calendar:event:{int(event_id)}",
-            reminder_at=reminder_display_time,
+        event_manager.emit(
+            "reminders.create",
+            {
+                "title": str(title),
+                "content": str(content or title),
+                "module_of_origin": f"calendar:event:{int(event_id)}",
+                "reminder_at": reminder_display_time,
+            },
         )
 
     def _buildReminderTimeBeforeEvent(self, start_at: str, timezone: str, minutes_before: int) -> str:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from core.tools.tool import Tool
 from modules.base import AuraModule, ModuleMetadata
 from modules.home_automation.bridgeConnection import BridgeConnection
@@ -179,12 +181,16 @@ class HomeAutomation(AuraModule):
     def toggleLight(self, device_id: str, is_on: bool, brightness: int | None = None) -> LightDevice:
         """Turn a light on or off."""
 
-        return self.bridge.setLightState(device_id, is_on, brightness)
+        light = self.bridge.setLightState(device_id, is_on, brightness)
+        self._emitLightChanged(light, "toggle")
+        return light
 
     def setLightBrightness(self, device_id: str, brightness: int) -> LightDevice:
         """Set light brightness."""
 
-        return self.bridge.setLightBrightness(device_id, brightness)
+        light = self.bridge.setLightBrightness(device_id, brightness)
+        self._emitLightChanged(light, "brightness")
+        return light
 
     def setLightBrightnessByRoom(self, room: str, brightness: int) -> LightDevice:
         """Set brightness for a light resolved from a room or light name."""
@@ -204,12 +210,16 @@ class HomeAutomation(AuraModule):
     def setLightTemperature(self, device_id: str, kelvin: int) -> LightDevice:
         """Set light color temperature."""
 
-        return self.bridge.setLightTemperature(device_id, kelvin)
+        light = self.bridge.setLightTemperature(device_id, kelvin)
+        self._emitLightChanged(light, "temperature")
+        return light
 
     def setLightColor(self, device_id: str, color: str) -> LightDevice:
         """Set light color."""
 
-        return self.bridge.setLightColor(device_id, color)
+        light = self.bridge.setLightColor(device_id, color)
+        self._emitLightChanged(light, "color")
+        return light
 
     def startCameraStream(self, device_id: str) -> CameraDevice:
         """Start a camera stream."""
@@ -267,3 +277,20 @@ class HomeAutomation(AuraModule):
             if normalized in names:
                 return light.device_id
         return str(room)
+
+    def _emitLightChanged(self, light: LightDevice, action: str):
+        """Emit a light state change event for decoupled subscribers."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None:
+            return
+
+        event_manager.emit(
+            "lights.changed",
+            {
+                "action": action,
+                "device_id": light.device_id,
+                "name": light.name,
+                "light": asdict(light),
+            },
+        )

@@ -14,7 +14,6 @@ class Reminders(AuraModule):
         name="reminders",
         version="1.0.0",
         description="Reminder creation, storage, and due reminder processing.",
-        dependencies=("notifications",),
         permissions=("database:read", "database:write", "scheduler:write"),
         capabilities=("reminders", "notifications"),
     )
@@ -27,6 +26,7 @@ class Reminders(AuraModule):
         super().__init__()
         self.database = None
         self.logger = None
+        self._subscribed_events = False
         if context is not None:
             self.initialize(context)
 
@@ -42,6 +42,7 @@ class Reminders(AuraModule):
             self.logger = context.logger.getChild("Reminders")
 
         self.createRemindersTable()
+        self._subscribeToEvents()
         self._registerReminderPollingSchedule()
 
         if self.logger:
@@ -81,6 +82,37 @@ class Reminders(AuraModule):
 
         if not self.database and self.logger:
             self.logger.warning("Reminders started without a database.")
+
+    def _subscribeToEvents(self):
+        """Subscribe to reminder creation requests from other modules."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None or self._subscribed_events:
+            return
+
+        event_manager.subscribe("reminders.create", self._handleCreateReminderEvent)
+        self._subscribed_events = True
+
+    def shutdown(self):
+        """Unsubscribe from runtime events."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None or not self._subscribed_events:
+            return
+
+        event_manager.unsubscribe("reminders.create", self._handleCreateReminderEvent)
+        self._subscribed_events = False
+
+    def _handleCreateReminderEvent(self, event):
+        """Create a reminder from an event payload."""
+
+        reminder_id = self.createReminder(
+            title=event.data.get("title", ""),
+            content=event.data.get("content", ""),
+            module_of_origin=event.data.get("module_of_origin", "event"),
+            reminder_at=event.data.get("reminder_at"),
+        )
+        event.data["reminder_id"] = reminder_id
 
     def _registerReminderPollingSchedule(self):
         """
@@ -246,13 +278,22 @@ class Reminders(AuraModule):
         if reminder is None:
             raise ValueError(f"Reminder does not exist: {reminder_id}")
 
-        notifications = self.context.require("notifications")
-        notification_id = notifications.createNotification(
-            reminder["module_of_origin"],
-            reminder["title"],
-            reminder.get("content") or "",
-            self.context.dtUtil.toPreferredDateTime(reminder["reminder_at"]),
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None:
+            return None
+
+        event = event_manager.emit(
+            "notifications.create",
+            {
+                "source_module": reminder["module_of_origin"],
+                "title": reminder["title"],
+                "content": reminder.get("content") or "",
+                "timestamp": self.context.dtUtil.toPreferredDateTime(reminder["reminder_at"]),
+            },
         )
+        notification_id = event.data.get("notification_id")
+        if notification_id is None:
+            return None
 
         self.database.execute(
             """
