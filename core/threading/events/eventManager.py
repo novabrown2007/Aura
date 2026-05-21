@@ -21,7 +21,7 @@ class EventManager:
 
         eventManager.subscribe("user_input", on_user_input)
 
-        eventManager.emit(Event("user_input", {"text": "Hello"}))
+        eventManager.emit("user_input", {"text": "Hello"})
     """
 
     def __init__(self, context):
@@ -94,14 +94,25 @@ class EventManager:
     # Event Emission
     # --------------------------------------------------
 
-    def emit(self, event: Event):
+    def emit(self, event: Event | str, data: dict | None = None) -> Event:
         """
         Emit an event to all subscribed listeners.
 
         Args:
-            event (Event):
-                The event to emit.
+            event:
+                Event instance or the name of the event to emit.
+
+            data:
+                Optional event payload when `event` is a string.
+
+        Returns:
+            Event:
+                The emitted event. Listeners may mutate event data to return
+                synchronous results to the emitter.
         """
+
+        if isinstance(event, str):
+            event = Event(event, data)
 
         listeners = self.listeners.get(event.name, [])
 
@@ -118,6 +129,8 @@ class EventManager:
                     self.logger.error(
                         f"Error handling event '{event.name}': {e}"
                     )
+
+        return event
 
     # --------------------------------------------------
     # Debug Helpers

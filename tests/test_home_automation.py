@@ -8,12 +8,14 @@ import unittest
 from unittest.mock import patch
 from urllib import error
 
+from core.threading.events.eventManager import EventManager
 from core.runtime.moduleLoader import ModuleLoader
 from modules.home_automation import HomeAutomation
 from modules.home_automation.bridgeConnection import BridgeConnectionError
 from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, ServiceControlConfig, buildHomeAutomationConfig
 from modules.home_automation.models import BridgeState, CameraDevice, Device, LightDevice
 from modules.home_automation.serviceControl import ServiceControlConnection, ServiceControlError
+from tests.support.fakes import make_context
 
 
 class FakeHttpResponse:
@@ -312,6 +314,34 @@ class LightControlTests(unittest.TestCase):
 
         self.assertEqual(updated.color, "blue")
         self.assertEqual(updated.last_command, "set_color")
+
+    def test_light_changes_emit_event(self):
+        context = make_context()
+        context.eventManager = EventManager(context)
+        received = []
+        context.eventManager.subscribe("lights.changed", received.append)
+        config = HomeAutomationConfig(
+            bridge=BridgeConfig(),
+            control=ServiceControlConfig(),
+        )
+        module = HomeAutomation(context, config=config)
+
+        with patch.object(
+            module.bridge,
+            "_requestJson",
+            side_effect=[
+                devicesPayload(lightPayload()),
+                {"status": "ok"},
+                devicesPayload(lightPayload(brightness=42, is_on=True, last_command="set_brightness")),
+            ],
+        ):
+            module.initialize()
+            module.setLightBrightness("bedroomlight1", 42)
+
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0].name, "lights.changed")
+        self.assertEqual(received[0].data["device_id"], "bedroomlight1")
+        self.assertEqual(received[0].data["light"]["brightness"], 42)
 
 
 class CameraControlTests(unittest.TestCase):

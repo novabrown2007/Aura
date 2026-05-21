@@ -2,6 +2,7 @@
 
 import unittest
 
+from core.threading.events.events import Event
 from modules.calendar.calendar import Calendar
 from tests.support.fakes import make_context
 
@@ -394,11 +395,22 @@ class _RecordingEventManager:
         """Initialize emitted-event storage."""
 
         self.emitted = []
+        self.listeners = {}
 
-    def emit(self, event):
+    def subscribe(self, event_name, callback):
+        """Register one listener for a named event."""
+
+        self.listeners.setdefault(event_name, []).append(callback)
+
+    def emit(self, event, data=None):
         """Record one emitted event."""
 
+        if isinstance(event, str):
+            event = Event(event, data)
         self.emitted.append(event)
+        for callback in self.listeners.get(event.name, []):
+            callback(event)
+        return event
 
 
 class _RecordingReminderModule:
@@ -452,6 +464,15 @@ class CalendarTests(unittest.TestCase):
         scheduler = _RecordingScheduler()
         event_manager = _RecordingEventManager()
         reminders = _RecordingReminderModule()
+        event_manager.subscribe(
+            "reminders.create",
+            lambda event: reminders.createReminder(
+                title=event.data.get("title", ""),
+                content=event.data.get("content", ""),
+                module_of_origin=event.data.get("module_of_origin", "event"),
+                reminder_at=event.data.get("reminder_at"),
+            ),
+        )
         context = make_context(
             database=database,
             extra={"scheduler": scheduler, "eventManager": event_manager, "reminders": reminders},
