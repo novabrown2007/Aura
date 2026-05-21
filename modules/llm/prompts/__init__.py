@@ -9,9 +9,14 @@ from modules.llm.prompts.toolSelectionPrompt import buildToolSelectionPrompt
 PROMPT_PROFILES = {
     "conversation": buildConversationPrompt,
     "intentParsing": buildIntentPrompt,
+    "intent": buildIntentPrompt,
     "toolSelection": buildToolSelectionPrompt,
+    "tool_selection": buildToolSelectionPrompt,
     "memorySummary": buildMemorySummaryPrompt,
+    "memory_summarization": buildMemorySummaryPrompt,
     "automation": buildAutomationPrompt,
+    "automationPlanning": buildAutomationPrompt,
+    "automation_planning": buildAutomationPrompt,
 }
 
 __all__ = ["PROMPT_PROFILES"]

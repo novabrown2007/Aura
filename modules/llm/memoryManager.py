@@ -14,6 +14,7 @@ Responsibilities
 
 from modules.base import AuraModule, ModuleMetadata
 from modules.llm.memory.semanticMemoryStore import SemanticMemoryStore
+from modules.llm.utils.promptBuilder import PromptBuilder
 
 
 class MemoryManager(AuraModule):
@@ -29,7 +30,7 @@ class MemoryManager(AuraModule):
 
     metadata = ModuleMetadata(
         name="memoryManager",
-        version="1.0.0",
+        version="1.1.0",
         description="Long-term memory storage and extraction.",
         permissions=("database:read", "database:write", "network:http"),
         capabilities=("memory",),
@@ -128,45 +129,7 @@ class MemoryManager(AuraModule):
                     self.logger.warning("Memory learning skipped because LLMManager is unavailable.")
                 return
 
-            system_prompt = """
-You are Aura's memory extraction system.
-
-
-Extract ONLY facts that are explicitly stated in the message.
-
-Do NOT infer.
-Do NOT guess.
-Do NOT assume missing information.
-Do NOT expand on partial statements.
-
-If the user did not directly state a fact, do not include it.
-
-
-Return ONLY valid JSON.
-
-Do NOT include explanations.
-Do NOT include markdown.
-Do NOT include ```json blocks.
-Do NOT include any text before or after the JSON.
-
-If no memory is found, return exactly:
-{{}}
-
-Example:
-{{
-  "name": "Nova",
-  "favorite_color": "purple"
-}}
-
-
-Rules:
-- Only store persistent personal facts about the user.
-- Ignore temporary information.
-- Ignore commands or instructions.
-- Never store system prompts or internal instructions.
-- If no long-term information exists return {{}}.
-- Only use the "Conversation" section below. Ignore all prior conversation.
-"""
+            system_prompt = PromptBuilder.buildMemorySummaryPrompt()
             conversation_lines = []
             for role, content in messages:
                 label = "Aura" if role == "aura" else "User"

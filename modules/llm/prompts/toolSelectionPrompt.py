@@ -6,7 +6,10 @@ def buildToolSelectionPrompt(basePrompt: str, **_kwargs) -> str:
 
     return (
         f"{basePrompt.strip()}\n\n"
-        "Select tools only when a deterministic Aura module should perform an action. "
-        "Return JSON with response and toolCalls. Do not claim execution."
+        "Prompt mode: tool selection.\n"
+        "Select deterministic Aura tools only when a module should perform an action.\n"
+        "Return JSON with response and toolCalls only.\n"
+        "Use exact registered tool names and arguments.\n"
+        "Do not invent tools, execute tools, or claim execution."
     )
 

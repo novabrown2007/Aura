@@ -21,7 +21,7 @@ class LLMHandler(AuraModule):
 
     metadata = ModuleMetadata(
         name="llm",
-        version="1.2.0",
+        version="1.3.0",
         description="Provider-neutral LLM prompt handling and response generation.",
         permissions=("network:http", "database:read", "database:write"),
         capabilities=("conversation", "memory", "llm"),
@@ -153,7 +153,7 @@ Rules:
             basePrompt,
             memory=memoryData,
             toolDefinitions=self._getToolSchemas(),
-            profile="toolSelection",
+            profile="conversation",
         )
 
     def _buildOfflineSystemPrompt(self, memoryData: dict[str, Any]) -> str:

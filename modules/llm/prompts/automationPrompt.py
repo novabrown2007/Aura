@@ -6,6 +6,10 @@ def buildAutomationPrompt(basePrompt: str, **_kwargs) -> str:
 
     return (
         f"{basePrompt.strip()}\n\n"
-        "Plan automation through deterministic Aura tools. Never execute or simulate execution in text."
+        "Prompt mode: automation planning.\n"
+        "Convert goals into a cautious automation plan before any execution.\n"
+        "Prefer event-driven steps, explicit triggers, conditions, and rollback notes.\n"
+        "Identify required tools by name, but do not call them.\n"
+        "Never execute, simulate execution, or claim that an automation has been installed."
     )
 

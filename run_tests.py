@@ -27,6 +27,7 @@ SUITES = {
     "tools": "tests.test_tool_system",
     "intent_pipeline": "tests.test_intent_pipeline",
     "llm": "tests.test_llm_handler",
+    "prompts": "tests.test_prompt_builder",
     "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",
 }
