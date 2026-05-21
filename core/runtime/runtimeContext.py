@@ -67,6 +67,9 @@ class RuntimeContext:
         self.contextAwareness = None
         """Current environment context and signal change detector."""
 
+        self.observability = None
+        """Runtime diagnostics and execution trace service."""
+
         # ----------------------------
         # Modules
         # ----------------------------

@@ -19,7 +19,7 @@ class Notifications(AuraModule):
 
     metadata = ModuleMetadata(
         name="notifications",
-        version="1.0.0",
+        version="1.1.0",
         description="Notification persistence and lifecycle state.",
         permissions=("database:read", "database:write"),
         capabilities=("notifications",),

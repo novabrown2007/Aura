@@ -26,7 +26,7 @@ class MySQLDatabase(AuraModule):
 
     metadata = ModuleMetadata(
         name="mysqlDatabase",
-        version="1.0.0",
+        version="1.1.0",
         description="MySQL database adapter for Aura persistence.",
         permissions=("database:connect", "database:read", "database:write"),
         capabilities=("database", "mysql"),

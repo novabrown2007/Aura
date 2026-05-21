@@ -14,6 +14,7 @@ SUITES = {
     "datetime_utils": "tests.test_datetime_utils",
     "autonomous_tasks": "tests.test_autonomous_tasks",
     "context_awareness": "tests.test_context_awareness",
+    "observability": "tests.test_observability",
     "events": "tests.test_events",
     "notifications": "tests.test_notifications",
     "system": "tests.test_system",

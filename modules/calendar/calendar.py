@@ -26,7 +26,7 @@ class Calendar(AuraModule):
 
     metadata = ModuleMetadata(
         name="calendar",
-        version="1.0.0",
+        version="1.1.0",
         description="Private calendar, tasks, events, and scheduling assistant.",
         dependencies=("notifications",),
         permissions=("database:read", "database:write", "scheduler:write"),

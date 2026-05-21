@@ -26,40 +26,64 @@ class ToolExecutor:
     ) -> dict[str, Any]:
         """Validate one tool call and execute it through the owning module."""
 
+        observability = getattr(self.context, "observability", None)
+        if observability is not None:
+            observability.recordTrace("tool", toolName, status="started")
+
         registry = getattr(self.context, "toolRegistry", None)
         if registry is None:
-            return self._failure(toolName, "Tool registry is unavailable.")
+            result = self._failure(toolName, "Tool registry is unavailable.")
+            self._recordToolTrace(observability, toolName, result)
+            return result
 
         tool = registry.getTool(toolName)
         if tool is None:
-            return self._failure(toolName, f"Unknown tool: {toolName}")
+            result = self._failure(toolName, f"Unknown tool: {toolName}")
+            self._recordToolTrace(observability, toolName, result)
+            return result
         if offlineMode and not tool.offlineAllowed:
-            return self._failure(toolName, f"Tool is not available in offline mode: {toolName}")
+            result = self._failure(toolName, f"Tool is not available in offline mode: {toolName}")
+            self._recordToolTrace(observability, toolName, result)
+            return result
         if tool.category == ToolCategory.ADMIN_ONLY and not allowAdmin:
-            return self._failure(toolName, f"Tool requires admin permission: {toolName}", adminOnly=True)
+            result = self._failure(toolName, f"Tool requires admin permission: {toolName}", adminOnly=True)
+            self._recordToolTrace(observability, toolName, result)
+            return result
         if (tool.confirmRequired or tool.category == ToolCategory.CONFIRM_REQUIRED) and not confirmed:
-            return self._failure(toolName, f"Tool requires confirmation: {toolName}", confirmRequired=True)
+            result = self._failure(toolName, f"Tool requires confirmation: {toolName}", confirmRequired=True)
+            self._recordToolTrace(observability, toolName, result)
+            return result
 
         valid, error = tool.validateArguments(arguments or {})
         if not valid:
-            return self._failure(toolName, error or "Invalid tool arguments.")
+            result = self._failure(toolName, error or "Invalid tool arguments.")
+            self._recordToolTrace(observability, toolName, result)
+            return result
 
         module = self._resolveModule(tool.module)
         if module is None:
-            return self._failure(toolName, f"Module unavailable: {tool.module}")
+            result = self._failure(toolName, f"Module unavailable: {tool.module}")
+            self._recordToolTrace(observability, toolName, result)
+            return result
         if not hasattr(module, tool.method):
-            return self._failure(toolName, f"Tool method unavailable: {tool.method}")
+            result = self._failure(toolName, f"Tool method unavailable: {tool.method}")
+            self._recordToolTrace(observability, toolName, result)
+            return result
 
         try:
             result = getattr(module, tool.method)(**(arguments or {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Tool execution failed: {toolName}: {error}")
-            return self._failure(toolName, str(error))
+            result = self._failure(toolName, str(error))
+            self._recordToolTrace(observability, toolName, result)
+            return result
 
         if self.logger:
             self.logger.info(f"Executed tool: {toolName}")
-        return {"success": True, "toolName": toolName, "result": result}
+        result = {"success": True, "toolName": toolName, "result": result}
+        self._recordToolTrace(observability, toolName, result)
+        return result
 
     def executeToolCalls(
         self,
@@ -121,6 +145,19 @@ class ToolExecutor:
             if module is not None:
                 return module
         return (getattr(self.context, "modules", {}) or {}).get(moduleName)
+
+    @staticmethod
+    def _recordToolTrace(observability, toolName: str, result: dict[str, Any]):
+        """Record a final tool execution trace."""
+
+        if observability is None:
+            return
+        observability.recordTrace(
+            "tool",
+            toolName,
+            status="completed" if result.get("success") else "failed",
+            details={key: value for key, value in result.items() if key != "result"},
+        )
 
     @staticmethod
     def _failure(toolName: str, error: str, **extra) -> dict[str, Any]:

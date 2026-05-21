@@ -87,12 +87,20 @@ class TaskManager:
         if self.logger:
             self.logger.debug(f"Task started: {task.name}")
 
+        observability = getattr(self.context, "observability", None)
+        if observability is not None:
+            observability.recordTrace("task", task.name, status="started")
+
         task.run()
 
         if task.error:
+            if observability is not None:
+                observability.recordTrace("task", task.name, status="failed", details={"error": str(task.error)})
             if self.logger:
                 self.logger.error(f"Task failed: {task.name} ({task.error})")
         else:
+            if observability is not None:
+                observability.recordTrace("task", task.name, status="completed")
             if self.logger:
                 self.logger.debug(f"Task completed: {task.name}")
 

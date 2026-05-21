@@ -23,7 +23,7 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.0.0",
+        version="1.1.0",
         description="Home automation bridge, service control, and device state.",
         permissions=("network:http", "process:service-control"),
         capabilities=("home-automation", "device-control"),

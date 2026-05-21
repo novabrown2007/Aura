@@ -53,7 +53,7 @@ class SQLiteDatabase(AuraModule):
 
     metadata = ModuleMetadata(
         name="sqliteDatabase",
-        version="1.0.0",
+        version="1.1.0",
         description="SQLite fallback database adapter for Aura persistence.",
         permissions=("filesystem:read", "filesystem:write", "database:read", "database:write"),
         capabilities=("database", "sqlite"),

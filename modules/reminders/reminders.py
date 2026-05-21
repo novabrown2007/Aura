@@ -12,7 +12,7 @@ class Reminders(AuraModule):
 
     metadata = ModuleMetadata(
         name="reminders",
-        version="1.0.0",
+        version="1.1.0",
         description="Reminder creation, storage, and due reminder processing.",
         permissions=("database:read", "database:write", "scheduler:write"),
         capabilities=("reminders", "notifications"),
