@@ -22,6 +22,7 @@ from core.observability import ObservabilityManager
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
 from core.tools.toolExecutor import ToolExecutor
+from core.tools.toolOrchestrator import ToolOrchestrator
 from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
@@ -111,6 +112,7 @@ def buildRuntimeContext():
     # Tools
     context.toolRegistry = ToolRegistry(context)
     context.toolExecutor = ToolExecutor(context)
+    context.toolOrchestrator = ToolOrchestrator(context)
 
     # Database
     context.database = createDatabaseWithFallback(context)

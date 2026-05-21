@@ -94,6 +94,9 @@ class RuntimeContext:
         self.toolExecutor = None
         """Executor responsible for validating and running registered tools."""
 
+        self.toolOrchestrator = None
+        """Core tool schema, validation, and execution orchestration service."""
+
         # ----------------------------
         # Database
         # ----------------------------

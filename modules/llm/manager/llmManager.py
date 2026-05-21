@@ -12,6 +12,7 @@ Example:
 
 from __future__ import annotations
 
+from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
 from modules.llm.providers.gemini.geminiProvider import GeminiProvider
@@ -143,28 +144,10 @@ class LLMManager:
             toolDefinitions=toolSchemas,
             profile="toolSelection",
         )
-        schema = {
-            "type": "object",
-            "required": ["response", "toolCalls"],
-            "properties": {
-                "response": {"type": "string"},
-                "toolCalls": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "required": ["toolName", "arguments"],
-                        "properties": {
-                            "toolName": {"type": "string"},
-                            "arguments": {"type": "object"},
-                        },
-                    },
-                },
-            },
-        }
         return self.generateStructuredResponse(
             toolPrompt,
             userPrompt,
-            schema,
+            ToolOrchestrator.TOOL_CALL_ENVELOPE_SCHEMA,
             conversationHistory=conversationHistory,
         )
 
