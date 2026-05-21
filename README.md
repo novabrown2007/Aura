@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.1
+**Version:** 1.6.2
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -193,6 +193,10 @@ Aura keeps separate prompt profiles for each cognition task:
 
 Prompt construction is centralized in `modules.llm.utils.PromptBuilder`, with
 profile bodies under `modules/llm/prompts`.
+
+LLM offline mode is auto-detected from Gemini availability. If Gemini cannot be
+reached, Aura uses the local Ollama provider instead of reading an
+`offlineMode` setting from config.
 
 ## Autonomous Tasks
 

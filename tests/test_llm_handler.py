@@ -13,6 +13,7 @@ from core.tools.toolRegistry import ToolRegistry
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.llmHandler import LLMHandler
+from modules.llm.providers.gemini.geminiProvider import GeminiProvider
 from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
 from tests.support.fakes import DictConfig
 
@@ -101,7 +102,6 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
             "llm": {
                 "activeProvider": "ollama",
                 "fallbackProvider": "ollama",
-                "offlineMode": False,
                 "endpoint": endpoint,
                 "model": "llama3.1:8b",
                 "timeout": 10,
@@ -210,6 +210,17 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertEqual(response.provider, "fallback")
         self.assertEqual(response.text, "Recovered")
 
+    @patch.object(GeminiProvider, "initialize")
+    def test_manager_uses_ollama_when_gemini_is_unavailable(self, mock_initialize):
+        """Gemini startup failure should force offline mode and use Ollama."""
+
+        mock_initialize.return_value = None
+        context = make_llm_context()
+        manager = LLMManager(context)
+
+        self.assertTrue(manager.offlineMode)
+        self.assertEqual(manager.activeProviderName, "ollama")
+
     def test_ollama_rejects_structured_response_requests(self):
         """Ollama should not be trusted for structured tool or intent parsing."""
 
@@ -224,7 +235,9 @@ class LLMHandlerTests(unittest.TestCase):
     def test_system_prompt_includes_memory_and_tool_contract(self):
         """The generic assistant prompt should expose memory and tool-call rules."""
 
-        handler = LLMHandler(make_llm_context())
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(offlineMode=False)
+        handler = LLMHandler(context)
 
         prompt = handler._buildSystemPrompt()
 

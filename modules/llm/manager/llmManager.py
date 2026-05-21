@@ -55,17 +55,20 @@ class LLMManager:
         self.activeProviderName = self._getConfigValue(config, "llm.activeProvider", None)
         self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
         self.fallbackProviderName = self._getConfigValue(config, "llm.fallbackProvider", "ollama")
-        self.offlineMode = bool(self._getConfigValue(config, "llm.offlineMode", False))
 
         self.providers = {
             "gemini": GeminiProvider(self.context),
             "ollama": OllamaProvider(self.context),
         }
 
-        for providerName, provider in self.providers.items():
-            if self.offlineMode and providerName != self.fallbackProviderName:
-                continue
+        for provider in self.providers.values():
             provider.initialize()
+
+        self.offlineMode = not bool(self.providers.get("gemini") and self.providers["gemini"].initialized)
+        if self.offlineMode:
+            self.activeProviderName = self.fallbackProviderName
+            if self.logger:
+                self.logger.info("Gemini provider unavailable. Using local Ollama in offline mode.")
 
         if self.context is not None:
             self.context.llmManager = self
@@ -192,6 +195,12 @@ class LLMManager:
             if response.success:
                 return response
 
+            if providerName == self.activeProviderName and self._shouldUseOfflineFallback(response.error):
+                self.offlineMode = True
+                self.activeProviderName = self.fallbackProviderName
+                if self.logger:
+                    self.logger.warning(f"Gemini became unavailable. Falling back to local Ollama: {response.error}")
+
             if self.logger:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
 
@@ -225,6 +234,29 @@ class LLMManager:
         if self.context and getattr(self.context, "logger", None):
             return self.context.logger.getChild(name)
         return None
+
+    @staticmethod
+    def _shouldUseOfflineFallback(error: str | None) -> bool:
+        """Return whether a provider failure looks like a reachability issue."""
+
+        if not error:
+            return False
+
+        lowered = str(error).lower()
+        return any(
+            token in lowered
+            for token in (
+                "not initialized",
+                "connection refused",
+                "failed to establish",
+                "timed out",
+                "timeout",
+                "temporary failure in name resolution",
+                "name or service not known",
+                "network",
+                "unreachable",
+            )
+        )
 
     @staticmethod
     def _getConfigValue(config, key: str, default=None):

@@ -1,7 +1,6 @@
 llm:
   activeProvider: gemini
   fallbackProvider: ollama
-  offlineMode: false
   retryCount: 2
   timeout: 30
 

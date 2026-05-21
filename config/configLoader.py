@@ -9,7 +9,6 @@ DEFAULT_CONFIG = {
     "llm": {
         "activeProvider": "gemini",
         "fallbackProvider": "ollama",
-        "offlineMode": False,
         "retryCount": 2,
         "timeout": 30,
         "ollama": {
