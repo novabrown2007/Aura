@@ -36,7 +36,7 @@ class GeminiProvider(LLMProvider):
         self.apiKey = self.apiKey or self._getConfigValue(config, "llm.providers.gemini.api_secret", None)
         self.apiKey = self.apiKey or self._getConfigValue(config, "llm.gemini.apiKey", None)
         self.apiKey = self.apiKey or self._getConfigValue(config, "llm.gemini.api_secret", None)
-        self.apiKey = self.apiKey or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        self.apiKey = self.apiKey or os.getenv("GEMINI_API_KEY")
         self.model = self._getConfigValue(config, "llm.providers.gemini.model", "gemini-2.5-flash")
         self.model = self._getConfigValue(config, "llm.gemini.model", self.model)
         self.timeout = self._getConfigValue(config, "llm.timeout", 30)
