@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.5.0
+**Version:** 1.6.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -180,6 +180,19 @@ validation, and execution contract.
 LLM components only reason over exported tool schemas and return candidate tool
 calls. Actual execution flows through `ToolExecutor`, which calls the owning
 module method after validation.
+
+## LLM Prompt Modes
+
+Aura keeps separate prompt profiles for each cognition task:
+
+- `conversation` for direct user-facing replies
+- `intentParsing` for structured intent JSON
+- `memorySummary` for durable memory extraction
+- `automationPlanning` for cautious automation plans without execution
+- `toolSelection` for deterministic tool-call JSON
+
+Prompt construction is centralized in `modules.llm.utils.PromptBuilder`, with
+profile bodies under `modules/llm/prompts`.
 
 ## Autonomous Tasks
 
@@ -538,6 +551,7 @@ python run_tests.py --suite home_automation
 python run_tests.py --suite module_loader
 python run_tests.py --suite tools
 python run_tests.py --suite intent_pipeline
+python run_tests.py --suite prompts
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration

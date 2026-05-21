@@ -6,7 +6,10 @@ def buildIntentPrompt(basePrompt: str, **_kwargs) -> str:
 
     return (
         f"{basePrompt.strip()}\n\n"
-        "Interpret the user's request as structured JSON. "
+        "Prompt mode: intent parsing.\n"
+        "Classify the user's request into ordered Aura intents only.\n"
+        "Resolve references using supplied context, but do not invent missing facts.\n"
+        "Return structured JSON only. Do not answer conversationally.\n"
         "Do not execute actions. Aura will validate and route the result."
     )
 

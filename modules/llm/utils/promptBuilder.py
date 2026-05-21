@@ -105,6 +105,69 @@ class PromptBuilder:
         return "\n\n".join(sections)
 
     @staticmethod
+    def buildMemorySummaryPrompt(basePrompt: str = "") -> str:
+        """Build the strict prompt used for long-term memory extraction."""
+
+        fallbackPrompt = basePrompt or "You are Aura's memory extraction system."
+        sections = [
+            PROMPT_PROFILES["memorySummary"](fallbackPrompt).strip(),
+            (
+                "Task:\n"
+                "- Read only the supplied Conversation section.\n"
+                "- Extract persistent user facts that should help Aura later.\n"
+                "- Ignore temporary state, one-off requests, tool instructions, and assistant messages.\n\n"
+                "Output contract:\n"
+                "- Return only valid JSON.\n"
+                "- Use an empty object when there are no durable facts.\n"
+                "- Use concise snake_case keys and string values.\n"
+                "- Do not include markdown, comments, or explanatory text.\n\n"
+                "Example output:\n"
+                '{\n  "name": "Nova",\n  "favorite_color": "purple"\n}'
+            ),
+        ]
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def buildAutomationPlanningPrompt(
+        basePrompt: str,
+        toolDefinitions: list[dict[str, Any]] | None = None,
+        runtimeContext: dict[str, Any] | None = None,
+    ) -> str:
+        """Build a planning prompt for proposed automations without execution."""
+
+        sections = [
+            PROMPT_PROFILES["automationPlanning"](basePrompt).strip(),
+            (
+                "Return an automation plan with:\n"
+                "- goal\n"
+                "- triggers\n"
+                "- conditions\n"
+                "- ordered tool_steps\n"
+                "- safety_checks\n"
+                "- pause_resume_behavior\n"
+                "- expected_events\n"
+                "Do not return executable tool-call JSON from this prompt."
+            ),
+        ]
+
+        if toolDefinitions:
+            toolLines = ["Tools available for planning reference:"]
+            for tool in toolDefinitions:
+                toolLines.append(
+                    f"- {tool.get('name')}: {tool.get('description', '')} "
+                    f"parameters={tool.get('parameters')}"
+                )
+            sections.append("\n".join(toolLines))
+
+        if runtimeContext:
+            contextLines = ["Runtime context for planning:"]
+            for key, value in runtimeContext.items():
+                contextLines.append(f"- {key}: {value}")
+            sections.append("\n".join(contextLines))
+
+        return "\n\n".join(sections)
+
+    @staticmethod
     def _formatContextualMemory(contextualMemory: dict[str, Any]) -> str:
         """Format contextual memory used to resolve follow-up references."""
 
