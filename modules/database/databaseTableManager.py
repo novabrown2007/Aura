@@ -29,6 +29,7 @@ class DatabaseTableManager:
         self.createConversationHistoryTable()
         self.createMemoryTable()
         self.createSemanticMemoryTable()
+        self.createContextSignalsTable()
         self.createAutonomousTasksTable()
         self.createNotificationsTable()
         self.createRemindersTable()
@@ -135,6 +136,33 @@ class DatabaseTableManager:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+    def createContextSignalsTable(self):
+        """Create context awareness tables."""
+
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS context_signals (
+                signal_name VARCHAR(128) PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP
+            )
+            """
+        )
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS context_observations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                signal_name VARCHAR(128) NOT NULL,
+                value_json TEXT NOT NULL,
+                observed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
