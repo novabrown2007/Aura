@@ -194,6 +194,146 @@ python -m scripts.interface_build web
 
 Generated build artifacts are ignored by git.
 
+### Windows `.exe`
+
+The Windows interface bundle can be packaged with PyInstaller after the source
+bundle is created.
+
+Build the Windows bundle:
+
+```powershell
+.\.venv\python.exe interface/windows/build.py
+```
+
+Install the bundled requirements and PyInstaller:
+
+```powershell
+.\.venv\python.exe -m pip install -r build/interfaces/windows/requirements.txt
+.\.venv\python.exe -m pip install pyinstaller
+```
+
+Build the executable:
+
+```powershell
+.\.venv\python.exe -m PyInstaller `
+  --onefile `
+  --name AuraWindows `
+  --paths build/interfaces/windows `
+  build/interfaces/windows/run_aura_windows.py
+```
+
+The generated executable is written to:
+
+```text
+dist/AuraWindows.exe
+```
+
+Run the executable from the project root, or copy `config.yml`, `.env`, and any
+local SQLite database file next to the executable before distributing it. If
+`config.yml` is missing, Aura creates a default config on first startup.
+
+If the app needs the icon embedded, add:
+
+```powershell
+--icon assets/icons/aura.ico
+```
+
+### Web `.exe`
+
+The web interface can also be packaged as a Windows executable. The executable
+starts Aura's local web server; users still open the UI in a browser at
+`http://127.0.0.1:8765/`.
+
+Build the web bundle:
+
+```powershell
+.\.venv\python.exe interface/web/build.py
+```
+
+Install the bundled requirements and PyInstaller:
+
+```powershell
+.\.venv\python.exe -m pip install -r build/interfaces/web/requirements.txt
+.\.venv\python.exe -m pip install pyinstaller
+```
+
+Build the executable:
+
+```powershell
+.\.venv\python.exe -m PyInstaller `
+  --onefile `
+  --name AuraWeb `
+  --paths build/interfaces/web `
+  --add-data "build/interfaces/web/interface/web/static;interface/web/static" `
+  build/interfaces/web/run_aura_web.py
+```
+
+The generated executable is written to:
+
+```text
+dist/AuraWeb.exe
+```
+
+Run the executable from the project root, or copy `config.yml`, `.env`, and any
+local SQLite database file next to the executable before distributing it. If
+`config.yml` is missing, Aura creates a default config on first startup.
+
+### Android `.apk`
+
+The Android interface uses Kivy. Buildozer is the expected APK packaging tool,
+and it runs on Linux. On Windows, use WSL or a Linux build machine.
+
+Build the Android source bundle:
+
+```powershell
+.\.venv\python.exe interface/android/build.py
+```
+
+Copy or rename the Android launcher in the generated bundle so Buildozer sees a
+root-level `main.py`:
+
+```powershell
+Copy-Item build/interfaces/android/run_aura_android.py build/interfaces/android/main.py
+```
+
+From WSL/Linux, install Buildozer and initialize the Android project inside the
+bundle:
+
+```bash
+cd /mnt/c/Users/novab/PycharmProjects/Aura/build/interfaces/android
+python3 -m pip install --user buildozer cython
+buildozer init
+```
+
+Edit the generated `buildozer.spec` before building:
+
+```ini
+title = Aura
+package.name = aura
+package.domain = org.novabrown
+source.include_exts = py,png,jpg,kv,json,yml,txt
+requirements = python3,kivy,requests,PyYAML,mysql-connector-python,tzdata,google-genai
+orientation = portrait
+```
+
+Build a debug APK:
+
+```bash
+buildozer android debug
+```
+
+The generated debug APK is written under:
+
+```text
+build/interfaces/android/bin/
+```
+
+For a releasable APK, configure signing in `buildozer.spec` and use:
+
+```bash
+buildozer android release
+```
+
 ## Logging
 
 Aura creates a `logs` directory automatically if it does not exist.
