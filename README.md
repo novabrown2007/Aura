@@ -1,6 +1,7 @@
 # Aura Assistant
 
-**Author:** Nova Brown  
+**Author:** Nova Brown
+**Version:** 1.4.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -17,7 +18,8 @@ builds can include only the files needed for that target.
 
 ```text
 config/                 Runtime configuration loading
-core/                   Engine, runtime context, router, threading systems
+core/                   Engine, runtime context, router, threading, autonomy,
+                        context awareness, and observability systems
 modules/                Backend modules and persistence integrations
 modules/home_automation/
                         Home automation bridge, device, and service-control backend
@@ -150,6 +152,151 @@ HOME_AUTOMATION_START_BRIDGE_PATH
 HOME_AUTOMATION_START_HUB_PATH
 HOME_AUTOMATION_REFRESH_SECONDS
 ```
+
+## Event Bus
+
+Aura uses `context.eventManager` for decoupled runtime communication. Modules
+and core services can emit named events without directly calling each other.
+
+```python
+context.eventManager.emit("lights.changed", {"device_id": "kitchen"})
+context.eventManager.subscribe("context.changed", on_context_changed)
+```
+
+Existing event-driven integrations include:
+
+- `calendar` emits `reminders.create` instead of directly calling reminders
+- `reminders` emits `notifications.create` instead of directly calling notifications
+- home automation emits `lights.changed` after light state changes
+- observability records event traces automatically
+
+## Autonomous Tasks
+
+Aura exposes persistent long-running assistant tasks through:
+
+```python
+context.autonomousTasks
+```
+
+Autonomous tasks support:
+
+- durable task definitions and JSON state
+- scheduled wakeups through the shared scheduler
+- pause and resume
+- memory context included in execution payloads
+- event-driven create, pause, resume, and run controls
+- handler registration by task type
+
+Example:
+
+```python
+def check_weather(payload):
+    task = payload["task"]
+    memory = payload["memory"]
+    return {"checked": task["name"], "memory_keys": list(memory)}
+
+context.autonomousTasks.registerHandler("weather.check", check_weather)
+task = context.autonomousTasks.createTask(
+    name="Morning weather",
+    task_type="weather.check",
+    interval_seconds=3600,
+    memory_context={"city": "Hamilton"},
+)
+context.autonomousTasks.pauseTask(task["id"])
+context.autonomousTasks.resumeTask(task["id"])
+```
+
+Event controls:
+
+```python
+context.eventManager.emit("autonomous.task.create", {
+    "name": "Track package",
+    "task_type": "package.track",
+    "interval_seconds": 1800,
+})
+context.eventManager.emit("autonomous.task.run", {"task_id": 1})
+```
+
+## Context Awareness
+
+Aura exposes current environment context through:
+
+```python
+context.contextAwareness
+```
+
+Context awareness supports signals such as:
+
+- time
+- active applications
+- room occupancy
+- battery level
+- music playing
+- desktop activity
+- notifications
+- location
+
+Built-in providers currently include `time` and a conservative Windows process
+list as `active_applications`. Additional providers can be registered by modules
+or interfaces.
+
+```python
+context.contextAwareness.registerProvider(
+    "battery",
+    lambda: {"percent": 82, "charging": True},
+)
+context.contextAwareness.collect(["battery"])
+context.contextAwareness.getPromptContext()
+```
+
+When a signal changes, Aura emits:
+
+```text
+context.changed
+context.<signal>.changed
+```
+
+This enables behaviors such as:
+
+- "You've been coding for 5 hours."
+- "Minecraft launched. Switching gaming profile."
+
+Duration helpers are available:
+
+```python
+context.contextAwareness.secondsSinceChanged("desktop_activity")
+```
+
+## Observability
+
+Aura exposes runtime diagnostics through:
+
+```python
+context.observability
+```
+
+The observability snapshot includes:
+
+- active managed threads
+- current log file and recent log lines
+- event listener counts
+- memory keys and counts
+- registered tools
+- LLM provider status
+- module health
+- recent execution traces
+- scheduler state
+
+Example:
+
+```python
+snapshot = context.observability.snapshot()
+traces = context.observability.getTraces(limit=25)
+logs = context.observability.getLogs(lines=100)
+```
+
+Execution traces are recorded for event emission, task execution, and tool
+execution.
 
 ## Platform Builds
 
@@ -362,12 +509,24 @@ Run individual suites:
 ```powershell
 python run_tests.py --suite build
 python run_tests.py --suite runtime_smoke
+python run_tests.py --suite config
 python run_tests.py --suite logger
+python run_tests.py --suite sqlite
+python run_tests.py --suite datetime_utils
+python run_tests.py --suite events
+python run_tests.py --suite autonomous_tasks
+python run_tests.py --suite context_awareness
+python run_tests.py --suite observability
+python run_tests.py --suite notifications
+python run_tests.py --suite system
 python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory
 python run_tests.py --suite calendar
 python run_tests.py --suite interfaces
 python run_tests.py --suite home_automation
+python run_tests.py --suite module_loader
+python run_tests.py --suite tools
+python run_tests.py --suite intent_pipeline
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration

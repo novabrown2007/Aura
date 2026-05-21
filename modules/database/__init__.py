@@ -9,7 +9,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional MySQL dependency
 
 MODULE_METADATA = {
     "name": "database",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Database adapter package for Aura persistence.",
     "permissions": ("database:connect", "database:read", "database:write"),
     "capabilities": ("database", "mysql", "sqlite"),
