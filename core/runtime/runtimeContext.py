@@ -61,6 +61,9 @@ class RuntimeContext:
         self.taskManager = None
         """Task manager responsible for running background jobs or async tasks."""
 
+        self.autonomousTasks = None
+        """Persistent autonomous task manager for scheduled/event-driven work."""
+
         # ----------------------------
         # Modules
         # ----------------------------
