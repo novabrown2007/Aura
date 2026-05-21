@@ -1,0 +1,223 @@
+name: Approved PR Merge Gate
+
+on:
+  pull_request_review:
+    types:
+      - submitted
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to run through the merge gate.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: approved-pr-merge-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  merge_gate:
+    name: Approved PR Merge Gate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.review.state == 'approved' &&
+        github.event.pull_request.state == 'open'
+      )
+
+    steps:
+      - name: Resolve approved pull request
+        id: pr
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          $prNumber = if ($env:EVENT_NAME -eq "workflow_dispatch") { $env:INPUT_PR_NUMBER } else { $env:EVENT_PR_NUMBER }
+          if ([string]::IsNullOrWhiteSpace($prNumber)) {
+            Write-Error "No pull request number was provided."
+            exit 1
+          }
+
+          $raw = gh pr view $prNumber --repo $env:REPOSITORY --json number,state,isDraft,reviewDecision,baseRefName,headRefName,headRefOid,headRepositoryOwner,headRepository
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $data = $raw | ConvertFrom-Json
+          if ($data.state -ne "OPEN") {
+            Write-Error "Canceling merge: PR #$prNumber is not open."
+            exit 1
+          }
+          if ($data.isDraft) {
+            Write-Error "Canceling merge: PR #$prNumber is still a draft."
+            exit 1
+          }
+          if ($data.reviewDecision -ne "APPROVED") {
+            Write-Error "Canceling merge: PR #$prNumber has not been approved."
+            exit 1
+          }
+
+          "number=$($data.number)" >> $env:GITHUB_OUTPUT
+          "base=$($data.baseRefName)" >> $env:GITHUB_OUTPUT
+          "head=$($data.headRefName)" >> $env:GITHUB_OUTPUT
+          "head_sha=$($data.headRefOid)" >> $env:GITHUB_OUTPUT
+          "head_owner=$($data.headRepositoryOwner.login)" >> $env:GITHUB_OUTPUT
+          "head_repo=$($data.headRepository.name)" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout incoming branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install incoming branch dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          if (Test-Path interface\windows\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\windows\requirements.txt
+          }
+          if (Test-Path interface\android\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\android\requirements.txt
+          }
+          if (Test-Path interface\web\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\web\requirements.txt
+          }
+
+      - name: Run full test suite on incoming branch
+        shell: pwsh
+        run: |
+          $env:KIVY_DOC = "1"
+          $env:KIVY_NO_ARGS = "1"
+          $env:KIVY_WINDOW = "mock"
+          $env:KIVY_AUDIO = "mock"
+          $env:KIVY_GL_BACKEND = "mock"
+          .\.venv\Scripts\python.exe run_tests.py --suite all
+
+      - name: Log canceled merge
+        if: failure()
+        shell: pwsh
+        run: |
+          "## Merge canceled" >> $env:GITHUB_STEP_SUMMARY
+          "Incoming branch checks failed or the pull request was not eligible for approved merge." >> $env:GITHUB_STEP_SUMMARY
+          Write-Error "Canceling merge: incoming branch failed before merge or PR approval checks failed."
+
+      - name: Merge approved pull request
+        id: merge
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          BASE_BRANCH: ${{ steps.pr.outputs.base }}
+        run: |
+          git fetch origin $env:BASE_BRANCH
+          $baseBefore = git rev-parse "origin/$env:BASE_BRANCH"
+          "base_before=$baseBefore" >> $env:GITHUB_OUTPUT
+
+          gh pr merge $env:PR_NUMBER --repo $env:REPOSITORY --merge --delete-branch=false
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          git fetch origin $env:BASE_BRANCH
+          $baseAfter = git rev-parse "origin/$env:BASE_BRANCH"
+          "base_after=$baseAfter" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout updated base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.base }}
+          fetch-depth: 0
+
+      - name: Install updated base branch dependencies
+        shell: pwsh
+        run: |
+          if (Test-Path .venv) {
+            Remove-Item -Recurse -Force .venv
+          }
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          if (Test-Path interface\windows\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\windows\requirements.txt
+          }
+          if (Test-Path interface\android\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\android\requirements.txt
+          }
+          if (Test-Path interface\web\requirements.txt) {
+            .\.venv\Scripts\python.exe -m pip install -r interface\web\requirements.txt
+          }
+
+      - name: Run full test suite on updated base branch
+        id: base_tests
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $env:KIVY_DOC = "1"
+          $env:KIVY_NO_ARGS = "1"
+          $env:KIVY_WINDOW = "mock"
+          $env:KIVY_AUDIO = "mock"
+          $env:KIVY_GL_BACKEND = "mock"
+          .\.venv\Scripts\python.exe run_tests.py --suite all
+
+      - name: Revert merge when updated base fails
+        if: steps.base_tests.outcome != 'success'
+        shell: pwsh
+        env:
+          BASE_BRANCH: ${{ steps.pr.outputs.base }}
+          BASE_AFTER: ${{ steps.merge.outputs.base_after }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout $env:BASE_BRANCH
+          git pull --ff-only origin $env:BASE_BRANCH
+          git revert --no-edit -m 1 $env:BASE_AFTER
+          git push origin "HEAD:$env:BASE_BRANCH"
+          "## Merge reverted" >> $env:GITHUB_STEP_SUMMARY
+          "Updated base branch failed after merge. Reverted merge commit ``$env:BASE_AFTER``." >> $env:GITHUB_STEP_SUMMARY
+          Write-Error "Updated base branch failed after merge. Reverted merge commit $env:BASE_AFTER."
+          exit 1
+
+      - name: Delete incoming branch
+        if: steps.base_tests.outcome == 'success' && steps.pr.outputs.head_owner == github.repository_owner
+        shell: pwsh
+        env:
+          HEAD_BRANCH: ${{ steps.pr.outputs.head }}
+        run: |
+          git push origin --delete $env:HEAD_BRANCH
+
+      - name: Log fork branch retention
+        if: steps.base_tests.outcome == 'success' && steps.pr.outputs.head_owner != github.repository_owner
+        shell: pwsh
+        run: |
+          Write-Host "Incoming branch is from a fork, so the workflow cannot delete it."
+
+      - name: Log successful merge
+        if: steps.base_tests.outcome == 'success'
+        shell: pwsh
+        run: |
+          "## Merge successful" >> $env:GITHUB_STEP_SUMMARY
+          "Incoming branch passed, updated base branch passed, and incoming branch cleanup completed when permitted." >> $env:GITHUB_STEP_SUMMARY
+          Write-Host "Merge successful. Incoming branch passed, updated base passed, and local incoming branch cleanup completed when permitted."
