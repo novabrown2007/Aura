@@ -29,6 +29,7 @@ class DatabaseTableManager:
         self.createConversationHistoryTable()
         self.createMemoryTable()
         self.createSemanticMemoryTable()
+        self.createAutonomousTasksTable()
         self.createNotificationsTable()
         self.createRemindersTable()
         self.createCalendarCalendarsTable()
@@ -110,6 +111,30 @@ class DatabaseTableManager:
                 embedding TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+    def createAutonomousTasksTable(self):
+        """Create the autonomous_tasks table."""
+
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS autonomous_tasks (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                task_type VARCHAR(128) NOT NULL,
+                description TEXT,
+                status VARCHAR(32) DEFAULT 'active',
+                interval_seconds INT NULL,
+                next_run_at DATETIME NULL,
+                last_run_at DATETIME NULL,
+                event_name VARCHAR(255) NULL,
+                state TEXT,
+                memory_context TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP
             )
             """
         )

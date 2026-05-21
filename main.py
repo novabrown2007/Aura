@@ -15,6 +15,7 @@ from core.threading.threadingManager import ThreadingManager
 from core.threading.events.eventManager import EventManager
 from core.threading.tasks.taskManager import TaskManager
 from core.threading.scheduler.scheduler import Scheduler
+from core.autonomy import AutonomousTaskManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -101,6 +102,7 @@ def buildRuntimeContext():
     context.eventManager = EventManager(context)
     context.taskManager = TaskManager(context)
     context.scheduler = Scheduler(context)
+    context.autonomousTasks = AutonomousTaskManager(context)
 
     # Tools
     context.toolRegistry = ToolRegistry(context)
