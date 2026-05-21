@@ -11,6 +11,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from interface.model_status import format_current_model_label
+
 
 WEB_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = WEB_ROOT / "static"
@@ -111,6 +113,9 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
 
         if method == "GET" and path == "/api/health":
             return {"status": "online"}
+
+        if method == "GET" and path == "/api/system/model":
+            return {"current_model": format_current_model_label(context)}
 
         if method == "POST" and path == "/api/chat":
             message = str(body.get("message", "")).strip()

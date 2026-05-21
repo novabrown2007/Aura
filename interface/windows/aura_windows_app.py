@@ -10,6 +10,7 @@ from threading import Thread
 from tkinter import BOTH, DISABLED, END, LEFT, NORMAL, TOP, X, Button, Entry, Frame, Label, TclError, Tk
 from tkinter.scrolledtext import ScrolledText
 
+from interface.model_status import format_current_model_label
 from interface.windows.error_dialog import showErrorPopup
 
 WINDOW_BG = "#0b0f14"
@@ -136,7 +137,7 @@ class AuraWindowsApp:
 
         self.currentModelLabel = Label(
             headerCenter,
-            text=self._getCurrentModelLabel(),
+            text=format_current_model_label(self.context),
             bg=WINDOW_BG,
             fg=TEXT_MUTED,
             font=("Segoe UI", 10),
@@ -3068,20 +3069,6 @@ class AuraWindowsApp:
         except Exception as error:
             if self.logger:
                 self.logger.error(f"Error popup failed: {error}")
-
-    def _getCurrentModelLabel(self) -> str:
-        """Return a short label for the currently active LLM model."""
-
-        manager = getattr(self.context, "llmManager", None)
-        if manager is None:
-            return "Currently Running: Unavailable"
-
-        provider_name = getattr(manager, "activeProviderName", "")
-        provider = getattr(manager, "providers", {}).get(provider_name) if hasattr(manager, "providers") else None
-        model_name = getattr(provider, "model", "") if provider is not None else ""
-        if not model_name:
-            model_name = provider_name or "Unknown"
-        return f"Currently Running: {model_name}"
 
     def _closeWindow(self):
         """Destroy the root window safely."""

@@ -1,8 +1,10 @@
 """Android interface tests."""
 
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 
+from interface.model_status import format_current_model_label
 from interface.android import AuraAndroidApp
 from interface.android import aura_android_app as android_module
 from modules.home_automation.models import BridgeState, LightDevice
@@ -44,6 +46,16 @@ class AndroidInterfaceTests(unittest.TestCase):
         self.assertIn("Bridge: Home", text)
         self.assertIn("Kitchen Light", text)
         self.assertIn("On 80%", text)
+
+    def test_android_model_label_helper_uses_active_provider_model(self):
+        context = SimpleNamespace(
+            llmManager=SimpleNamespace(
+                activeProviderName="ollama",
+                providers={"ollama": SimpleNamespace(model="deepseek-r1:8b")},
+            )
+        )
+
+        self.assertEqual(format_current_model_label(context), "Currently Running: deepseek-r1:8b")
 
 
 if __name__ == "__main__":

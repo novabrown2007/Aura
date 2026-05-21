@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.3
+**Version:** 1.6.4
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -60,6 +60,8 @@ python -m pip install -r interface/windows/requirements.txt
 python -m pip install -r interface/android/requirements.txt
 python -m pip install -r interface/web/requirements.txt
 ```
+
+The desktop, web, and Android chat headers each show the currently active LLM model or fallback provider so you can verify what the runtime is using at a glance.
 
 ## Interfaces
 

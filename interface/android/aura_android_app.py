@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from interface.model_status import format_current_model_label
+
 try:
     from kivy.app import App
     from kivy.uix.boxlayout import BoxLayout
@@ -114,6 +116,14 @@ class AuraAndroidApp:
         screen = Screen(name="chat")
         root = BoxLayout(orientation="vertical", padding=12, spacing=8)
         root.add_widget(self._nav())
+
+        self.currentModelLabel = Label(
+            text=format_current_model_label(self.context),
+            size_hint_y=None,
+        )
+        self.currentModelLabel.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
+        self.currentModelLabel.bind(size=lambda label, size: setattr(label, "text_size", (size[0], None)))
+        root.add_widget(self.currentModelLabel)
 
         self.chatTranscript = Label(text="Aura Android interface initialized.", size_hint_y=None)
         self.chatTranscript.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))

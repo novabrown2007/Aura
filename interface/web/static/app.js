@@ -149,6 +149,15 @@ async function loadNotifications() {
   }
 }
 
+async function loadCurrentModel() {
+  try {
+    const result = await api("/api/system/model");
+    $("#currentModelLabel").textContent = result.current_model || "Currently Running: Unavailable";
+  } catch (error) {
+    $("#currentModelLabel").textContent = "Currently Running: Unavailable";
+  }
+}
+
 async function loadCalendars() {
   try {
     const result = await api("/api/calendar/calendars");
@@ -550,3 +559,5 @@ function bindEvents() {
 
 bindEvents();
 $("#calendarDate").value = state.calendarDate;
+loadCurrentModel();
+setInterval(loadCurrentModel, 60000);
