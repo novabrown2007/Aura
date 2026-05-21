@@ -38,14 +38,14 @@ class AndroidInterfaceTests(unittest.TestCase):
         self.assertTrue((root / "interface" / "android" / "build.py").is_file())
 
     def test_android_formats_home_automation_state(self):
-        light = LightDevice("light1", "Kitchen Light", "light", is_on=True, brightness=80)
+        light = LightDevice("light1", "Kitchen Light", "light", is_on=True, brightness=80, color="blue")
         state = BridgeState(True, "Home", lights=[light], devices=[light])
 
         text = AuraAndroidApp._formatHomeAutomationState(state)
 
         self.assertIn("Bridge: Home", text)
         self.assertIn("Kitchen Light", text)
-        self.assertIn("On 80%", text)
+        self.assertIn("On 80% color=blue", text)
 
     def test_android_model_label_helper_uses_active_provider_model(self):
         context = SimpleNamespace(

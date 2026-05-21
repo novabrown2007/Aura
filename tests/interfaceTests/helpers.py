@@ -149,7 +149,7 @@ class FakeHomeAutomation:
         self.state = BridgeState(
             connected=True,
             bridge_name="Home Automation Bridge",
-            lights=[LightDevice("light1", "Kitchen Light", "light", is_on=False, brightness=0)],
+            lights=[LightDevice("light1", "Kitchen Light", "light", is_on=False, brightness=0, color="warm_white")],
             cameras=[CameraDevice("camera1", "Entry Camera", "camera")],
         )
         self.state.devices = [*self.state.lights, *self.state.cameras]
@@ -184,6 +184,15 @@ class FakeHomeAutomation:
     def setLightColor(self, device_id, color):
         self.state.lights[0].color = color
         return self.state.lights[0]
+
+    def getLightState(self, device_id):
+        return self.state.lights[0]
+
+    def getLightStateByRoom(self, room):
+        return self.state.lights[0]
+
+    def setLightColorByRoom(self, room, color):
+        return self.setLightColor(room, color)
 
     def startCameraStream(self, device_id):
         self.state.cameras[0].is_streaming = True

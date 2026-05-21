@@ -462,7 +462,10 @@ class AuraAndroidApp:
                 name = row.get("name") or row.get("device_id") or "Unknown"
                 detail = row.get("status") or row.get("category") or ""
                 if row.get("category") == "light":
-                    detail = f"{'On' if row.get('is_on') else 'Off'} {row.get('brightness', 0)}%"
+                    detail = (
+                        f"{'On' if row.get('is_on') else 'Off'} "
+                        f"{row.get('brightness', 0)}% color={row.get('color', 'white')}"
+                    )
                 lines.append(f"- {name}: {detail}")
         return "\n".join(lines)
 

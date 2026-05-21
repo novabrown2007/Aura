@@ -137,6 +137,14 @@ class HomeAutomationConfigTests(unittest.TestCase):
         self.assertTrue(config.bridge.use_ssl)
         self.assertFalse(config.control.use_ssl)
 
+    def test_get_tools_exposes_light_state_and_color_tools(self):
+        module = makeModule()
+        tool_names = {tool.name for tool in module.getTools()}
+
+        self.assertIn("homeAutomation.getLightState", tool_names)
+        self.assertIn("lights.getState", tool_names)
+        self.assertIn("lights.setColor", tool_names)
+
 
 class BridgeConnectionTests(unittest.TestCase):
     """Bridge connectivity and payload parsing tests."""
@@ -237,6 +245,60 @@ class BridgeConnectionTests(unittest.TestCase):
 
 class LightControlTests(unittest.TestCase):
     """Light control tests."""
+
+    def test_get_light_state_returns_current_snapshot(self):
+        module = makeModule()
+
+        with patch.object(
+            module.bridge,
+            "_requestJson",
+            side_effect=[
+                devicesPayload(lightPayload(color="blue", is_on=True, brightness=73, last_command="set_color")),
+                devicesPayload(lightPayload(color="blue", is_on=True, brightness=73, last_command="set_color")),
+            ],
+        ):
+            module.initialize()
+            state = module.getLightState("bedroomlight1")
+
+        self.assertEqual(state["color"], "blue")
+        self.assertTrue(state["is_on"])
+        self.assertEqual(state["brightness"], 73)
+
+    def test_get_light_state_by_room_resolves_room_name(self):
+        module = makeModule()
+
+        with patch.object(
+            module.bridge,
+            "_requestJson",
+            side_effect=[
+                devicesPayload(lightPayload(metadata={"room": "bedroom"}, color="green", is_on=False, brightness=15)),
+                devicesPayload(lightPayload(metadata={"room": "bedroom"}, color="green", is_on=False, brightness=15)),
+            ],
+        ):
+            module.initialize()
+            state = module.getLightStateByRoom("bedroom")
+
+        self.assertEqual(state["color"], "green")
+        self.assertFalse(state["is_on"])
+        self.assertEqual(state["brightness"], 15)
+
+    def test_set_light_color_by_room_updates_state(self):
+        module = makeModule()
+
+        with patch.object(
+            module.bridge,
+            "_requestJson",
+            side_effect=[
+                devicesPayload(lightPayload(metadata={"room": "bedroom"})),
+                {"status": "ok"},
+                devicesPayload(lightPayload(metadata={"room": "bedroom"}, color="purple", last_command="set_color")),
+            ],
+        ):
+            module.initialize()
+            updated = module.setLightColorByRoom("bedroom", "purple")
+
+        self.assertEqual(updated.color, "purple")
+        self.assertEqual(updated.last_command, "set_color")
 
     def test_toggle_light_updates_state(self):
         module = makeModule()

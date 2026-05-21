@@ -2962,7 +2962,8 @@ class AuraWindowsApp:
                 device_id = getattr(row, "device_id", "")
                 category = getattr(row, "category", "")
                 if category == "light":
-                    detail = f"{'on' if getattr(row, 'is_on', False) else 'off'} {getattr(row, 'brightness', 0)}%"
+                    color = getattr(row, "color", "white")
+                    detail = f"{'on' if getattr(row, 'is_on', False) else 'off'} {getattr(row, 'brightness', 0)}% color={color}"
                 elif category == "camera":
                     detail = f"{getattr(row, 'status', 'Idle')} streaming={getattr(row, 'is_streaming', False)}"
                 else:

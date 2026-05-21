@@ -23,7 +23,7 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.1.0",
+        version="1.2.0",
         description="Home automation bridge, service control, and device state.",
         permissions=("network:http", "process:service-control"),
         capabilities=("home-automation", "device-control"),
@@ -80,6 +80,15 @@ class HomeAutomation(AuraModule):
                 safe=True,
             ),
             Tool(
+                name="homeAutomation.getLightState",
+                description="Get the current state of a light.",
+                parameters={"device_id": {"type": "string"}},
+                requiredParameters=("device_id",),
+                module="homeAutomation",
+                method="getLightState",
+                safe=True,
+            ),
+            Tool(
                 name="homeAutomation.setLightBrightness",
                 description="Set light brightness.",
                 parameters={"device_id": {"type": "string"}, "brightness": {"type": "integer"}},
@@ -89,12 +98,30 @@ class HomeAutomation(AuraModule):
                 safe=True,
             ),
             Tool(
+                name="lights.getState",
+                description="Get the current state of a light by room or light name.",
+                parameters={"room": {"type": "string"}},
+                requiredParameters=("room",),
+                module="homeAutomation",
+                method="getLightStateByRoom",
+                safe=True,
+            ),
+            Tool(
                 name="lights.setBrightness",
                 description="Set a light brightness by room or light name.",
                 parameters={"room": {"type": "string"}, "brightness": {"type": "integer"}},
                 requiredParameters=("room", "brightness"),
                 module="homeAutomation",
                 method="setLightBrightnessByRoom",
+                safe=True,
+            ),
+            Tool(
+                name="lights.setColor",
+                description="Set a light color by room or light name.",
+                parameters={"room": {"type": "string"}, "color": {"type": "string"}},
+                requiredParameters=("room", "color"),
+                module="homeAutomation",
+                method="setLightColorByRoom",
                 safe=True,
             ),
             Tool(
@@ -173,6 +200,21 @@ class HomeAutomation(AuraModule):
 
         return list(self.bridge.state.lights)
 
+    def getLightState(self, device_id: str) -> dict[str, object]:
+        """Return the current state of a specific light."""
+
+        self.refresh()
+        light = self.bridge._findLight(device_id, f"Light '{device_id}' is not available.")
+        return asdict(light)
+
+    def getLightStateByRoom(self, room: str) -> dict[str, object]:
+        """Return the current state of a light resolved from a room or light name."""
+
+        self.refresh()
+        device_id = self._resolveLightId(room)
+        light = self.bridge._findLight(device_id, f"Light '{device_id}' is not available.")
+        return asdict(light)
+
     def getCameras(self) -> list[CameraDevice]:
         """Return known cameras."""
 
@@ -196,6 +238,11 @@ class HomeAutomation(AuraModule):
         """Set brightness for a light resolved from a room or light name."""
 
         return self.setLightBrightness(self._resolveLightId(room), brightness)
+
+    def setLightColorByRoom(self, room: str, color: str) -> LightDevice:
+        """Set color for a light resolved from a room or light name."""
+
+        return self.setLightColor(self._resolveLightId(room), color)
 
     def turnLightOnByRoom(self, room: str, brightness: int | None = None) -> LightDevice:
         """Turn on a light resolved from a room or light name."""

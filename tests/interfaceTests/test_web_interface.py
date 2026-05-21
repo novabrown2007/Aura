@@ -144,6 +144,7 @@ class WebInterfaceTests(unittest.TestCase):
     def test_home_automation_routes_call_backend(self):
         state = self.handler._dispatchApi("GET", "/api/home-automation/state", {}, {})
         self.assertEqual(state.bridge_name, "Home Automation Bridge")
+        self.assertEqual(state.lights[0].color, "warm_white")
 
         refreshed = self.handler._dispatchApi("POST", "/api/home-automation/refresh", {}, {})
         self.assertEqual(refreshed.lights[0].name, "Kitchen Light")

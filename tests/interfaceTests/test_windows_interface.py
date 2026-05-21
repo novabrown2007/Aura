@@ -27,14 +27,14 @@ class WindowsInterfaceTests(unittest.TestCase):
         self.assertTrue((root / "interface" / "windows" / "build.py").is_file())
 
     def test_windows_formats_home_automation_state(self):
-        light = LightDevice("light1", "Kitchen Light", "light", is_on=True, brightness=80)
+        light = LightDevice("light1", "Kitchen Light", "light", is_on=True, brightness=80, color="blue")
         state = BridgeState(True, "Home", lights=[light], devices=[light])
 
         text = AuraWindowsApp._formatHomeAutomationState(None, state)
 
         self.assertIn("Bridge: Home", text)
         self.assertIn("Kitchen Light", text)
-        self.assertIn("on 80%", text)
+        self.assertIn("on 80% color=blue", text)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.5
+**Version:** 1.6.6
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -111,7 +111,9 @@ Supported backend operations include:
 
 - bridge connect/refresh/state
 - list devices, lights, and cameras
+- read light state by device or room
 - light on/off, brightness, color temperature, and color
+- set light color by device or room
 - camera stream start/stop and snapshot
 - bridge notification list/queue
 - start bridge and start hub service-control requests
