@@ -222,7 +222,7 @@ class IntentPipeline:
         response = self.manager.generateResponse(baseSystemPrompt, userInput, conversationHistory)
         if response.success and response.text.strip():
             return response.text.strip()
-        return "I am currently unable to access my language model."
+        return "I couldn't interpret that request well enough to respond."
 
     def _isOfflineMode(self) -> bool:
         """Return whether the manager is in offline mode."""

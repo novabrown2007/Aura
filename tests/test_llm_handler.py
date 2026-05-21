@@ -158,7 +158,7 @@ class LLMHandlerTests(unittest.TestCase):
 
         result = handler.generateResponse("Hello")
 
-        self.assertEqual(result, "I am currently unable to access my language model.")
+        self.assertEqual(result, "I couldn't interpret that request well enough to respond.")
 
     def test_generate_structured_response_uses_manager_validation(self):
         """Structured responses should be parsed and returned as dictionaries."""

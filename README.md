@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.4
+**Version:** 1.6.5
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
