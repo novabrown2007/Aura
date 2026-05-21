@@ -64,6 +64,9 @@ class RuntimeContext:
         self.autonomousTasks = None
         """Persistent autonomous task manager for scheduled/event-driven work."""
 
+        self.contextAwareness = None
+        """Current environment context and signal change detector."""
+
         # ----------------------------
         # Modules
         # ----------------------------
