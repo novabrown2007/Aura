@@ -1,0 +1,146 @@
+name: Generate Executables
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  generate_executables:
+    name: Generate Executables
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create Python environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+      - name: Install requirements
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\windows\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\android\requirements.txt
+          .\.venv\Scripts\python.exe -m pip install -r interface\web\requirements.txt
+
+      - name: Create interface bundles
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe interface\windows\build.py
+          .\.venv\Scripts\python.exe interface\android\build.py
+          .\.venv\Scripts\python.exe interface\web\build.py
+
+      - name: Run full test suite
+        shell: pwsh
+        run: |
+          $env:KIVY_DOC = "1"
+          $env:KIVY_NO_ARGS = "1"
+          $env:KIVY_WINDOW = "mock"
+          $env:KIVY_AUDIO = "mock"
+          $env:KIVY_GL_BACKEND = "mock"
+          .\.venv\Scripts\python.exe run_tests.py --suite all
+
+      - name: Install executable build tools
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip install pyinstaller
+
+      - name: Generate Windows executable
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          Push-Location build\interfaces\windows
+          ..\..\..\.venv\Scripts\python.exe -m PyInstaller --onefile --name AuraWindows --paths . run_aura_windows.py --icon ..\..\..\assets\icons\aura.ico
+          Pop-Location
+
+      - name: Generate Android executable
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          $env:KIVY_GL_BACKEND = "angle_sdl2"
+          $env:KIVY_WINDOW = "sdl2"
+          $env:KIVY_IMAGE = "sdl2"
+          $env:KIVY_TEXT = "sdl2"
+          New-Item -ItemType Directory -Force -Path build\pyinstaller-hooks | Out-Null
+          @'
+          from kivy.tools.packaging.pyinstaller_hooks import add_dep_paths, get_deps_minimal
+
+          add_dep_paths()
+          deps = get_deps_minimal(
+              audio=None,
+              camera=None,
+              clipboard=None,
+              spelling=None,
+              video=None,
+              image="sdl2",
+              text="sdl2",
+              window="sdl2",
+          )
+          hiddenimports = deps["hiddenimports"]
+          excludedimports = deps["excludes"]
+          binaries = deps["binaries"]
+          '@ | Set-Content build\pyinstaller-hooks\hook-kivy.py
+
+          Push-Location build\interfaces\android
+          ..\..\..\.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm --onefile --name AuraAndroid --additional-hooks-dir ..\..\pyinstaller-hooks --paths . run_aura_android.py
+          Pop-Location
+
+      - name: Generate Web executable
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          Push-Location build\interfaces\web
+          ..\..\..\.venv\Scripts\python.exe -m PyInstaller --onefile --name AuraWeb --paths . --add-data "interface\web\static;interface\web\static" run_aura_web.py
+          Pop-Location
+
+      - name: Stage executables
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\executables | Out-Null
+          Copy-Item build\interfaces\windows\dist\AuraWindows.exe build\executables\AuraWindows.exe
+          Copy-Item build\interfaces\android\dist\AuraAndroid.exe build\executables\AuraAndroid.exe
+          Copy-Item build\interfaces\web\dist\AuraWeb.exe build\executables\AuraWeb.exe
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-executables
+          path: build/executables/*.exe
+          if-no-files-found: error
+
+      - name: Log task success
+        shell: pwsh
+        run: |
+          "## Executable generation succeeded" >> $env:GITHUB_STEP_SUMMARY
+          "Bundles, full test suite, and executable generation completed successfully." >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Log task failure
+        if: failure()
+        shell: pwsh
+        run: |
+          "## Executable generation failed" >> $env:GITHUB_STEP_SUMMARY
+          "The workflow failed before executable artifacts were successfully generated." >> $env:GITHUB_STEP_SUMMARY
+          Write-Error "Executable generation failed."
+
+      - name: Clean up Python environment
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path .venv) {
+            Remove-Item -Recurse -Force .venv
+          }

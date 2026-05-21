@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.7.0
+**Version:** 1.8.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -583,6 +583,21 @@ To make this the actual merge path, avoid manually merging approved PRs outside
 this workflow. Repository settings must allow GitHub Actions to write to
 contents and pull requests, and base branch protection must allow this workflow
 to merge and revert when needed.
+
+## Executable Generation CI
+
+Executable artifacts can be generated manually with:
+
+```text
+.github/workflows/generate-executables.yml
+```
+
+The workflow runs only through `workflow_dispatch`. It creates a Python
+environment, installs shared and interface requirements, creates the interface
+bundles, runs the full test suite, and only then generates the Windows, Android,
+and Web executables. When generation succeeds, the executables are uploaded as a
+GitHub Actions artifact. On failure, the workflow logs the failed task and still
+cleans up the Python environment.
 
 Interface-specific tests live in `tests/interfaceTests/`:
 
