@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.9
+**Version:** 1.8.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -548,6 +548,48 @@ python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration
 ```
+
+## Merge Gate CI
+
+The repository includes a second GitHub Actions workflow:
+
+```text
+.github/workflows/approved-pr-merge.yml
+```
+
+This workflow runs when a pull request review is approved, or manually through
+`workflow_dispatch`. The intended path is:
+
+- pull request is created
+- user manually reviews and approves the pull request
+- the workflow runs the full test suite on the incoming branch
+- if incoming tests fail, the merge is canceled and logged
+- if incoming tests pass, the workflow merges the pull request
+- the workflow runs the full test suite on the updated base branch
+- if updated base tests fail, the merge commit is reverted
+- if updated base tests pass, the incoming branch is deleted when it belongs to
+  this repository
+- the workflow logs the merge as successful
+
+To make this the actual merge path, avoid manually merging approved PRs outside
+this workflow. Repository settings must allow GitHub Actions to write to
+contents and pull requests, and base branch protection must allow this workflow
+to merge and revert when needed.
+
+## Executable Generation CI
+
+Executable artifacts can be generated manually with:
+
+```text
+.github/workflows/generate-executables.yml
+```
+
+The workflow runs only through `workflow_dispatch`. It creates a Python
+environment, installs shared and interface requirements, creates the interface
+bundles, runs the full test suite, and only then generates the Windows, Android,
+and Web executables. When generation succeeds, the executables are uploaded as a
+GitHub Actions artifact. On failure, the workflow logs the failed task and still
+cleans up the Python environment.
 
 Interface-specific tests live in `tests/interfaceTests/`:
 
