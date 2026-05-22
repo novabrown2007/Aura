@@ -22,7 +22,7 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.3.2",
+        version="1.4.0",
         description="Home automation bridge and device state.",
         permissions=("network:http",),
         capabilities=("home-automation", "device-control"),
@@ -46,9 +46,9 @@ class HomeAutomation(AuraModule):
 
         super().initialize(context)
         self.context = context
-        self.config = self.config or buildHomeAutomationConfig(context)
+        self.config = self.config or getattr(context, "homeAutomationConfig", None) or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
-        self.bridge = BridgeConnection(self.config.bridge)
+        self.bridge = getattr(context, "bridgeClient", None) or getattr(context, "auraBridgeClient", None) or BridgeConnection(self.config.bridge)
         return None
 
     def shutdown(self):

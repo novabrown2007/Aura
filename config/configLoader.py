@@ -57,6 +57,13 @@ DEFAULT_CONFIG = {
         "ssl": False,
         "timeout": 5,
         "refreshSeconds": 5,
+        "protocolPath": "/protocol/aura",
+        "inboxPath": "/protocol/inbox",
+        "subscriptionsPath": "/protocol/subscriptions",
+        "heartbeatPath": "/protocol/heartbeat",
+        "sessionId": "auto",
+        "interface": "desktop",
+        "heartbeatSeconds": 30,
     },
 }
 

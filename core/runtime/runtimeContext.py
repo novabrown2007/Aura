@@ -97,6 +97,30 @@ class RuntimeContext:
         self.toolOrchestrator = None
         """Core tool schema, validation, and execution orchestration service."""
 
+        self.bridgeClient = None
+        """Aura Protocol client used to communicate with the home automation bridge."""
+
+        self.auraBridgeClient = None
+        """Alias for the Aura Protocol bridge client."""
+
+        self.bridgeStateCache = None
+        """Cached assistant-facing bridge state."""
+
+        self.bridgeSessionManager = None
+        """Assistant session manager for bridge context synchronization."""
+
+        self.bridgeSubscriptionManager = None
+        """Bridge subscription manager for assistant categories."""
+
+        self.bridgeNotificationManager = None
+        """Assistant notification manager for bridge events."""
+
+        self.bridgeStreamManager = None
+        """Stream metadata manager for assistant-facing stream lifecycle."""
+
+        self.bridgeRouter = None
+        """Message router for assistant-facing bridge events."""
+
         # ----------------------------
         # Database
         # ----------------------------

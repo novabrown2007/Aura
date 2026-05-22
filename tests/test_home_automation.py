@@ -485,6 +485,18 @@ class LocalStartTests(unittest.TestCase):
         self.assertEqual(response["mode"], "local")
 
 
+class BridgeClientIntegrationTests(unittest.TestCase):
+    """Runtime integration tests for the Aura Protocol bridge client."""
+
+    def test_home_automation_prefers_bridge_client_when_available(self):
+        fake_bridge = SimpleNamespace(connect=lambda: None)
+        context = make_context(extra={"bridgeClient": fake_bridge, "homeAutomationConfig": HomeAutomationConfig(bridge=BridgeConfig())})
+
+        module = HomeAutomation(context, config=HomeAutomationConfig(bridge=BridgeConfig()))
+
+        self.assertIs(module.bridge, fake_bridge)
+
+
 class HomeAutomationRegistrationTests(unittest.TestCase):
     """Runtime integration tests for module registration."""
 

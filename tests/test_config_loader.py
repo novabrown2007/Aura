@@ -113,6 +113,8 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
             self.assertEqual(config.get("threading.max_threads"), 10)
             self.assertEqual(config.asDict()["homeAutomationBridge"]["host"], "127.0.0.1")
+            self.assertEqual(config.asDict()["homeAutomationBridge"]["protocolPath"], "/protocol/aura")
+            self.assertEqual(config.asDict()["homeAutomationBridge"]["sessionId"], "auto")
 
 
 if __name__ == "__main__":
