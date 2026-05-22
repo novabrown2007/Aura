@@ -3,3 +3,4 @@ PyYAML
 mysql-connector-python
 tzdata
 google-genai
+faster-whisper

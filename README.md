@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.8.0
+**Version:** 1.9.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -102,14 +102,16 @@ The `modules.home_automation` backend is registered as:
 context.homeAutomation
 ```
 
-It talks to the bridge for device state and handles service-start requests locally inside Aura:
+It talks to the Home Automation Bridge through the Aura Protocol client in
+`auraassistant/core/bridge` and handles service-start requests locally inside Aura:
 
-- the home automation bridge for devices, lights, cameras, and bridge notifications
+- assistant notifications, responses, errors, and stream metadata from the bridge
+- bridge-owned device state and deterministic light/camera actions
 - local bridge and hub start requests handled by the Aura runtime
 
 Supported backend operations include:
 
-- bridge connect/refresh/state
+- bridge connect/refresh/state through the protocol client
 - list devices, lights, and cameras
 - read light state by device or room
 - light on/off, brightness, color temperature, and color
@@ -127,6 +129,13 @@ homeAutomationBridge:
   ssl: false
   timeout: 5
   refreshSeconds: 5
+  protocolPath: /protocol/aura
+  inboxPath: /protocol/inbox
+  subscriptionsPath: /protocol/subscriptions
+  heartbeatPath: /protocol/heartbeat
+  sessionId: auto
+  interface: desktop
+  heartbeatSeconds: 30
 ```
 
 Environment variable fallbacks are also supported:
@@ -138,6 +147,14 @@ HOME_AUTOMATION_BRIDGE_SSL
 HOME_AUTOMATION_BRIDGE_TIMEOUT
 HOME_AUTOMATION_REFRESH_SECONDS
 ```
+
+The bridge client auto-subscribes to:
+
+- `assistant.notification`
+- `assistant.response`
+- `assistant.error`
+- `assistant.stream.available`
+- `assistant.context`
 
 The legacy nested `home_automation.bridge` config path is still accepted as a fallback for older config files.
 

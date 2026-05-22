@@ -304,6 +304,26 @@ class IntentPipeline:
         """Collect lightweight runtime state relevant to intent parsing."""
 
         state = {}
+        bridge_cache = getattr(self.context, "bridgeStateCache", None)
+        if bridge_cache is not None and hasattr(bridge_cache, "snapshot"):
+            try:
+                cached = bridge_cache.snapshot()
+                if isinstance(cached, dict):
+                    state["bridge"] = cached
+                    lights = cached.get("lights", [])
+                    if isinstance(lights, list) and lights:
+                        state["lights"] = lights
+                    streams = cached.get("streams", [])
+                    if isinstance(streams, list) and streams:
+                        state["streams"] = streams
+                    notifications = cached.get("notifications", [])
+                    if isinstance(notifications, list) and notifications:
+                        state["notifications"] = notifications
+                    return state
+            except Exception as error:
+                if self.logger:
+                    self.logger.debug(f"Bridge cache context unavailable: {error}")
+
         homeAutomation = getattr(self.context, "homeAutomation", None)
         if homeAutomation is not None and hasattr(homeAutomation, "getLights"):
             try:

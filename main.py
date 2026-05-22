@@ -26,6 +26,8 @@ from core.tools.toolOrchestrator import ToolOrchestrator
 from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
+from modules.home_automation.config import buildHomeAutomationConfig
+from auraassistant.core.bridge import AuraBridgeClient
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
@@ -99,6 +101,7 @@ def buildRuntimeContext():
 
     # Config
     context.config = ConfigLoader(context)
+    context.homeAutomationConfig = buildHomeAutomationConfig(context)
 
     # Threading
     context.threader = ThreadingManager(context)
@@ -108,6 +111,15 @@ def buildRuntimeContext():
     context.observability = ObservabilityManager(context)
     context.autonomousTasks = AutonomousTaskManager(context)
     context.contextAwareness = ContextAwarenessManager(context)
+
+    # Bridge Protocol
+    context.bridgeClient = AuraBridgeClient(context)
+    context.auraBridgeClient = context.bridgeClient
+    try:
+        context.bridgeClient.connect()
+    except Exception as error:
+        if context.logger:
+            context.logger.warning(f"Bridge protocol client could not connect: {error}")
 
     # Tools
     context.toolRegistry = ToolRegistry(context)
