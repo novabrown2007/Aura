@@ -21,7 +21,7 @@ class LLMHandler(AuraModule):
 
     metadata = ModuleMetadata(
         name="llm",
-        version="1.3.0",
+        version="1.4.0",
         description="Provider-neutral LLM prompt handling and response generation.",
         permissions=("network:http", "database:read", "database:write"),
         capabilities=("conversation", "memory", "llm"),
@@ -81,6 +81,7 @@ class LLMHandler(AuraModule):
         if self._supportsIntentPipeline():
             cleaned = self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory)
             self._logConversation(userInput, cleaned)
+            self._speakResponse(cleaned)
             return cleaned
 
         response = self.manager.generateResponse(systemPrompt, userInput, conversationHistory)
@@ -96,6 +97,7 @@ class LLMHandler(AuraModule):
             cleaned = toolResult
 
         self._logConversation(userInput, cleaned)
+        self._speakResponse(cleaned)
         return cleaned
 
     def _supportsIntentPipeline(self) -> bool:
@@ -212,3 +214,20 @@ Rules:
         """Execute tool calls returned by the LLM JSON contract."""
 
         return self.tools.executeToolEnvelope(text, offlineMode=self._isOfflineMode())
+
+    def _speakResponse(self, text: str):
+        """Send assistant text through the shared voice output interface when available."""
+
+        text = str(text or "").strip()
+        if not text:
+            return
+
+        voice = getattr(self.context, "voiceManager", None)
+        if voice is None or not getattr(voice, "outputEnabled", False):
+            return
+
+        try:
+            voice.speakResponse(text)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Voice playback failed: {error}")

@@ -124,6 +124,15 @@ class RuntimeContext:
         self.voiceManager = None
         """Local push-to-talk speech transcription manager."""
 
+        self.textToSpeech = None
+        """Local speech synthesis engine for assistant responses."""
+
+        self.audioPlayer = None
+        """Local audio playback backend for synthesized speech."""
+
+        self.speechQueue = None
+        """Serialized assistant speech queue."""
+
         # ----------------------------
         # Database
         # ----------------------------
