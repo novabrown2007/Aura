@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.11.0
+**Version:** 1.12.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -604,6 +604,7 @@ python run_tests.py --suite tools
 python run_tests.py --suite intent_pipeline
 python run_tests.py --suite prompts
 python run_tests.py --suite voice
+python run_tests.py --suite assistant_testing
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration
@@ -658,6 +659,15 @@ tests/interfaceTests/test_windows_interface.py
 tests/interfaceTests/test_android_interface.py
 tests/interfaceTests/test_web_interface.py
 ```
+
+Assistant ecosystem simulation tests live in:
+
+```text
+tests/test_assistant_testing.py
+```
+
+They cover the mock assistant console, event tracer, session and intent
+debuggers, workflow simulation, and voice/input integration helpers.
 
 Optional live LLM connectivity test:
 
