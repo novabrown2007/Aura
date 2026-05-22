@@ -48,6 +48,11 @@ voice:
   device: cpu
   computeType: int8
   sampleRate: 16000
+  voiceEnabled: true
+  voiceModelPath: en_US-lessac-medium
+  voiceOutputDirectory: temp/voice
+  voicePlaybackEnabled: true
+  voiceSampleRate: 22050
 
 homeAutomationBridge:
   host: 127.0.0.1

@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.10.0
+**Version:** 1.11.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -65,14 +65,17 @@ The desktop, web, and Android chat headers each show the currently active LLM mo
 
 ## Voice
 
-Aura includes local push-to-talk speech-to-text support through:
+Aura includes local push-to-talk speech-to-text and local text-to-speech through:
 
 ```python
 context.voiceManager
+context.textToSpeech
+context.speechQueue
 ```
 
-Voice transcription is local-first and uses Faster-Whisper with a cached
-`small.en` model on CPU by default.
+Voice input is local-first and uses Faster-Whisper with a cached
+`small.en` model on CPU by default. Voice output uses Piper with a cached
+local ONNX voice.
 
 Configuration is available under `voice` in `config.yml`:
 
@@ -83,6 +86,11 @@ voice:
   device: cpu
   computeType: int8
   sampleRate: 16000
+  voiceEnabled: true
+  voiceModelPath: en_US-lessac-medium.onnx
+  voiceOutputDirectory: temp/voice
+  voicePlaybackEnabled: true
+  voiceSampleRate: 22050
 ```
 
 Example usage:
@@ -90,6 +98,8 @@ Example usage:
 ```python
 result = context.voiceManager.processVoiceInput()
 print(result.text)
+
+context.voiceManager.speakResponse("Hello. Aura voice systems are online.")
 ```
 
 The voice layer is intentionally push-to-talk only. It does not implement wake

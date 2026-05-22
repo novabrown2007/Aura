@@ -1,4 +1,4 @@
-"""Tests for Aura's local push-to-talk voice layer."""
+"""Tests for Aura's local voice input and output layers."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from auraassistant.core.interface.voice import SpeechToText, VoiceManager, VoiceRecorder
-from auraassistant.core.interface.voice.models import TranscriptionResult
+from auraassistant.core.interface.voice import AudioPlayer, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
+from auraassistant.core.interface.voice.models import SpeechResult, TranscriptionResult
 from tests.support.fakes import make_context
 
 
@@ -32,6 +32,58 @@ class FakeWhisperModel:
         segments = [SimpleNamespace(text="hello"), SimpleNamespace(text="aura")]
         info = SimpleNamespace(language=language)
         return iter(segments), info
+
+
+class FakePiperVoice:
+    """Deterministic Piper stub for local synthesis tests."""
+
+    init_count = 0
+
+    def __init__(self):
+        FakePiperVoice.init_count += 1
+
+    @classmethod
+    def load(cls, model_path):
+        instance = cls()
+        instance.model_path = str(model_path)
+        return instance
+
+    def synthesize_wav(self, text, audio_file):
+        with wave.open(audio_file, "wb") as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(22050)
+            handle.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
+
+
+class FakePlayObject:
+    """Minimal playback handle for AudioPlayer tests."""
+
+    def __init__(self):
+        self.stopped = False
+
+    def wait_done(self):
+        return None
+
+    def stop(self):
+        self.stopped = True
+
+
+class FakeWaveObject:
+    """Fake simpleaudio wave object."""
+
+    @staticmethod
+    def from_wave_file(path):
+        return FakeWaveObject()
+
+    def play(self):
+        return FakePlayObject()
+
+
+class FakeSimpleAudioModule:
+    """SimpleAudio replacement for playback tests."""
+
+    WaveObject = FakeWaveObject
 
 
 class FakeInputStream:
@@ -59,7 +111,7 @@ class FakeInputStream:
 
 
 class VoiceTests(unittest.TestCase):
-    """Validate local speech-to-text behavior and Aura pipeline integration."""
+    """Validate local speech-to-text and speech-synthesis behavior."""
 
     def setUp(self):
         self.context = make_context()
@@ -69,6 +121,11 @@ class VoiceTests(unittest.TestCase):
             "device": "cpu",
             "computeType": "int8",
             "sampleRate": 16000,
+            "voiceEnabled": True,
+            "voiceModelPath": "en_US-lessac-medium.onnx",
+            "voiceOutputDirectory": "temp/voice",
+            "voicePlaybackEnabled": True,
+            "voiceSampleRate": 22050,
         }
 
     def _create_wav_file(self, frames=1600, sample_rate=16000):
@@ -130,6 +187,83 @@ class VoiceTests(unittest.TestCase):
             if path:
                 Path(path).unlink(missing_ok=True)
 
+    def test_text_to_speech_initializes_once_and_generates_audio(self):
+        original_piper = sys.modules.get("piper.voice")
+        original_simpleaudio = sys.modules.get("simpleaudio")
+
+        sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
+        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+
+        voice_dir = tempfile.TemporaryDirectory()
+        try:
+            FakePiperVoice.init_count = 0
+            model_path = Path(voice_dir.name) / "en_US-lessac-medium.onnx"
+            model_path.write_bytes(b"fake-onnx")
+
+            tts = TextToSpeech(
+                self.context,
+                modelPath=str(model_path),
+                outputDirectory=voice_dir.name,
+                playbackEnabled=True,
+                sampleRate=22050,
+            )
+
+            first = tts.initialize()
+            second = tts.initialize()
+            self.assertIs(first, second)
+            self.assertEqual(FakePiperVoice.init_count, 1)
+
+            result = tts.speak("Hello Aura. Voice systems are online.")
+            self.assertTrue(result.success)
+            self.assertTrue(result.audioPath)
+            self.assertGreaterEqual(result.generationTime, 0.0)
+            self.assertGreaterEqual(result.playbackDuration, 0.0)
+            self.assertFalse(Path(result.audioPath).exists())
+        finally:
+            if original_piper is None:
+                sys.modules.pop("piper.voice", None)
+            else:
+                sys.modules["piper.voice"] = original_piper
+            if original_simpleaudio is None:
+                sys.modules.pop("simpleaudio", None)
+            else:
+                sys.modules["simpleaudio"] = original_simpleaudio
+            voice_dir.cleanup()
+
+    def test_audio_player_plays_wave_files(self):
+        original_simpleaudio = sys.modules.get("simpleaudio")
+        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+        try:
+            player = AudioPlayer(self.context)
+            audio_path = self._create_wav_file(sample_rate=22050)
+            try:
+                duration = player.playAudio(str(audio_path))
+                self.assertGreaterEqual(duration, 0.0)
+                self.assertFalse(player.isPlaying())
+            finally:
+                audio_path.unlink(missing_ok=True)
+        finally:
+            if original_simpleaudio is None:
+                sys.modules.pop("simpleaudio", None)
+            else:
+                sys.modules["simpleaudio"] = original_simpleaudio
+
+    def test_speech_queue_serializes_speech(self):
+        spoken = []
+
+        class FakeTTS:
+            def speak(self, text):
+                spoken.append(text)
+                return SpeechResult(success=True, audioPath=f"{text}.wav")
+
+        queue = SpeechQueue(self.context, FakeTTS())
+        results = queue.enqueue("first line")
+        results.extend(queue.enqueue("second line"))
+
+        self.assertEqual(spoken, ["first line", "second line"])
+        self.assertEqual(len(results), 2)
+        self.assertTrue(all(result.success for result in results))
+
     def test_voice_manager_routes_transcription_through_existing_pipeline(self):
         self.context.interpreter = SimpleNamespace(
             interpret=lambda text: SimpleNamespace(name="llm", raw=text)
@@ -139,7 +273,7 @@ class VoiceTests(unittest.TestCase):
         )
 
         manager = VoiceManager(self.context)
-        manager.enabled = True
+        manager.inputEnabled = True
         manager.startVoiceCapture = lambda: True
         manager.stopVoiceCapture = lambda: "fake.wav"
         manager.speechToText.transcribeDetailed = lambda path: TranscriptionResult(

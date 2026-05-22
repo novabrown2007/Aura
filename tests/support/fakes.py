@@ -283,6 +283,9 @@ def make_context(database=None, extra=None):
     context.llmManager = None
     context.llm = None
     context.voiceManager = None
+    context.textToSpeech = None
+    context.audioPlayer = None
+    context.speechQueue = None
     context.modules = {}
     context.threader = None
     context.taskManager = None

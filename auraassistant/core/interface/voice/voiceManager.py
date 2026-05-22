@@ -1,43 +1,69 @@
-"""Coordinate local push-to-talk voice capture and transcription."""
+"""Coordinate local voice input and output for Aura."""
 
 from __future__ import annotations
 
 import time
-from pathlib import Path
-from typing import Any
 
+from .models.speechResult import SpeechResult
 from .models.transcriptionResult import TranscriptionResult
+from .speechQueue import SpeechQueue
 from .speechToText import SpeechToText
+from .textToSpeech import TextToSpeech
 from .voiceRecorder import VoiceRecorder
 
 
 class VoiceManager:
-    """Manage local voice capture without owning assistant reasoning."""
+    """Manage local voice capture and local speech playback."""
 
     def __init__(self, context=None):
         self.context = context
         self.logger = context.logger.getChild("Voice") if context and getattr(context, "logger", None) else None
-        self.enabled = self._getBoolConfig("voice.enabled", self._getBoolConfig("voiceEnabled", False))
-        self.modelName = self._getConfigValue("voice.model", self._getConfigValue("voiceModel", "small.en"))
-        self.device = self._getConfigValue("voice.device", self._getConfigValue("voiceDevice", "cpu"))
-        self.computeType = self._getConfigValue("voice.computeType", self._getConfigValue("voiceComputeType", "int8"))
-        self.sampleRate = int(self._getConfigValue("voice.sampleRate", self._getConfigValue("voiceSampleRate", 16000)))
+
+        self.inputEnabled = self._getBoolConfig("voice.enabled", False)
+        self.inputModelName = self._getConfigValue("voice.model", "small.en")
+        self.inputDevice = self._getConfigValue("voice.device", "cpu")
+        self.inputComputeType = self._getConfigValue("voice.computeType", "int8")
+        self.inputSampleRate = int(self._getConfigValue("voice.sampleRate", 16000))
+
+        self.outputEnabled = self._getBoolConfig("voice.voiceEnabled", self._getBoolConfig("voiceEnabled", True))
+        self.outputModelPath = self._getConfigValue("voice.voiceModelPath", self._getConfigValue("voiceModelPath", "en_US-lessac-medium"))
+        self.outputDirectory = self._getConfigValue("voice.voiceOutputDirectory", self._getConfigValue("voiceOutputDirectory", "temp/voice"))
+        self.playbackEnabled = self._getBoolConfig("voice.voicePlaybackEnabled", self._getBoolConfig("voicePlaybackEnabled", True))
+        self.outputSampleRate = int(self._getConfigValue("voice.voiceSampleRate", self._getConfigValue("voiceSampleRate", 22050)))
+
         self.speechToText = SpeechToText(
             context,
-            modelName=str(self.modelName),
-            device=str(self.device),
-            computeType=str(self.computeType),
+            modelName=str(self.inputModelName),
+            device=str(self.inputDevice),
+            computeType=str(self.inputComputeType),
         )
-        self.recorder = VoiceRecorder(context, sampleRate=self.sampleRate)
+        self.recorder = VoiceRecorder(context, sampleRate=self.inputSampleRate)
+        self.textToSpeech = TextToSpeech(
+            context,
+            modelPath=str(self.outputModelPath),
+            outputDirectory=str(self.outputDirectory),
+            playbackEnabled=bool(self.playbackEnabled and self.outputEnabled),
+            sampleRate=self.outputSampleRate,
+        )
+        self.audioPlayer = self.textToSpeech.audioPlayer
+        self.speechQueue = SpeechQueue(context, self.textToSpeech)
+
         self.lastTranscription = TranscriptionResult()
+        self.lastSpeech = SpeechResult()
         self.lastAssistantResponse = ""
         self.lastAudioPath = ""
         self.voiceActive = False
 
+        if self.context is not None:
+            self.context.voiceManager = self
+            self.context.textToSpeech = self.textToSpeech
+            self.context.audioPlayer = self.audioPlayer
+            self.context.speechQueue = self.speechQueue
+
     def startVoiceCapture(self):
         """Start recording a local push-to-talk voice capture."""
 
-        if not self.enabled:
+        if not self.inputEnabled:
             self._log("Voice input is disabled in configuration.")
             return False
         started = self.recorder.startRecording()
@@ -63,7 +89,7 @@ class VoiceManager:
     def processVoiceInput(self, recordSeconds: float = 5.0) -> TranscriptionResult:
         """Record, transcribe, route text into Aura, and clean up temp audio."""
 
-        if not self.enabled:
+        if not self.inputEnabled:
             result = TranscriptionResult(success=False, errorMessage="Voice input is disabled.")
             self.lastTranscription = result
             return result
@@ -92,6 +118,28 @@ class VoiceManager:
         finally:
             self._cleanupAudio()
 
+    def speakResponse(self, text: str):
+        """Queue and play assistant speech through the local TTS stack."""
+
+        if not self.outputEnabled:
+            return SpeechResult(success=False, errorMessage="Voice playback is disabled.")
+        if self.speechQueue is None:
+            return SpeechResult(success=False, errorMessage="Voice speech queue is unavailable.")
+
+        results = self.speechQueue.enqueue(text)
+        if results:
+            self.lastSpeech = results[-1]
+            return self.lastSpeech
+
+        result = SpeechResult(success=False, errorMessage="No speech was queued.")
+        self.lastSpeech = result
+        return result
+
+    def speak(self, text: str):
+        """Speak text using the current assistant voice configuration."""
+
+        return self.speakResponse(text)
+
     def shutdown(self):
         """Release cached voice resources."""
 
@@ -101,10 +149,15 @@ class VoiceManager:
             if self.logger:
                 self.logger.warning(f"Voice recorder shutdown failed: {error}")
         try:
-            self.speechToText.shutdown()
+            self.speechQueue.clearQueue()
         except Exception as error:
             if self.logger:
-                self.logger.warning(f"Speech-to-text shutdown failed: {error}")
+                self.logger.warning(f"Speech queue shutdown failed: {error}")
+        try:
+            self.textToSpeech.shutdown()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Text-to-speech shutdown failed: {error}")
         self.voiceActive = False
         self.lastAudioPath = ""
 
