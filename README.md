@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.6.6
+**Version:** 1.6.9
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -22,7 +22,7 @@ core/                   Engine, runtime context, router, threading, autonomy,
                         context awareness, and observability systems
 modules/                Backend modules and persistence integrations
 modules/home_automation/
-                        Home automation bridge, device, and service-control backend
+                        Home automation bridge and device backend
 interface/windows/      Windows visual interface
 interface/android/      Android visual interface
 interface/web/          Web visual interface and static assets
@@ -67,8 +67,8 @@ The desktop, web, and Android chat headers each show the currently active LLM mo
 
 All visual interfaces expose chat, reminders, calendar, notifications, and home
 automation controls. Home automation UI features can refresh bridge state, show
-lights/cameras/devices, and request bridge or hub service startup. The web UI
-also exposes direct light and camera controls.
+lights/cameras/devices, and request bridge or hub startup locally inside Aura.
+The web UI also exposes direct light and camera controls.
 
 Windows:
 
@@ -102,10 +102,10 @@ The `modules.home_automation` backend is registered as:
 context.homeAutomation
 ```
 
-It talks to two external services:
+It talks to the bridge for device state and handles service-start requests locally inside Aura:
 
 - the home automation bridge for devices, lights, cameras, and bridge notifications
-- the service-control endpoint for starting the bridge and hub services
+- local bridge and hub start requests handled by the Aura runtime
 
 Supported backend operations include:
 
@@ -116,27 +116,17 @@ Supported backend operations include:
 - set light color by device or room
 - camera stream start/stop and snapshot
 - bridge notification list/queue
-- start bridge and start hub service-control requests
+- local start bridge and start hub acknowledgements
 
-Configuration can be supplied through `config.yml` under `home_automation`:
+Configuration can be supplied through `config.yml` under `homeAutomationBridge`:
 
 ```yaml
-home_automation:
-  refresh_interval_seconds: 5.0
-  bridge:
-    host: 127.0.0.1
-    port: 8080
-    use_ssl: false
-    api_token: ""
-    timeout_seconds: 3.0
-  control:
-    host: 127.0.0.1
-    port: 8091
-    use_ssl: false
-    api_token: ""
-    timeout_seconds: 5.0
-    start_bridge_path: /control/startbridge
-    start_hub_path: /control/starthub
+homeAutomationBridge:
+  host: 127.0.0.1
+  port: 8080
+  ssl: false
+  timeout: 5
+  refreshSeconds: 5
 ```
 
 Environment variable fallbacks are also supported:
@@ -145,17 +135,11 @@ Environment variable fallbacks are also supported:
 HOME_AUTOMATION_BRIDGE_HOST
 HOME_AUTOMATION_BRIDGE_PORT
 HOME_AUTOMATION_BRIDGE_SSL
-HOME_AUTOMATION_BRIDGE_TOKEN
 HOME_AUTOMATION_BRIDGE_TIMEOUT
-HOME_AUTOMATION_CONTROL_HOST
-HOME_AUTOMATION_CONTROL_PORT
-HOME_AUTOMATION_CONTROL_SSL
-HOME_AUTOMATION_CONTROL_TOKEN
-HOME_AUTOMATION_CONTROL_TIMEOUT
-HOME_AUTOMATION_START_BRIDGE_PATH
-HOME_AUTOMATION_START_HUB_PATH
 HOME_AUTOMATION_REFRESH_SECONDS
 ```
+
+The legacy nested `home_automation.bridge` config path is still accepted as a fallback for older config files.
 
 ## Event Bus
 

@@ -12,9 +12,8 @@ from core.threading.events.eventManager import EventManager
 from core.runtime.moduleLoader import ModuleLoader
 from modules.home_automation import HomeAutomation
 from modules.home_automation.bridgeConnection import BridgeConnectionError
-from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, ServiceControlConfig, buildHomeAutomationConfig
+from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, buildHomeAutomationConfig
 from modules.home_automation.models import BridgeState, CameraDevice, Device, LightDevice
-from modules.home_automation.serviceControl import ServiceControlConnection, ServiceControlError
 from tests.support.fakes import make_context
 
 
@@ -93,7 +92,6 @@ def notificationPayload(**overrides):
 def makeModule():
     config = HomeAutomationConfig(
         bridge=BridgeConfig(),
-        control=ServiceControlConfig(),
     )
     return HomeAutomation(SimpleNamespace(logger=None, config=None), config=config)
 
@@ -101,14 +99,13 @@ def makeModule():
 class HomeAutomationConfigTests(unittest.TestCase):
     """Configuration and model tests."""
 
-    def test_config_builds_bridge_and_control_base_urls(self):
+    def test_config_builds_bridge_base_url(self):
         config = HomeAutomationConfig(
             bridge=BridgeConfig(host="bridge.local", port=8443, use_ssl=True),
-            control=ServiceControlConfig(host="control.local", port=8091),
         )
 
         self.assertEqual(config.bridge.base_url, "https://bridge.local:8443")
-        self.assertEqual(config.control.base_url, "http://control.local:8091")
+        self.assertEqual(config.refresh_interval_seconds, 5.0)
 
     def test_bridge_state_counts_online_devices(self):
         state = BridgeState(
@@ -125,9 +122,10 @@ class HomeAutomationConfigTests(unittest.TestCase):
     def test_build_config_reads_aura_config_values(self):
         aura_config = SimpleNamespace(
             get=lambda key, default=None: {
-                "home_automation.bridge.host": "bridge.local",
-                "home_automation.bridge.use_ssl": "true",
-                "home_automation.control.use_ssl": "false",
+                "homeAutomationBridge.host": "bridge.local",
+                "homeAutomationBridge.ssl": "true",
+                "homeAutomationBridge.timeout": "7.5",
+                "homeAutomationBridge.refreshSeconds": "9.0",
             }.get(key, default)
         )
 
@@ -135,7 +133,8 @@ class HomeAutomationConfigTests(unittest.TestCase):
 
         self.assertEqual(config.bridge.host, "bridge.local")
         self.assertTrue(config.bridge.use_ssl)
-        self.assertFalse(config.control.use_ssl)
+        self.assertEqual(config.bridge.timeout_seconds, 7.5)
+        self.assertEqual(config.refresh_interval_seconds, 9.0)
 
     def test_get_tools_exposes_light_state_and_color_tools(self):
         module = makeModule()
@@ -384,7 +383,6 @@ class LightControlTests(unittest.TestCase):
         context.eventManager.subscribe("lights.changed", received.append)
         config = HomeAutomationConfig(
             bridge=BridgeConfig(),
-            control=ServiceControlConfig(),
         )
         module = HomeAutomation(context, config=config)
 
@@ -467,37 +465,24 @@ class CameraControlTests(unittest.TestCase):
         self.assertEqual(updated.last_command, "take_snapshot")
 
 
-class ServiceControlTests(unittest.TestCase):
-    """Remote backend service startup control tests."""
+class LocalStartTests(unittest.TestCase):
+    """Local service-start acknowledgement tests."""
 
-    def test_start_bridge_posts_to_control_endpoint(self):
-        control = ServiceControlConnection(ServiceControlConfig())
+    def test_start_bridge_returns_local_ack(self):
+        module = makeModule()
+        response = module.startBridge()
 
-        with patch("modules.home_automation.serviceControl.request.urlopen", return_value=FakeHttpResponse({"status": "ok"})) as urlopen_mock:
-            payload = control.startBridge()
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["service"], "bridge")
+        self.assertEqual(response["mode"], "local")
 
-        self.assertEqual(payload["status"], "ok")
-        request_obj = urlopen_mock.call_args.args[0]
-        self.assertEqual(request_obj.method, "POST")
-        self.assertTrue(request_obj.full_url.endswith("/control/startbridge"))
+    def test_start_hub_returns_local_ack(self):
+        module = makeModule()
+        response = module.startHub()
 
-    def test_start_hub_posts_to_control_endpoint(self):
-        control = ServiceControlConnection(ServiceControlConfig())
-
-        with patch("modules.home_automation.serviceControl.request.urlopen", return_value=FakeHttpResponse({"status": "ok"})) as urlopen_mock:
-            payload = control.startHub()
-
-        self.assertEqual(payload["status"], "ok")
-        request_obj = urlopen_mock.call_args.args[0]
-        self.assertEqual(request_obj.method, "POST")
-        self.assertTrue(request_obj.full_url.endswith("/control/starthub"))
-
-    def test_service_control_raises_for_unreachable_endpoint(self):
-        control = ServiceControlConnection(ServiceControlConfig())
-
-        with patch("modules.home_automation.serviceControl.request.urlopen", side_effect=error.URLError("boom")):
-            with self.assertRaises(ServiceControlError):
-                control.startBridge()
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["service"], "hub")
+        self.assertEqual(response["mode"], "local")
 
 
 class HomeAutomationRegistrationTests(unittest.TestCase):

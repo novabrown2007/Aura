@@ -158,8 +158,6 @@ class BridgeConnection:
         headers = {"Accept": "application/json"}
         if payload is not None:
             headers["Content-Type"] = "application/json"
-        if self.config.api_token:
-            headers["Authorization"] = f"Bearer {self.config.api_token}"
 
         bridge_request = request.Request(
             url=f"{self.config.base_url}{path}",

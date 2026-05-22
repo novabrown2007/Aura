@@ -15,7 +15,6 @@ from modules.home_automation.models import (
     HomeAutomationNotification,
     LightDevice,
 )
-from modules.home_automation.serviceControl import ServiceControlConnection
 
 
 class HomeAutomation(AuraModule):
@@ -23,9 +22,9 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.2.0",
-        description="Home automation bridge, service control, and device state.",
-        permissions=("network:http", "process:service-control"),
+        version="1.3.2",
+        description="Home automation bridge and device state.",
+        permissions=("network:http",),
         capabilities=("home-automation", "device-control"),
     )
 
@@ -36,7 +35,6 @@ class HomeAutomation(AuraModule):
         self.config = config
         self.logger = None
         self.bridge = None
-        self.serviceControl = None
         if context is not None:
             self.initialize(context)
 
@@ -51,7 +49,6 @@ class HomeAutomation(AuraModule):
         self.config = self.config or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
         self.bridge = BridgeConnection(self.config.bridge)
-        self.serviceControl = ServiceControlConnection(self.config.control)
         return None
 
     def shutdown(self):
@@ -302,14 +299,14 @@ class HomeAutomation(AuraModule):
         return self.bridge.queueNotification(source, severity, category, title, message, device_id)
 
     def startBridge(self) -> dict[str, object]:
-        """Start the bridge service through service control."""
+        """Record a local bridge start request."""
 
-        return self.serviceControl.startBridge()
+        return self._localServiceStartResponse("bridge")
 
     def startHub(self) -> dict[str, object]:
-        """Start the hub service through service control."""
+        """Record a local hub start request."""
 
-        return self.serviceControl.startHub()
+        return self._localServiceStartResponse("hub")
 
     def _resolveLightId(self, room: str) -> str:
         """Resolve a user-facing room/name string to a bridge light device id."""
@@ -341,3 +338,26 @@ class HomeAutomation(AuraModule):
                 "light": asdict(light),
             },
         )
+
+    def _localServiceStartResponse(self, service: str) -> dict[str, object]:
+        """Return a local acknowledgement for service-start actions."""
+
+        if self.logger:
+            self.logger.info("Local home automation %s start requested.", service)
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is not None:
+            event_manager.emit(
+                "homeAutomation.serviceStartRequested",
+                {
+                    "service": service,
+                    "mode": "local",
+                },
+            )
+
+        return {
+            "status": "ok",
+            "service": service,
+            "mode": "local",
+            "message": f"{service.title()} start request handled locally.",
+        }
