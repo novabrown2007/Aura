@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.9.0
+**Version:** 1.10.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -62,6 +62,38 @@ python -m pip install -r interface/web/requirements.txt
 ```
 
 The desktop, web, and Android chat headers each show the currently active LLM model or fallback provider so you can verify what the runtime is using at a glance.
+
+## Voice
+
+Aura includes local push-to-talk speech-to-text support through:
+
+```python
+context.voiceManager
+```
+
+Voice transcription is local-first and uses Faster-Whisper with a cached
+`small.en` model on CPU by default.
+
+Configuration is available under `voice` in `config.yml`:
+
+```yaml
+voice:
+  enabled: false
+  model: small.en
+  device: cpu
+  computeType: int8
+  sampleRate: 16000
+```
+
+Example usage:
+
+```python
+result = context.voiceManager.processVoiceInput()
+print(result.text)
+```
+
+The voice layer is intentionally push-to-talk only. It does not implement wake
+words, streaming transcription, always-listening microphones, or realtime VAD.
 
 ## Interfaces
 
@@ -561,6 +593,7 @@ python run_tests.py --suite module_loader
 python run_tests.py --suite tools
 python run_tests.py --suite intent_pipeline
 python run_tests.py --suite prompts
+python run_tests.py --suite voice
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration

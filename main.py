@@ -28,6 +28,7 @@ from core.tools.toolRegistry import ToolRegistry
 from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.home_automation.config import buildHomeAutomationConfig
 from auraassistant.core.bridge import AuraBridgeClient
+from auraassistant.core.interface.voice import VoiceManager
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
@@ -77,6 +78,9 @@ def shutdown(context):
 
     if context.llmManager:
         context.llmManager.shutdown()
+
+    if context.voiceManager:
+        context.voiceManager.shutdown()
 
     if context.database:
         context.database.close()
@@ -134,6 +138,7 @@ def buildRuntimeContext():
     context.memoryManager = MemoryManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
+    context.voiceManager = VoiceManager(context)
 
     # Router
     context.interpreter = Interpreter(context)

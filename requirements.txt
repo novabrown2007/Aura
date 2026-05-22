@@ -4,3 +4,5 @@ mysql-connector-python
 tzdata
 google-genai
 faster-whisper
+numpy
+sounddevice
