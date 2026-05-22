@@ -28,6 +28,7 @@ SUITES = {
     "intent_pipeline": "tests.test_intent_pipeline",
     "llm": "tests.test_llm_handler",
     "prompts": "tests.test_prompt_builder",
+    "voice": "tests.test_voice",
     "reminders": "tests.test_reminders",
     "mysql_integration": "tests.test_mysql_integration",
 }

@@ -121,6 +121,9 @@ class RuntimeContext:
         self.bridgeRouter = None
         """Message router for assistant-facing bridge events."""
 
+        self.voiceManager = None
+        """Local push-to-talk speech transcription manager."""
+
         # ----------------------------
         # Database
         # ----------------------------

@@ -42,6 +42,13 @@ database:
 threading:
   max_threads: 10
 
+voice:
+  enabled: false
+  model: small.en
+  device: cpu
+  computeType: int8
+  sampleRate: 16000
+
 homeAutomationBridge:
   host: 127.0.0.1
   port: 8080

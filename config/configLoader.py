@@ -48,13 +48,20 @@ DEFAULT_CONFIG = {
         "user": "CHANGE_ME",
         "password": "CHANGE_ME",
     },
-    "threading": {
-        "max_threads": 10,
-    },
-    "homeAutomationBridge": {
-        "host": "127.0.0.1",
-        "port": 8080,
-        "ssl": False,
+        "threading": {
+            "max_threads": 10,
+        },
+        "voice": {
+            "enabled": False,
+            "model": "small.en",
+            "device": "cpu",
+            "computeType": "int8",
+            "sampleRate": 16000,
+        },
+        "homeAutomationBridge": {
+            "host": "127.0.0.1",
+            "port": 8080,
+            "ssl": False,
         "timeout": 5,
         "refreshSeconds": 5,
         "protocolPath": "/protocol/aura",
@@ -112,6 +119,16 @@ class ConfigLoader:
             "discord.webhook": "DISCORD_WEBHOOK_URL",
             "discord.webhook_url": "DISCORD_WEBHOOK_URL",
             "discord.webhookUrl": "DISCORD_WEBHOOK_URL",
+            "voice.enabled": "VOICE_ENABLED",
+            "voiceEnabled": "VOICE_ENABLED",
+            "voice.model": "VOICE_MODEL",
+            "voiceModel": "VOICE_MODEL",
+            "voice.device": "VOICE_DEVICE",
+            "voiceDevice": "VOICE_DEVICE",
+            "voice.computeType": "VOICE_COMPUTE_TYPE",
+            "voiceComputeType": "VOICE_COMPUTE_TYPE",
+            "voice.sampleRate": "VOICE_SAMPLE_RATE",
+            "voiceSampleRate": "VOICE_SAMPLE_RATE",
         }
 
         self.load()
