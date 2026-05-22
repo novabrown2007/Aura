@@ -65,7 +65,7 @@ function renderRows(container, rows, emptyText, actions = {}) {
     card.className = "item-card";
     const title = row.title || row.name || "Untitled";
     const when = row.start_at || row.due_at || row.remind_at || row.reminder_at || row.notification_at || row.created_at || "";
-    const detail = row.description || row.content || row.message || row.status || "";
+    const detail = row.description || row.content || row.message || lightDetail(row) || row.status || "";
     card.innerHTML = `
       <h3>${escapeHtml(title)}</h3>
       <div class="muted">${escapeHtml(when || "")}</div>
@@ -146,6 +146,15 @@ async function loadNotifications() {
     });
   } catch (error) {
     toast(error.message);
+  }
+}
+
+async function loadCurrentModel() {
+  try {
+    const result = await api("/api/system/model");
+    $("#currentModelLabel").textContent = result.current_model || "Currently Running: Unavailable";
+  } catch (error) {
+    $("#currentModelLabel").textContent = "Currently Running: Unavailable";
   }
 }
 
@@ -299,8 +308,8 @@ function renderHomeLights(rows) {
     card.className = "item-card";
     card.innerHTML = `
       <h3>${escapeHtml(light.name || light.device_id)}</h3>
-      <div class="muted">${light.is_on ? "On" : "Off"} · ${escapeHtml(light.brightness ?? 0)}%</div>
-      <div class="muted">${escapeHtml(light.color || "")} ${escapeHtml(light.color_temperature_kelvin || "")}K</div>
+      <div class="muted">${light.is_on ? "On" : "Off"} · ${escapeHtml(light.brightness ?? 0)}% · ${escapeHtml(light.color || "white")}</div>
+      <div class="muted">${escapeHtml(light.color_temperature_kelvin || "")}K</div>
       <div class="button-row">
         <button data-light-action="on" type="button">On</button>
         <button data-light-action="off" type="button">Off</button>
@@ -312,6 +321,14 @@ function renderHomeLights(rows) {
     $$("button", card).forEach((button) => button.addEventListener("click", () => controlLight(light.device_id, button.dataset.lightAction)));
     container.append(card);
   });
+}
+
+function lightDetail(row) {
+  if ((row.category || "").toLowerCase() !== "light") return "";
+  const power = row.is_on ? "On" : "Off";
+  const brightness = row.brightness ?? 0;
+  const color = row.color || "white";
+  return `${power} · ${brightness}% · ${color}`;
 }
 
 function renderHomeCameras(rows) {
@@ -550,3 +567,5 @@ function bindEvents() {
 
 bindEvents();
 $("#calendarDate").value = state.calendarDate;
+loadCurrentModel();
+setInterval(loadCurrentModel, 60000);

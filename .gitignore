@@ -11,3 +11,5 @@ logs/
 *.log
 build/
 dist/
+*.spec
+aura.sqlite3

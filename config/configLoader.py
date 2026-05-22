@@ -9,7 +9,6 @@ DEFAULT_CONFIG = {
     "llm": {
         "activeProvider": "gemini",
         "fallbackProvider": "ollama",
-        "offlineMode": False,
         "retryCount": 2,
         "timeout": 30,
         "ollama": {
@@ -51,6 +50,13 @@ DEFAULT_CONFIG = {
     },
     "threading": {
         "max_threads": 10,
+    },
+    "homeAutomationBridge": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "ssl": False,
+        "timeout": 5,
+        "refreshSeconds": 5,
     },
 }
 

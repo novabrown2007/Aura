@@ -88,7 +88,7 @@ class LLMHandler(AuraModule):
         if not response.success:
             if self.logger:
                 self.logger.error(f"LLM response failed: {response.error}")
-            return "I am currently unable to access my language model."
+            return "I couldn't interpret that request well enough to respond."
 
         cleaned = response.text.strip() or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)

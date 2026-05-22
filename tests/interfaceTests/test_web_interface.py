@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
+from interface.model_status import format_current_model_label
 from interface.web import AuraWebApp, createWebServer
 from interface.web.aura_web_app import AuraWebRequestHandler
 from scripts.interface_build import createBundlePlan
@@ -53,6 +54,16 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("Home Automation", (static_root / "index.html").read_text(encoding="utf-8"))
         self.assertIn("/api/home-automation/refresh", (static_root / "app.js").read_text(encoding="utf-8"))
         self.assertIn(".home-layout", (static_root / "styles.css").read_text(encoding="utf-8"))
+        self.assertIn("currentModelLabel", (static_root / "index.html").read_text(encoding="utf-8"))
+
+    def test_system_model_route_returns_current_model_label(self):
+        self.context.llmManager = SimpleNamespace(
+            activeProviderName="gemini",
+            providers={"gemini": SimpleNamespace(model="gemini-2.5-flash")},
+        )
+
+        response = self.handler._dispatchApi("GET", "/api/system/model", {}, {})
+        self.assertEqual(response, {"current_model": format_current_model_label(self.context)})
 
     def test_chat_route_uses_interpreter_and_router(self):
         response = self.handler._dispatchApi(
@@ -133,6 +144,7 @@ class WebInterfaceTests(unittest.TestCase):
     def test_home_automation_routes_call_backend(self):
         state = self.handler._dispatchApi("GET", "/api/home-automation/state", {}, {})
         self.assertEqual(state.bridge_name, "Home Automation Bridge")
+        self.assertEqual(state.lights[0].color, "warm_white")
 
         refreshed = self.handler._dispatchApi("POST", "/api/home-automation/refresh", {}, {})
         self.assertEqual(refreshed.lights[0].name, "Kitchen Light")

@@ -15,7 +15,6 @@ from modules.home_automation.models import (
     HomeAutomationNotification,
     LightDevice,
 )
-from modules.home_automation.serviceControl import ServiceControlConnection
 
 
 class HomeAutomation(AuraModule):
@@ -23,9 +22,9 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.1.0",
-        description="Home automation bridge, service control, and device state.",
-        permissions=("network:http", "process:service-control"),
+        version="1.3.2",
+        description="Home automation bridge and device state.",
+        permissions=("network:http",),
         capabilities=("home-automation", "device-control"),
     )
 
@@ -36,7 +35,6 @@ class HomeAutomation(AuraModule):
         self.config = config
         self.logger = None
         self.bridge = None
-        self.serviceControl = None
         if context is not None:
             self.initialize(context)
 
@@ -51,7 +49,6 @@ class HomeAutomation(AuraModule):
         self.config = self.config or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
         self.bridge = BridgeConnection(self.config.bridge)
-        self.serviceControl = ServiceControlConnection(self.config.control)
         return None
 
     def shutdown(self):
@@ -80,6 +77,15 @@ class HomeAutomation(AuraModule):
                 safe=True,
             ),
             Tool(
+                name="homeAutomation.getLightState",
+                description="Get the current state of a light.",
+                parameters={"device_id": {"type": "string"}},
+                requiredParameters=("device_id",),
+                module="homeAutomation",
+                method="getLightState",
+                safe=True,
+            ),
+            Tool(
                 name="homeAutomation.setLightBrightness",
                 description="Set light brightness.",
                 parameters={"device_id": {"type": "string"}, "brightness": {"type": "integer"}},
@@ -89,12 +95,30 @@ class HomeAutomation(AuraModule):
                 safe=True,
             ),
             Tool(
+                name="lights.getState",
+                description="Get the current state of a light by room or light name.",
+                parameters={"room": {"type": "string"}},
+                requiredParameters=("room",),
+                module="homeAutomation",
+                method="getLightStateByRoom",
+                safe=True,
+            ),
+            Tool(
                 name="lights.setBrightness",
                 description="Set a light brightness by room or light name.",
                 parameters={"room": {"type": "string"}, "brightness": {"type": "integer"}},
                 requiredParameters=("room", "brightness"),
                 module="homeAutomation",
                 method="setLightBrightnessByRoom",
+                safe=True,
+            ),
+            Tool(
+                name="lights.setColor",
+                description="Set a light color by room or light name.",
+                parameters={"room": {"type": "string"}, "color": {"type": "string"}},
+                requiredParameters=("room", "color"),
+                module="homeAutomation",
+                method="setLightColorByRoom",
                 safe=True,
             ),
             Tool(
@@ -173,6 +197,21 @@ class HomeAutomation(AuraModule):
 
         return list(self.bridge.state.lights)
 
+    def getLightState(self, device_id: str) -> dict[str, object]:
+        """Return the current state of a specific light."""
+
+        self.refresh()
+        light = self.bridge._findLight(device_id, f"Light '{device_id}' is not available.")
+        return asdict(light)
+
+    def getLightStateByRoom(self, room: str) -> dict[str, object]:
+        """Return the current state of a light resolved from a room or light name."""
+
+        self.refresh()
+        device_id = self._resolveLightId(room)
+        light = self.bridge._findLight(device_id, f"Light '{device_id}' is not available.")
+        return asdict(light)
+
     def getCameras(self) -> list[CameraDevice]:
         """Return known cameras."""
 
@@ -196,6 +235,11 @@ class HomeAutomation(AuraModule):
         """Set brightness for a light resolved from a room or light name."""
 
         return self.setLightBrightness(self._resolveLightId(room), brightness)
+
+    def setLightColorByRoom(self, room: str, color: str) -> LightDevice:
+        """Set color for a light resolved from a room or light name."""
+
+        return self.setLightColor(self._resolveLightId(room), color)
 
     def turnLightOnByRoom(self, room: str, brightness: int | None = None) -> LightDevice:
         """Turn on a light resolved from a room or light name."""
@@ -255,14 +299,14 @@ class HomeAutomation(AuraModule):
         return self.bridge.queueNotification(source, severity, category, title, message, device_id)
 
     def startBridge(self) -> dict[str, object]:
-        """Start the bridge service through service control."""
+        """Record a local bridge start request."""
 
-        return self.serviceControl.startBridge()
+        return self._localServiceStartResponse("bridge")
 
     def startHub(self) -> dict[str, object]:
-        """Start the hub service through service control."""
+        """Record a local hub start request."""
 
-        return self.serviceControl.startHub()
+        return self._localServiceStartResponse("hub")
 
     def _resolveLightId(self, room: str) -> str:
         """Resolve a user-facing room/name string to a bridge light device id."""
@@ -294,3 +338,26 @@ class HomeAutomation(AuraModule):
                 "light": asdict(light),
             },
         )
+
+    def _localServiceStartResponse(self, service: str) -> dict[str, object]:
+        """Return a local acknowledgement for service-start actions."""
+
+        if self.logger:
+            self.logger.info("Local home automation %s start requested.", service)
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is not None:
+            event_manager.emit(
+                "homeAutomation.serviceStartRequested",
+                {
+                    "service": service,
+                    "mode": "local",
+                },
+            )
+
+        return {
+            "status": "ok",
+            "service": service,
+            "mode": "local",
+            "message": f"{service.title()} start request handled locally.",
+        }

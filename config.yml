@@ -1,12 +1,11 @@
 llm:
   activeProvider: gemini
   fallbackProvider: ollama
-  offlineMode: false
   retryCount: 2
   timeout: 30
 
   ollama:
-    model: llama3.1:8b
+    model: deepseek-r1:8b
     endpoint: CHANGE_ME
 
   gemini:
@@ -42,3 +41,10 @@ database:
 
 threading:
   max_threads: 10
+
+homeAutomationBridge:
+  host: 127.0.0.1
+  port: 8080
+  ssl: false
+  timeout: 5
+  refreshSeconds: 5

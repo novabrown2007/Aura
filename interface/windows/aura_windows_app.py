@@ -10,6 +10,7 @@ from threading import Thread
 from tkinter import BOTH, DISABLED, END, LEFT, NORMAL, TOP, X, Button, Entry, Frame, Label, TclError, Tk
 from tkinter.scrolledtext import ScrolledText
 
+from interface.model_status import format_current_model_label
 from interface.windows.error_dialog import showErrorPopup
 
 WINDOW_BG = "#0b0f14"
@@ -130,6 +131,18 @@ class AuraWindowsApp:
             fg=TEXT_PRIMARY,
             font=("Segoe UI Semibold", 18),
         ).pack(side=LEFT)
+
+        headerCenter = Frame(header, bg=WINDOW_BG)
+        headerCenter.pack(side=LEFT, fill=X, expand=True)
+
+        self.currentModelLabel = Label(
+            headerCenter,
+            text=format_current_model_label(self.context),
+            bg=WINDOW_BG,
+            fg=TEXT_MUTED,
+            font=("Segoe UI", 10),
+        )
+        self.currentModelLabel.pack(anchor="center")
 
         headerActions = Frame(header, bg=WINDOW_BG)
         headerActions.pack(side="right")
@@ -2949,7 +2962,8 @@ class AuraWindowsApp:
                 device_id = getattr(row, "device_id", "")
                 category = getattr(row, "category", "")
                 if category == "light":
-                    detail = f"{'on' if getattr(row, 'is_on', False) else 'off'} {getattr(row, 'brightness', 0)}%"
+                    color = getattr(row, "color", "white")
+                    detail = f"{'on' if getattr(row, 'is_on', False) else 'off'} {getattr(row, 'brightness', 0)}% color={color}"
                 elif category == "camera":
                     detail = f"{getattr(row, 'status', 'Idle')} streaming={getattr(row, 'is_streaming', False)}"
                 else:
