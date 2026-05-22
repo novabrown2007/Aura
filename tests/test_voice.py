@@ -56,34 +56,20 @@ class FakePiperVoice:
             handle.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
 
 
-class FakePlayObject:
-    """Minimal playback handle for AudioPlayer tests."""
+class FakeWinSoundModule:
+    """Winsound replacement for playback tests."""
+
+    SND_FILENAME = 1
+    SND_SYNC = 2
+    SND_ASYNC = 4
+    SND_PURGE = 8
 
     def __init__(self):
-        self.stopped = False
+        self.calls = []
 
-    def wait_done(self):
+    def PlaySound(self, path, flags):
+        self.calls.append((path, flags))
         return None
-
-    def stop(self):
-        self.stopped = True
-
-
-class FakeWaveObject:
-    """Fake simpleaudio wave object."""
-
-    @staticmethod
-    def from_wave_file(path):
-        return FakeWaveObject()
-
-    def play(self):
-        return FakePlayObject()
-
-
-class FakeSimpleAudioModule:
-    """SimpleAudio replacement for playback tests."""
-
-    WaveObject = FakeWaveObject
 
 
 class FakeInputStream:
@@ -189,10 +175,11 @@ class VoiceTests(unittest.TestCase):
 
     def test_text_to_speech_initializes_once_and_generates_audio(self):
         original_piper = sys.modules.get("piper.voice")
-        original_simpleaudio = sys.modules.get("simpleaudio")
+        original_winsound = sys.modules.get("winsound")
 
         sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
-        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+        fake_winsound = FakeWinSoundModule()
+        sys.modules["winsound"] = fake_winsound
 
         voice_dir = tempfile.TemporaryDirectory()
         try:
@@ -224,15 +211,16 @@ class VoiceTests(unittest.TestCase):
                 sys.modules.pop("piper.voice", None)
             else:
                 sys.modules["piper.voice"] = original_piper
-            if original_simpleaudio is None:
-                sys.modules.pop("simpleaudio", None)
+            if original_winsound is None:
+                sys.modules.pop("winsound", None)
             else:
-                sys.modules["simpleaudio"] = original_simpleaudio
+                sys.modules["winsound"] = original_winsound
             voice_dir.cleanup()
 
     def test_audio_player_plays_wave_files(self):
-        original_simpleaudio = sys.modules.get("simpleaudio")
-        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+        original_winsound = sys.modules.get("winsound")
+        fake_winsound = FakeWinSoundModule()
+        sys.modules["winsound"] = fake_winsound
         try:
             player = AudioPlayer(self.context)
             audio_path = self._create_wav_file(sample_rate=22050)
@@ -240,13 +228,14 @@ class VoiceTests(unittest.TestCase):
                 duration = player.playAudio(str(audio_path))
                 self.assertGreaterEqual(duration, 0.0)
                 self.assertFalse(player.isPlaying())
+                self.assertTrue(fake_winsound.calls)
             finally:
                 audio_path.unlink(missing_ok=True)
         finally:
-            if original_simpleaudio is None:
-                sys.modules.pop("simpleaudio", None)
+            if original_winsound is None:
+                sys.modules.pop("winsound", None)
             else:
-                sys.modules["simpleaudio"] = original_simpleaudio
+                sys.modules["winsound"] = original_winsound
 
     def test_speech_queue_serializes_speech(self):
         spoken = []

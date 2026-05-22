@@ -75,7 +75,7 @@ context.speechQueue
 
 Voice input is local-first and uses Faster-Whisper with a cached
 `small.en` model on CPU by default. Voice output uses Piper with a cached
-local ONNX voice.
+local ONNX voice and Windows `winsound` playback.
 
 Configuration is available under `voice` in `config.yml`:
 

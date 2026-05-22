@@ -7,4 +7,3 @@ faster-whisper
 numpy
 sounddevice
 piper-tts
-simpleaudio
