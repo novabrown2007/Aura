@@ -1,2 +1,0 @@
-"""Aura assistant compatibility package."""
-

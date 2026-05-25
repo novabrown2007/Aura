@@ -161,7 +161,7 @@ context.homeAutomation
 ```
 
 It talks to the Home Automation Bridge through the Aura Protocol client in
-`auraassistant/core/bridge` and handles service-start requests locally inside Aura:
+`core/bridge` and handles service-start requests locally inside Aura:
 
 - assistant notifications, responses, errors, and stream metadata from the bridge
 - bridge-owned device state and deterministic light/camera actions

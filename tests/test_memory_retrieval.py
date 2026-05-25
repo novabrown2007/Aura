@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from auraassistant.core.memory import MemoryManager, MemoryQuery
+from core.memory import MemoryManager, MemoryQuery
 from modules.llm.llmHandler import LLMHandler
 from tests.support.fakes import make_context
 

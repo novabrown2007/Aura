@@ -27,13 +27,13 @@ from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.home_automation.config import buildHomeAutomationConfig
-from auraassistant.core.bridge import AuraBridgeClient
-from auraassistant.core.interface.voice import VoiceManager
+from core.bridge import AuraBridgeClient
+from interface.voice import VoiceManager
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
-from auraassistant.core.memory import MemoryManager
+from core.memory import MemoryManager
 
 from core.engine.engine import Engine
 

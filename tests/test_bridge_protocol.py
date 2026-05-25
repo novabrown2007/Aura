@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import unittest
 
-from auraassistant.core.bridge import (
+from core.bridge import (
     AuraBridgeClient,
     AuraCategories,
     AuraMessage,

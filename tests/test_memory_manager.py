@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from auraassistant.core.memory import MemoryCategory, MemoryManager, MemoryQuery
+from core.memory import MemoryCategory, MemoryManager, MemoryQuery
 from core.threading.events.eventManager import EventManager
 from tests.support.fakes import make_context
 

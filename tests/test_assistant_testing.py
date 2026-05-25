@@ -5,8 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 import unittest
 
-from auraassistant.core.bridge.state.bridgeStateCache import BridgeStateCache
-from auraassistant.testing import (
+from core.bridge.state.bridgeStateCache import BridgeStateCache
+from testing import (
     AssistantConsole,
     AssistantSimulator,
     EventTracer,

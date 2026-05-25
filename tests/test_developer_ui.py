@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from auraassistant.core.interface.developerUI import DeveloperUI
-from auraassistant.core.interface.developerUI.logging import PerformanceTracker, UIEventTracer
-from auraassistant.core.interface.developerUI.models import ConsoleEvent
-from auraassistant.core.interface.developerUI.state import DeveloperUIState
-from auraassistant.core.interface.developerUI.subscriptions import UISubscriptionManager
+from interface.developerUI import DeveloperUI
+from interface.developerUI.logging import PerformanceTracker, UIEventTracer
+from interface.developerUI.models import ConsoleEvent
+from interface.developerUI.state import DeveloperUIState
+from interface.developerUI.subscriptions import UISubscriptionManager
 from core.threading.events.eventManager import EventManager
 from tests.support.fakes import make_context
 

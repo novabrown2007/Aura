@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from auraassistant.core.interface.developerUI.developerApplication import DeveloperApplication
+from interface.developerUI.developerApplication import DeveloperApplication
 
 
 def main():

@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from auraassistant.core.interface.voice import AudioPlayer, PushToTalkManager, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
-from auraassistant.core.interface.voice.models import SpeechResult, TranscriptionResult
+from interface.voice import AudioPlayer, PushToTalkManager, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
+from interface.voice.models import SpeechResult, TranscriptionResult
 from tests.support.fakes import make_context
 
 
