@@ -34,7 +34,6 @@ class AudioPlayer:
         with self._lock:
             try:
                 start = time.perf_counter()
-                self._ensureDependency()
                 self._isPlaying = True
                 if self.logger:
                     self.logger.info(f"Playing voice audio: {path}")
@@ -75,7 +74,7 @@ class AudioPlayer:
         return bool(self._isPlaying)
 
     def _ensureDependency(self):
-        """Load the preferred playback backend once."""
+        """Retained for compatibility with older callers."""
 
         if self._sounddevice is not None and self._numpy is not None:
             return

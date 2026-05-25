@@ -1,7 +1,7 @@
 # Aura Assistant
 
 **Author:** Nova Brown
-**Version:** 1.11.0
+**Version:** 1.12.0
 **Copyright:** (c) Nova Brown - All Rights Reserved
 
 ## Overview
@@ -75,7 +75,7 @@ context.speechQueue
 
 Voice input is local-first and uses Faster-Whisper with a cached
 `small.en` model on CPU by default. Voice output uses Piper with a cached
-local ONNX voice.
+local ONNX voice and Windows `winsound` playback.
 
 Configuration is available under `voice` in `config.yml`:
 
@@ -307,6 +307,56 @@ context.eventManager.emit("autonomous.task.create", {
 })
 context.eventManager.emit("autonomous.task.run", {"task_id": 1})
 ```
+
+## Automation Composer
+
+Aura exposes reviewable user-facing automations through:
+
+```python
+context.automationComposer
+```
+
+Automation Composer stores draft plans, lets the user activate/pause/resume
+them, and delegates scheduled or event-driven execution to
+`context.autonomousTasks`. Plans are intentionally reviewable before activation:
+
+- `manual`, `interval`, `datetime`, and `event` triggers
+- simple condition blocks such as `always` and `context_equals`
+- event actions for decoupled module workflows
+- tool actions through Aura's deterministic tool executor
+- last-run result tracking on the plan
+
+Example:
+
+```python
+plan = context.automationComposer.createDraft(
+    name="Door alert",
+    goal="Notify me when the front door opens.",
+    trigger_type="event",
+    trigger_value="door.opened",
+    actions=[
+        {
+            "type": "event",
+            "name": "notifications.create",
+            "data": {
+                "title": "Door",
+                "content": "The front door opened.",
+            },
+        }
+    ],
+)
+context.automationComposer.activatePlan(plan["id"])
+context.autonomousTasks.handleEventWakeup("door.opened", {"room": "front"})
+```
+
+The deterministic tools exposed for LLM/UI workflows are:
+
+- `automation.createDraft`
+- `automation.listPlans`
+- `automation.activate`
+- `automation.pause`
+- `automation.resume`
+- `automation.runNow`
 
 ## Context Awareness
 
@@ -620,6 +670,7 @@ python run_tests.py --suite tools
 python run_tests.py --suite intent_pipeline
 python run_tests.py --suite prompts
 python run_tests.py --suite voice
+python run_tests.py --suite assistant_testing
 python run_tests.py --suite reminders
 python run_tests.py --suite llm
 python run_tests.py --suite mysql_integration
@@ -674,6 +725,15 @@ tests/interfaceTests/test_windows_interface.py
 tests/interfaceTests/test_android_interface.py
 tests/interfaceTests/test_web_interface.py
 ```
+
+Assistant ecosystem simulation tests live in:
+
+```text
+tests/test_assistant_testing.py
+```
+
+They cover the mock assistant console, event tracer, session and intent
+debuggers, workflow simulation, and voice/input integration helpers.
 
 Optional live LLM connectivity test:
 
