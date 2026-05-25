@@ -95,6 +95,19 @@ memoryImportanceWeight: 0.24
 memoryDuplicateFiltering: true
 memoryCompressionEnabled: true
 
+developerUI:
+  enabled: true
+  refreshRate: 750
+  maxEvents: 500
+  verboseLogging: false
+  traceEvents: true
+
+developerUIEnabled: true
+developerUIRefreshRate: 750
+developerUIMaxEvents: 500
+developerUIVerboseLogging: false
+developerUITraceEvents: true
+
 homeAutomationBridge:
   host: 127.0.0.1
   port: 8080

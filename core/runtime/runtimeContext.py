@@ -127,6 +127,9 @@ class RuntimeContext:
         self.pushToTalkManager = None
         """Held push-to-talk voice conversation loop manager."""
 
+        self.developerUI = None
+        """Developer/operator UI interface manager."""
+
         self.textToSpeech = None
         """Local speech synthesis engine for assistant responses."""
 
