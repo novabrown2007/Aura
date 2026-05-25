@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from auraassistant.core.interface.voice import AudioPlayer, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
+from auraassistant.core.interface.voice import AudioPlayer, PushToTalkManager, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
 from auraassistant.core.interface.voice.models import SpeechResult, TranscriptionResult
 from tests.support.fakes import make_context
 
@@ -56,20 +56,23 @@ class FakePiperVoice:
             handle.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
 
 
-class FakeWinSoundModule:
-    """Winsound replacement for playback tests."""
+class FakeSoundDeviceModule:
+    """Sounddevice replacement for playback tests."""
 
-    SND_FILENAME = 1
-    SND_SYNC = 2
-    SND_ASYNC = 4
-    SND_PURGE = 8
+    played = []
+    stopped = False
 
-    def __init__(self):
-        self.calls = []
+    @classmethod
+    def play(cls, audio, sample_rate):
+        cls.played.append((audio, sample_rate))
 
-    def PlaySound(self, path, flags):
-        self.calls.append((path, flags))
+    @classmethod
+    def wait(cls):
         return None
+
+    @classmethod
+    def stop(cls):
+        cls.stopped = True
 
 
 class FakeInputStream:
@@ -96,6 +99,58 @@ class FakeInputStream:
         self.closed = True
 
 
+class RecordingEventManager:
+    """Collect emitted events for push-to-talk tests."""
+
+    def __init__(self):
+        self.events = []
+
+    def emit(self, eventName, data=None):
+        self.events.append((eventName, data or {}))
+
+
+class FakePushRecorder:
+    """Recorder fake for the push-to-talk loop."""
+
+    def __init__(self, audioPath="fake.wav", startOk=True):
+        self.audioPath = audioPath
+        self.startOk = startOk
+        self.recording = False
+        self.lastError = ""
+        self.tempDirectory = ""
+
+    def startRecording(self):
+        if not self.startOk:
+            self.lastError = "No microphone available."
+            return False
+        self.recording = True
+        return True
+
+    def stopRecording(self):
+        wasRecording = self.recording
+        self.recording = False
+        return wasRecording
+
+    def saveRecording(self):
+        return self.audioPath
+
+    def isRecording(self):
+        return self.recording
+
+    def cleanup(self):
+        self.recording = False
+
+
+class FakePushSpeechToText:
+    """STT fake for push-to-talk tests."""
+
+    def __init__(self, result):
+        self.result = result
+
+    def transcribeDetailed(self, audioPath):
+        return self.result
+
+
 class VoiceTests(unittest.TestCase):
     """Validate local speech-to-text and speech-synthesis behavior."""
 
@@ -112,7 +167,16 @@ class VoiceTests(unittest.TestCase):
             "voiceOutputDirectory": "temp/voice",
             "voicePlaybackEnabled": True,
             "voiceSampleRate": 22050,
+            "pushToTalkEnabled": True,
+            "pushToTalkHotkey": "enter",
+            "pushToTalkAutoSpeak": True,
+            "pushToTalkTempAudioDirectory": "temp/push_to_talk",
         }
+        self.context.config._data["pushToTalkEnabled"] = True
+        self.context.config._data["pushToTalkHotkey"] = "enter"
+        self.context.config._data["pushToTalkAutoSpeak"] = True
+        self.context.config._data["pushToTalkTempAudioDirectory"] = "temp/push_to_talk"
+        self.context.eventManager = RecordingEventManager()
 
     def _create_wav_file(self, frames=1600, sample_rate=16000):
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -175,14 +239,14 @@ class VoiceTests(unittest.TestCase):
 
     def test_text_to_speech_initializes_once_and_generates_audio(self):
         original_piper = sys.modules.get("piper.voice")
-        original_winsound = sys.modules.get("winsound")
+        original_sounddevice = sys.modules.get("sounddevice")
 
         sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
-        fake_winsound = FakeWinSoundModule()
-        sys.modules["winsound"] = fake_winsound
+        sys.modules["sounddevice"] = FakeSoundDeviceModule
 
         voice_dir = tempfile.TemporaryDirectory()
         try:
+            FakeSoundDeviceModule.played = []
             FakePiperVoice.init_count = 0
             model_path = Path(voice_dir.name) / "en_US-lessac-medium.onnx"
             model_path.write_bytes(b"fake-onnx")
@@ -206,36 +270,37 @@ class VoiceTests(unittest.TestCase):
             self.assertGreaterEqual(result.generationTime, 0.0)
             self.assertGreaterEqual(result.playbackDuration, 0.0)
             self.assertFalse(Path(result.audioPath).exists())
+            self.assertEqual(FakeSoundDeviceModule.played[0][1], 22050)
         finally:
             if original_piper is None:
                 sys.modules.pop("piper.voice", None)
             else:
                 sys.modules["piper.voice"] = original_piper
-            if original_winsound is None:
-                sys.modules.pop("winsound", None)
+            if original_sounddevice is None:
+                sys.modules.pop("sounddevice", None)
             else:
-                sys.modules["winsound"] = original_winsound
+                sys.modules["sounddevice"] = original_sounddevice
             voice_dir.cleanup()
 
     def test_audio_player_plays_wave_files(self):
-        original_winsound = sys.modules.get("winsound")
-        fake_winsound = FakeWinSoundModule()
-        sys.modules["winsound"] = fake_winsound
+        original_sounddevice = sys.modules.get("sounddevice")
+        sys.modules["sounddevice"] = FakeSoundDeviceModule
         try:
+            FakeSoundDeviceModule.played = []
             player = AudioPlayer(self.context)
             audio_path = self._create_wav_file(sample_rate=22050)
             try:
                 duration = player.playAudio(str(audio_path))
                 self.assertGreaterEqual(duration, 0.0)
                 self.assertFalse(player.isPlaying())
-                self.assertTrue(fake_winsound.calls)
+                self.assertEqual(FakeSoundDeviceModule.played[0][1], 22050)
             finally:
                 audio_path.unlink(missing_ok=True)
         finally:
-            if original_winsound is None:
-                sys.modules.pop("winsound", None)
+            if original_sounddevice is None:
+                sys.modules.pop("sounddevice", None)
             else:
-                sys.modules["winsound"] = original_winsound
+                sys.modules["sounddevice"] = original_sounddevice
 
     def test_speech_queue_serializes_speech(self):
         spoken = []
@@ -288,6 +353,79 @@ class VoiceTests(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertEqual(result.errorMessage, "Voice input is disabled.")
+
+    def test_push_to_talk_routes_transcription_through_text_pipeline_and_tts(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="hello aura", success=True, language="en")
+        )
+        routed = []
+        spoken = []
+        manager.routeTextToAura = lambda text: (routed.append(text), "Hello Nova.")[1]
+        manager.speakResponse = lambda text: (spoken.append(text), SpeechResult(success=True, audioPath="tts.wav"))[1]
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertTrue(result.success)
+        self.assertEqual(routed, ["hello aura"])
+        self.assertEqual(spoken, ["Hello Nova."])
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.capture.started", emitted)
+        self.assertIn("voice.capture.finished", emitted)
+        self.assertIn("voice.transcription.started", emitted)
+        self.assertIn("voice.transcription.completed", emitted)
+        self.assertIn("conversation.message.received", emitted)
+        self.assertIn("response.generated", emitted)
+        self.assertIn("tts.started", emitted)
+        self.assertIn("tts.finished", emitted)
+        self.assertIn("voice.loop.completed", emitted)
+
+    def test_push_to_talk_handles_missing_microphone(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder(startOk=False)
+
+        self.assertFalse(manager.startPushToTalk())
+
+        self.assertIn("No microphone", manager.pushToTalkManager.lastResult.errorMessage)
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.capture.started", emitted)
+        self.assertIn("voice.loop.failed", emitted)
+
+    def test_push_to_talk_handles_transcription_failure(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(success=False, errorMessage="Empty transcription.")
+        )
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.errorMessage, "Empty transcription.")
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.transcription.completed", emitted)
+        self.assertIn("voice.loop.failed", emitted)
+
+    def test_push_to_talk_handles_tts_failure(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="hello aura", success=True, language="en")
+        )
+        manager.routeTextToAura = lambda text: "Hello Nova."
+        manager.speakResponse = lambda text: SpeechResult(success=False, errorMessage="Piper failed.")
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.errorMessage, "Piper failed.")
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("tts.finished", emitted)
+        self.assertIn("voice.loop.failed", emitted)
 
 
 if __name__ == "__main__":

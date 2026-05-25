@@ -124,6 +124,9 @@ class RuntimeContext:
         self.voiceManager = None
         """Local push-to-talk speech transcription manager."""
 
+        self.pushToTalkManager = None
+        """Held push-to-talk voice conversation loop manager."""
+
         self.textToSpeech = None
         """Local speech synthesis engine for assistant responses."""
 
@@ -155,6 +158,9 @@ class RuntimeContext:
 
         self.memoryManager = None
         """Handles long-term memory and user information."""
+
+        self.memoryStore = None
+        """Persistent structured memory storage backend."""
 
         # ----------------------------
         # Router

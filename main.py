@@ -33,7 +33,7 @@ from auraassistant.core.interface.voice import VoiceManager
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
-from modules.llm.memoryManager import MemoryManager
+from auraassistant.core.memory import MemoryManager
 
 from core.engine.engine import Engine
 
@@ -78,6 +78,9 @@ def shutdown(context):
 
     if context.llmManager:
         context.llmManager.shutdown()
+
+    if context.memoryManager and hasattr(context.memoryManager, "shutdown"):
+        context.memoryManager.shutdown()
 
     if context.voiceManager:
         context.voiceManager.shutdown()
