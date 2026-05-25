@@ -102,6 +102,18 @@ DEFAULT_CONFIG = {
     "memoryImportanceWeight": 0.24,
     "memoryDuplicateFiltering": True,
     "memoryCompressionEnabled": True,
+    "developerUI": {
+        "enabled": True,
+        "refreshRate": 750,
+        "maxEvents": 500,
+        "verboseLogging": False,
+        "traceEvents": True,
+    },
+    "developerUIEnabled": True,
+    "developerUIRefreshRate": 750,
+    "developerUIMaxEvents": 500,
+    "developerUIVerboseLogging": False,
+    "developerUITraceEvents": True,
     "homeAutomationBridge": {
         "host": "127.0.0.1",
         "port": 8080,
@@ -189,6 +201,16 @@ class ConfigLoader:
             "pushToTalkHotkey": "PUSH_TO_TALK_HOTKEY",
             "pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
             "pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
+            "developerUI.enabled": "DEVELOPER_UI_ENABLED",
+            "developerUI.refreshRate": "DEVELOPER_UI_REFRESH_RATE",
+            "developerUI.maxEvents": "DEVELOPER_UI_MAX_EVENTS",
+            "developerUI.verboseLogging": "DEVELOPER_UI_VERBOSE_LOGGING",
+            "developerUI.traceEvents": "DEVELOPER_UI_TRACE_EVENTS",
+            "developerUIEnabled": "DEVELOPER_UI_ENABLED",
+            "developerUIRefreshRate": "DEVELOPER_UI_REFRESH_RATE",
+            "developerUIMaxEvents": "DEVELOPER_UI_MAX_EVENTS",
+            "developerUIVerboseLogging": "DEVELOPER_UI_VERBOSE_LOGGING",
+            "developerUITraceEvents": "DEVELOPER_UI_TRACE_EVENTS",
         }
 
         self.load()
