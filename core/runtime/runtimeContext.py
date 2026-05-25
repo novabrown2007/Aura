@@ -156,6 +156,9 @@ class RuntimeContext:
         self.memoryManager = None
         """Handles long-term memory and user information."""
 
+        self.memoryStore = None
+        """Persistent structured memory storage backend."""
+
         # ----------------------------
         # Router
         # ----------------------------

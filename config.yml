@@ -54,6 +54,21 @@ voice:
   voicePlaybackEnabled: true
   voiceSampleRate: 22050
 
+memory:
+  enabled: true
+  databasePath: aura_memory.sqlite3
+  maxResults: 8
+  summaryLength: 280
+  importanceThreshold: 0.35
+  autoSummarization: true
+
+memoryEnabled: true
+memoryDatabasePath: aura_memory.sqlite3
+memoryMaxResults: 8
+memorySummaryLength: 280
+memoryImportanceThreshold: 0.35
+memoryAutoSummarization: true
+
 homeAutomationBridge:
   host: 127.0.0.1
   port: 8080

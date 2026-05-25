@@ -76,11 +76,13 @@ class LLMHandler(AuraModule):
     def generateResponse(self, userInput: str) -> str:
         """Generate a conversational response while preserving legacy API shape."""
 
-        systemPrompt = self._buildSystemPrompt()
+        self._emit("message.received", {"text": userInput})
+        systemPrompt = self._buildSystemPrompt(userInput)
         conversationHistory = self._getConversationHistory()
         if self._supportsIntentPipeline():
             cleaned = self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory)
             self._logConversation(userInput, cleaned)
+            self._emit("response.generated", {"text": cleaned})
             self._speakResponse(cleaned)
             return cleaned
 
@@ -97,6 +99,7 @@ class LLMHandler(AuraModule):
             cleaned = toolResult
 
         self._logConversation(userInput, cleaned)
+        self._emit("response.generated", {"text": cleaned})
         self._speakResponse(cleaned)
         return cleaned
 
@@ -113,7 +116,7 @@ class LLMHandler(AuraModule):
         """Generate structured JSON through the active provider."""
 
         response = self.manager.generateStructuredResponse(
-            self._buildSystemPrompt(),
+            self._buildSystemPrompt(userInput),
             userInput,
             schema,
             self._getConversationHistory(),
@@ -124,12 +127,15 @@ class LLMHandler(AuraModule):
             return None
         return response.rawResponse if isinstance(response.rawResponse, dict) else None
 
-    def _buildSystemPrompt(self) -> str:
+    def _buildSystemPrompt(self, userInput: str = "") -> str:
         """Build Aura's base system prompt with optional memory injection."""
 
         memoryData = {}
         if self.memoryEnabled and self.memory:
-            memoryData = self.memory.getMemory() or {}
+            if hasattr(self.memory, "getContext"):
+                memoryData = self.memory.getContext(userInput) or {}
+            else:
+                memoryData = self.memory.getMemory() or {}
 
         if self._isOfflineMode():
             return self._buildOfflineSystemPrompt(memoryData)
@@ -231,3 +237,15 @@ Rules:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Voice playback failed: {error}")
+
+    def _emit(self, eventName: str, data: dict):
+        """Emit conversation events without coupling LLM code to memory internals."""
+
+        eventManager = getattr(self.context, "eventManager", None)
+        if eventManager is None:
+            return
+        try:
+            eventManager.emit(eventName, data)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"LLM event emission failed: {error}")

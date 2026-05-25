@@ -1,133 +1,132 @@
-"""Automated tests for `test_memory_manager` behavior and regression coverage."""
+"""Tests for Aura's structured long-term memory layer."""
 
+from __future__ import annotations
+
+import tempfile
 import unittest
-from types import SimpleNamespace
+from pathlib import Path
 
-from modules.llm.memoryManager import MemoryManager
-from modules.llm.models.llmResponse import LLMResponse
-from tests.support.fakes import InMemoryDatabase, make_context
+from auraassistant.core.memory import MemoryCategory, MemoryManager, MemoryQuery
+from core.threading.events.eventManager import EventManager
+from tests.support.fakes import make_context
 
 
 class MemoryManagerTests(unittest.TestCase):
-    """Test cases covering `MemoryManagerTests` behavior and expected command/runtime outcomes."""
+    """Validate structured memory persistence, retrieval, and event updates."""
+
     def setUp(self):
-        """Prepare the test fixture state before each test case executes."""
-        self.database = InMemoryDatabase()
-        self.context = make_context(database=self.database)
-        self.context.llmManager = SimpleNamespace(
-            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
-                provider="test",
-                success=True,
-                rawResponse={},
-            )
-        )
+        self.tempDir = tempfile.TemporaryDirectory()
+        self.dbPath = str(Path(self.tempDir.name) / "memory.sqlite3")
+        self.context = make_context()
+        self.context.config._data["memory"] = {
+            "enabled": True,
+            "databasePath": self.dbPath,
+            "maxResults": 8,
+            "summaryLength": 180,
+            "importanceThreshold": 0.2,
+            "autoSummarization": True,
+        }
+        self.context.eventManager = EventManager(self.context)
         self.memory = MemoryManager(self.context)
 
-    def test_set_get_delete_memory(self):
-        """Validate that set get delete memory behaves as expected."""
-        self.memory.setMemory("name", "Nova", importance=3)
-        self.assertEqual(self.memory.get("name"), "Nova")
+    def tearDown(self):
+        self.memory.shutdown()
+        self.tempDir.cleanup()
 
-        all_memory = self.memory.getMemory()
-        self.assertEqual(all_memory, {"name": "Nova"})
-
-        self.memory.delete("name")
-        self.assertIsNone(self.memory.get("name"))
-
-    def test_upsert_overwrites_existing_value(self):
-        """Validate that upsert overwrites existing value behaves as expected."""
-        self.memory.setMemory("favorite_color", "blue")
-        self.memory.setMemory("favorite_color", "green")
-        self.assertEqual(self.memory.get("favorite_color"), "green")
-
-    def test_learn_from_message_persists_extracted_values(self):
-        """Validate that learn from message persists extracted values behaves as expected."""
-        captured = []
-        self.context.llmManager = SimpleNamespace(
-            generateStructuredResponse=lambda *args, **kwargs: (
-                captured.append(args),
-                LLMResponse(
-                    provider="test",
-                    success=True,
-                    rawResponse={"name": "Nova", "favorite_food": "pizza"},
-                ),
-            )[1]
-            )
-        self.memory.llmManager = self.context.llmManager
-
-        self.memory.learnFromMessage("My name is Nova and I like pizza.")
-
-        all_memory = self.memory.getMemory()
-        self.assertEqual(all_memory.get("name"), "Nova")
-        self.assertEqual(all_memory.get("favorite_food"), "pizza")
-        self.assertIn("Conversation:", captured[0][1])
-
-    def test_learn_from_history_sends_short_term_history_to_llm(self):
-        """Memory extraction should send the short-term history window as context."""
-
-        captured = []
-        self.context.llmManager = SimpleNamespace(
-            generateStructuredResponse=lambda *args, **kwargs: (
-                captured.append((args, kwargs)),
-                LLMResponse(
-                    provider="test",
-                    success=True,
-                    rawResponse={"favorite_color": "purple"},
-                ),
-            )[1]
+    def test_create_retrieve_update_delete_structured_memory(self):
+        memory = self.memory.createMemory(
+            "preferences",
+            "response style",
+            "Nova prefers concise responses.",
+            tags=["style", "responses"],
+            importance=0.8,
         )
-        self.memory.llmManager = self.context.llmManager
 
-        self.memory.learnFromHistory([("user", "I like purple"), ("aura", "Noted")])
+        self.assertIsNotNone(memory)
+        self.assertEqual(memory.category, MemoryCategory.PREFERENCES.value)
+        self.assertEqual(self.memory.getContext("concise responses")["preferences.response_style"], "Nova prefers concise responses.")
 
-        prompt = captured[0][0][1]
-        self.assertIn("User: I like purple", prompt)
-        self.assertIn("Aura: Noted", prompt)
+        updated = self.memory.updateMemory(memory.memoryId, content="Nova prefers concise technical responses.")
+        self.assertEqual(updated.content, "Nova prefers concise technical responses.")
+
+        self.assertTrue(self.memory.deleteMemory(memory.memoryId))
+        self.assertEqual(self.memory.searchMemories("concise"), [])
+
+    def test_query_filters_by_category_tag_importance_and_session(self):
+        self.memory.createMemory("projects", "Aura voice", "Nova is working on the Aura voice pipeline.", tags=["aura", "voice"], importance=0.9, sessionId="s1")
+        self.memory.createMemory("locations", "Office", "Nova works from the office sometimes.", tags=["office"], importance=0.4, sessionId="s2")
+
+        results = self.memory.retrieveMemories(
+            MemoryQuery(categories=["projects"], tags=["voice"], minImportance=0.5, sessionId="s1")
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].title, "Aura voice")
+
+    def test_search_uses_keyword_and_fuzzy_matching(self):
+        self.memory.createMemory("projects", "Aura voice pipeline", "Push-to-talk support is part of the voice work.", tags=["voice"], importance=0.8)
+
+        exact = self.memory.searchMemories("push talk", limit=1)
+        fuzzy = self.memory.searchMemories("pipline", limit=1)
+
+        self.assertEqual(exact[0].title, "Aura voice pipeline")
+        self.assertEqual(fuzzy[0].title, "Aura voice pipeline")
+
+    def test_conversation_summary_stores_summary_and_facts(self):
+        summary = self.memory.summarizeConversation(
+            [
+                ("user", "I prefer concise responses."),
+                ("aura", "Noted."),
+                ("user", "I'm working on the Aura voice pipeline."),
+            ],
+            sessionId="session-1",
+        )
+
+        self.assertIsNotNone(summary)
+        categories = {memory.category for memory in self.memory.retrieveMemories(MemoryQuery(limit=10))}
+        self.assertIn("conversation_summaries", categories)
+        self.assertIn("preferences", categories)
+        self.assertIn("projects", categories)
+
+    def test_safe_memory_filter_rejects_credentials(self):
+        memory = self.memory.createMemory(
+            "system_context",
+            "api key",
+            "My API key is sk-secretsecretsecret",
+        )
+
+        self.assertIsNone(memory)
+        self.assertEqual(self.memory.retrieveMemories(MemoryQuery()), [])
+
+    def test_event_handler_learns_and_summarizes(self):
+        self.context.eventManager.emit("session.created", {"sessionId": "evt"})
+        self.context.eventManager.emit("message.received", {"sessionId": "evt", "text": "I prefer concise responses."})
+        self.context.eventManager.emit("response.generated", {"sessionId": "evt", "text": "Noted."})
+        self.context.eventManager.emit("conversation.ended", {"sessionId": "evt"})
+
+        context = self.memory.getContext("concise", limit=5)
+
+        self.assertTrue(any("concise" in value for value in context.values()))
+
+    def test_sqlite_persistence_survives_manager_restart(self):
+        self.memory.createMemory("people", "Nova", "Nova is the primary Aura user.", tags=["nova"], importance=0.9)
+        self.memory.shutdown()
+
+        restarted = MemoryManager(self.context)
+        try:
+            results = restarted.searchMemories("primary user", limit=1)
+            self.assertEqual(results[0].title, "Nova")
+        finally:
+            restarted.shutdown()
+
+    def test_legacy_api_remains_prompt_compatible(self):
+        self.memory.setMemory("favorite_color", "purple", importance=3)
+
         self.assertEqual(self.memory.get("favorite_color"), "purple")
-
-    def test_learn_from_message_ignores_invalid_json(self):
-        """Validate that learn from message ignores invalid json behaves as expected."""
-        self.context.llmManager = SimpleNamespace(
-            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
-                provider="test",
-                success=False,
-                error="invalid json",
-            )
-        )
-        self.memory.llmManager = self.context.llmManager
-
-        self.memory.learnFromMessage("This should fail JSON parse.")
-
-        self.assertEqual(self.memory.getMemory(), {})
-
-    def test_set_memory_indexes_semantic_memory_for_retrieval(self):
-        """Stored memories should be retrievable by semantic relevance."""
-
-        self.memory.setMemory("bedroom_lights", "The bedroom has two smart lamps.", importance=3)
-        self.memory.setMemory("favorite_food", "Nova likes pizza.", importance=1)
-
-        results = self.memory.retrieveRelevantMemories("turn off the bedroom lamps", limit=1)
-
-        self.assertEqual(results[0]["memory_key"], "bedroom_lights")
-        self.assertIn("smart lamps", results[0]["content"])
-
-    def test_summarize_memories_returns_prompt_ready_relevant_memory(self):
-        """Semantic summaries should be formatted as key/value prompt context."""
-
-        self.memory.setSemanticMemory(
-            "current_room",
-            "Nova is currently in the bedroom.",
-            summary="bedroom",
-            topics=["room", "location", "bedroom"],
-            relationships={"contains": ["bedroom_lights"]},
-            importance=5,
-        )
-
-        summary = self.memory.summarizeMemories("turn them off too")
-
-        self.assertEqual(summary["current_room"], "bedroom")
+        self.assertEqual(self.memory.getMemory()["favorite_color"], "purple")
+        self.assertEqual(self.memory.retrieveRelevantMemories("purple", limit=1)[0]["memory_key"], "favorite_color")
+        self.assertEqual(self.memory.summarizeMemories("purple")["favorite_color"], "purple")
 
 
 if __name__ == "__main__":
     unittest.main()
-
