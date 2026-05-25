@@ -15,8 +15,8 @@ class AudioPlayer:
         self.context = context
         self.logger = context.logger.getChild("Voice.AudioPlayer") if context and getattr(context, "logger", None) else None
         self._lock = Lock()
-        self._simpleaudio = None
-        self._playObject = None
+        self._sounddevice = None
+        self._numpy = None
         self._isPlaying = False
         self.lastError = ""
 
@@ -39,10 +39,8 @@ class AudioPlayer:
                 if self.logger:
                     self.logger.info(f"Playing voice audio: {path}")
 
-                if self._simpleaudio is not None:
-                    waveObject = self._simpleaudio.WaveObject.from_wave_file(str(path))
-                    self._playObject = waveObject.play()
-                    self._playObject.wait_done()
+                if self._sounddevice is not None and self._numpy is not None:
+                    self._playWithSounddevice(path)
                 else:
                     self._playWithWinsound(path)
 
@@ -57,21 +55,18 @@ class AudioPlayer:
                 return 0.0
             finally:
                 self._isPlaying = False
-                self._playObject = None
 
     def stopAudio(self):
         """Stop any active playback request."""
 
         with self._lock:
-            if self._playObject is not None:
+            if self._sounddevice is not None:
                 try:
-                    self._playObject.stop()
+                    self._sounddevice.stop()
                 except Exception as error:
                     self.lastError = str(error)
                     if self.logger:
                         self.logger.warning(f"Failed to stop voice playback: {error}")
-                finally:
-                    self._playObject = None
             self._isPlaying = False
 
     def isPlaying(self):
@@ -82,17 +77,45 @@ class AudioPlayer:
     def _ensureDependency(self):
         """Load the preferred playback backend once."""
 
-        if self._simpleaudio is not None:
+        if self._sounddevice is not None and self._numpy is not None:
             return
         try:
-            import simpleaudio as simpleaudio_module
+            import numpy as numpy_module
+            import sounddevice as sounddevice_module
         except Exception:
-            self._simpleaudio = None
+            self._sounddevice = None
+            self._numpy = None
             return
-        self._simpleaudio = simpleaudio_module
+        self._sounddevice = sounddevice_module
+        self._numpy = numpy_module
+
+    def _playWithSounddevice(self, path: Path):
+        """Play WAV audio through the shared sounddevice dependency."""
+
+        with wave.open(str(path), "rb") as handle:
+            channels = handle.getnchannels()
+            sample_width = handle.getsampwidth()
+            sample_rate = handle.getframerate()
+            frames = handle.readframes(handle.getnframes())
+
+        if sample_width == 1:
+            dtype = self._numpy.uint8
+        elif sample_width == 2:
+            dtype = self._numpy.int16
+        elif sample_width == 4:
+            dtype = self._numpy.int32
+        else:
+            raise RuntimeError(f"Unsupported WAV sample width: {sample_width}")
+
+        audio = self._numpy.frombuffer(frames, dtype=dtype)
+        if channels > 1:
+            audio = audio.reshape(-1, channels)
+
+        self._sounddevice.play(audio, sample_rate)
+        self._sounddevice.wait()
 
     def _playWithWinsound(self, path: Path):
-        """Fallback playback for Windows when simpleaudio is unavailable."""
+        """Fallback playback for Windows when sounddevice is unavailable."""
 
         try:
             import winsound

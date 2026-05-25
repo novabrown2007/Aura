@@ -56,34 +56,23 @@ class FakePiperVoice:
             handle.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
 
 
-class FakePlayObject:
-    """Minimal playback handle for AudioPlayer tests."""
+class FakeSoundDeviceModule:
+    """Sounddevice replacement for playback tests."""
 
-    def __init__(self):
-        self.stopped = False
+    played = []
+    stopped = False
 
-    def wait_done(self):
+    @classmethod
+    def play(cls, audio, sample_rate):
+        cls.played.append((audio, sample_rate))
+
+    @classmethod
+    def wait(cls):
         return None
 
-    def stop(self):
-        self.stopped = True
-
-
-class FakeWaveObject:
-    """Fake simpleaudio wave object."""
-
-    @staticmethod
-    def from_wave_file(path):
-        return FakeWaveObject()
-
-    def play(self):
-        return FakePlayObject()
-
-
-class FakeSimpleAudioModule:
-    """SimpleAudio replacement for playback tests."""
-
-    WaveObject = FakeWaveObject
+    @classmethod
+    def stop(cls):
+        cls.stopped = True
 
 
 class FakeInputStream:
@@ -189,13 +178,14 @@ class VoiceTests(unittest.TestCase):
 
     def test_text_to_speech_initializes_once_and_generates_audio(self):
         original_piper = sys.modules.get("piper.voice")
-        original_simpleaudio = sys.modules.get("simpleaudio")
+        original_sounddevice = sys.modules.get("sounddevice")
 
         sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
-        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+        sys.modules["sounddevice"] = FakeSoundDeviceModule
 
         voice_dir = tempfile.TemporaryDirectory()
         try:
+            FakeSoundDeviceModule.played = []
             FakePiperVoice.init_count = 0
             model_path = Path(voice_dir.name) / "en_US-lessac-medium.onnx"
             model_path.write_bytes(b"fake-onnx")
@@ -219,34 +209,37 @@ class VoiceTests(unittest.TestCase):
             self.assertGreaterEqual(result.generationTime, 0.0)
             self.assertGreaterEqual(result.playbackDuration, 0.0)
             self.assertFalse(Path(result.audioPath).exists())
+            self.assertEqual(FakeSoundDeviceModule.played[0][1], 22050)
         finally:
             if original_piper is None:
                 sys.modules.pop("piper.voice", None)
             else:
                 sys.modules["piper.voice"] = original_piper
-            if original_simpleaudio is None:
-                sys.modules.pop("simpleaudio", None)
+            if original_sounddevice is None:
+                sys.modules.pop("sounddevice", None)
             else:
-                sys.modules["simpleaudio"] = original_simpleaudio
+                sys.modules["sounddevice"] = original_sounddevice
             voice_dir.cleanup()
 
     def test_audio_player_plays_wave_files(self):
-        original_simpleaudio = sys.modules.get("simpleaudio")
-        sys.modules["simpleaudio"] = types.SimpleNamespace(WaveObject=FakeWaveObject)
+        original_sounddevice = sys.modules.get("sounddevice")
+        sys.modules["sounddevice"] = FakeSoundDeviceModule
         try:
+            FakeSoundDeviceModule.played = []
             player = AudioPlayer(self.context)
             audio_path = self._create_wav_file(sample_rate=22050)
             try:
                 duration = player.playAudio(str(audio_path))
                 self.assertGreaterEqual(duration, 0.0)
                 self.assertFalse(player.isPlaying())
+                self.assertEqual(FakeSoundDeviceModule.played[0][1], 22050)
             finally:
                 audio_path.unlink(missing_ok=True)
         finally:
-            if original_simpleaudio is None:
-                sys.modules.pop("simpleaudio", None)
+            if original_sounddevice is None:
+                sys.modules.pop("sounddevice", None)
             else:
-                sys.modules["simpleaudio"] = original_simpleaudio
+                sys.modules["sounddevice"] = original_sounddevice
 
     def test_speech_queue_serializes_speech(self):
         spoken = []
