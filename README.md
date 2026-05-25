@@ -91,6 +91,10 @@ voice:
   voiceOutputDirectory: temp/voice
   voicePlaybackEnabled: true
   voiceSampleRate: 22050
+  pushToTalkEnabled: false
+  pushToTalkHotkey: enter
+  pushToTalkAutoSpeak: true
+  pushToTalkTempAudioDirectory: temp/push_to_talk
 ```
 
 Example usage:
@@ -101,6 +105,18 @@ print(result.text)
 
 context.voiceManager.speakResponse("Hello. Aura voice systems are online.")
 ```
+
+Development push-to-talk loop:
+
+```powershell
+python scripts/run_push_to_talk.py
+```
+
+Set `voice.enabled` and `voice.pushToTalkEnabled` to `true`, then press Enter
+to start microphone capture and Enter again to stop. Aura transcribes with
+Faster-Whisper, sends the text through the existing conversation pipeline,
+speaks the response with Piper when `pushToTalkAutoSpeak` is enabled, and
+returns to idle.
 
 The voice layer is intentionally push-to-talk only. It does not implement wake
 words, streaming transcription, always-listening microphones, or realtime VAD.

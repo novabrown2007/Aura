@@ -53,6 +53,15 @@ voice:
   voiceOutputDirectory: temp/voice
   voicePlaybackEnabled: true
   voiceSampleRate: 22050
+  pushToTalkEnabled: false
+  pushToTalkHotkey: enter
+  pushToTalkAutoSpeak: true
+  pushToTalkTempAudioDirectory: temp/push_to_talk
+
+pushToTalkEnabled: false
+pushToTalkHotkey: enter
+pushToTalkAutoSpeak: true
+pushToTalkTempAudioDirectory: temp/push_to_talk
 
 memory:
   enabled: true

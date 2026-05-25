@@ -10,6 +10,7 @@ from .speechQueue import SpeechQueue
 from .speechToText import SpeechToText
 from .textToSpeech import TextToSpeech
 from .voiceRecorder import VoiceRecorder
+from .pushToTalkManager import PushToTalkManager
 
 
 class VoiceManager:
@@ -30,6 +31,11 @@ class VoiceManager:
         self.outputDirectory = self._getConfigValue("voice.voiceOutputDirectory", self._getConfigValue("voiceOutputDirectory", "temp/voice"))
         self.playbackEnabled = self._getBoolConfig("voice.voicePlaybackEnabled", self._getBoolConfig("voicePlaybackEnabled", True))
         self.outputSampleRate = int(self._getConfigValue("voice.voiceSampleRate", self._getConfigValue("voiceSampleRate", 22050)))
+        self.pushToTalkEnabled = self._getBoolConfig("pushToTalkEnabled", self._getBoolConfig("voice.pushToTalkEnabled", False))
+        self.pushToTalkTempAudioDirectory = self._getConfigValue(
+            "pushToTalkTempAudioDirectory",
+            self._getConfigValue("voice.pushToTalkTempAudioDirectory", "temp/push_to_talk"),
+        )
 
         self.speechToText = SpeechToText(
             context,
@@ -37,7 +43,11 @@ class VoiceManager:
             device=str(self.inputDevice),
             computeType=str(self.inputComputeType),
         )
-        self.recorder = VoiceRecorder(context, sampleRate=self.inputSampleRate)
+        self.recorder = VoiceRecorder(
+            context,
+            sampleRate=self.inputSampleRate,
+            tempDirectory=str(self.pushToTalkTempAudioDirectory),
+        )
         self.textToSpeech = TextToSpeech(
             context,
             modelPath=str(self.outputModelPath),
@@ -47,6 +57,7 @@ class VoiceManager:
         )
         self.audioPlayer = self.textToSpeech.audioPlayer
         self.speechQueue = SpeechQueue(context, self.textToSpeech)
+        self.pushToTalkManager = PushToTalkManager(context, self)
 
         self.lastTranscription = TranscriptionResult()
         self.lastSpeech = SpeechResult()
@@ -59,6 +70,7 @@ class VoiceManager:
             self.context.textToSpeech = self.textToSpeech
             self.context.audioPlayer = self.audioPlayer
             self.context.speechQueue = self.speechQueue
+            self.context.pushToTalkManager = self.pushToTalkManager
 
     def startVoiceCapture(self):
         """Start recording a local push-to-talk voice capture."""
@@ -117,6 +129,16 @@ class VoiceManager:
             return result
         finally:
             self._cleanupAudio()
+
+    def startPushToTalk(self):
+        """Start a held push-to-talk capture."""
+
+        return self.pushToTalkManager.startCapture()
+
+    def stopPushToTalk(self):
+        """Stop and process the active push-to-talk capture."""
+
+        return self.pushToTalkManager.stopAndProcess()
 
     def speakResponse(self, text: str):
         """Queue and play assistant speech through the local TTS stack."""
@@ -185,6 +207,11 @@ class VoiceManager:
             return f"Error: {error}"
 
         return ""
+
+    def routeTextToAura(self, text: str) -> str:
+        """Public wrapper for routing transcribed text through Aura's text pipeline."""
+
+        return self._sendTextToAura(text)
 
     def _cleanupAudio(self):
         """Remove the temporary voice recording after processing."""

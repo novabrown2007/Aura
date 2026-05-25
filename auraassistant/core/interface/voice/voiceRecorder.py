@@ -12,10 +12,11 @@ from typing import Any
 class VoiceRecorder:
     """Record mono 16kHz audio into a temporary WAV file."""
 
-    def __init__(self, context=None, sampleRate: int = 16000, channels: int = 1):
+    def __init__(self, context=None, sampleRate: int = 16000, channels: int = 1, tempDirectory: str | None = None):
         self.context = context
         self.sampleRate = int(sampleRate)
         self.channels = int(channels)
+        self.tempDirectory = str(tempDirectory or "").strip()
         self.logger = context.logger.getChild("Voice.Recorder") if context and getattr(context, "logger", None) else None
         self._lock = Lock()
         self._sounddevice = None
@@ -98,7 +99,14 @@ class VoiceRecorder:
                 if audio.ndim > 1:
                     audio = audio.reshape(-1)
 
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                tempDir = Path(self.tempDirectory).expanduser() if self.tempDirectory else None
+                if tempDir is not None:
+                    tempDir.mkdir(parents=True, exist_ok=True)
+                temp_file = tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".wav",
+                    dir=str(tempDir) if tempDir is not None else None,
+                )
                 temp_file.close()
                 path = Path(temp_file.name)
 

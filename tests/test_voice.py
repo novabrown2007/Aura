@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from auraassistant.core.interface.voice import AudioPlayer, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
+from auraassistant.core.interface.voice import AudioPlayer, PushToTalkManager, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
 from auraassistant.core.interface.voice.models import SpeechResult, TranscriptionResult
 from tests.support.fakes import make_context
 
@@ -99,6 +99,58 @@ class FakeInputStream:
         self.closed = True
 
 
+class RecordingEventManager:
+    """Collect emitted events for push-to-talk tests."""
+
+    def __init__(self):
+        self.events = []
+
+    def emit(self, eventName, data=None):
+        self.events.append((eventName, data or {}))
+
+
+class FakePushRecorder:
+    """Recorder fake for the push-to-talk loop."""
+
+    def __init__(self, audioPath="fake.wav", startOk=True):
+        self.audioPath = audioPath
+        self.startOk = startOk
+        self.recording = False
+        self.lastError = ""
+        self.tempDirectory = ""
+
+    def startRecording(self):
+        if not self.startOk:
+            self.lastError = "No microphone available."
+            return False
+        self.recording = True
+        return True
+
+    def stopRecording(self):
+        wasRecording = self.recording
+        self.recording = False
+        return wasRecording
+
+    def saveRecording(self):
+        return self.audioPath
+
+    def isRecording(self):
+        return self.recording
+
+    def cleanup(self):
+        self.recording = False
+
+
+class FakePushSpeechToText:
+    """STT fake for push-to-talk tests."""
+
+    def __init__(self, result):
+        self.result = result
+
+    def transcribeDetailed(self, audioPath):
+        return self.result
+
+
 class VoiceTests(unittest.TestCase):
     """Validate local speech-to-text and speech-synthesis behavior."""
 
@@ -115,7 +167,16 @@ class VoiceTests(unittest.TestCase):
             "voiceOutputDirectory": "temp/voice",
             "voicePlaybackEnabled": True,
             "voiceSampleRate": 22050,
+            "pushToTalkEnabled": True,
+            "pushToTalkHotkey": "enter",
+            "pushToTalkAutoSpeak": True,
+            "pushToTalkTempAudioDirectory": "temp/push_to_talk",
         }
+        self.context.config._data["pushToTalkEnabled"] = True
+        self.context.config._data["pushToTalkHotkey"] = "enter"
+        self.context.config._data["pushToTalkAutoSpeak"] = True
+        self.context.config._data["pushToTalkTempAudioDirectory"] = "temp/push_to_talk"
+        self.context.eventManager = RecordingEventManager()
 
     def _create_wav_file(self, frames=1600, sample_rate=16000):
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -292,6 +353,79 @@ class VoiceTests(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertEqual(result.errorMessage, "Voice input is disabled.")
+
+    def test_push_to_talk_routes_transcription_through_text_pipeline_and_tts(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="hello aura", success=True, language="en")
+        )
+        routed = []
+        spoken = []
+        manager.routeTextToAura = lambda text: (routed.append(text), "Hello Nova.")[1]
+        manager.speakResponse = lambda text: (spoken.append(text), SpeechResult(success=True, audioPath="tts.wav"))[1]
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertTrue(result.success)
+        self.assertEqual(routed, ["hello aura"])
+        self.assertEqual(spoken, ["Hello Nova."])
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.capture.started", emitted)
+        self.assertIn("voice.capture.finished", emitted)
+        self.assertIn("voice.transcription.started", emitted)
+        self.assertIn("voice.transcription.completed", emitted)
+        self.assertIn("conversation.message.received", emitted)
+        self.assertIn("response.generated", emitted)
+        self.assertIn("tts.started", emitted)
+        self.assertIn("tts.finished", emitted)
+        self.assertIn("voice.loop.completed", emitted)
+
+    def test_push_to_talk_handles_missing_microphone(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder(startOk=False)
+
+        self.assertFalse(manager.startPushToTalk())
+
+        self.assertIn("No microphone", manager.pushToTalkManager.lastResult.errorMessage)
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.capture.started", emitted)
+        self.assertIn("voice.loop.failed", emitted)
+
+    def test_push_to_talk_handles_transcription_failure(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(success=False, errorMessage="Empty transcription.")
+        )
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.errorMessage, "Empty transcription.")
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("voice.transcription.completed", emitted)
+        self.assertIn("voice.loop.failed", emitted)
+
+    def test_push_to_talk_handles_tts_failure(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="hello aura", success=True, language="en")
+        )
+        manager.routeTextToAura = lambda text: "Hello Nova."
+        manager.speakResponse = lambda text: SpeechResult(success=False, errorMessage="Piper failed.")
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.errorMessage, "Piper failed.")
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("tts.finished", emitted)
+        self.assertIn("voice.loop.failed", emitted)
 
 
 if __name__ == "__main__":
