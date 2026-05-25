@@ -70,6 +70,16 @@ memory:
   summaryLength: 280
   importanceThreshold: 0.35
   autoSummarization: true
+  injectionEnabled: true
+  maxInjectionCount: 5
+  maxInjectionCharacters: 900
+  recencyWeight: 0.18
+  importanceWeight: 0.24
+  duplicateFiltering: true
+  compressionEnabled: true
+  minRelevance: 0.18
+  retrievalCandidateLimit: 24
+  retrievalDebug: true
 
 memoryEnabled: true
 memoryDatabasePath: aura_memory.sqlite3
@@ -77,6 +87,13 @@ memoryMaxResults: 8
 memorySummaryLength: 280
 memoryImportanceThreshold: 0.35
 memoryAutoSummarization: true
+memoryInjectionEnabled: true
+memoryMaxInjectionCount: 5
+memoryMaxInjectionCharacters: 900
+memoryRecencyWeight: 0.18
+memoryImportanceWeight: 0.24
+memoryDuplicateFiltering: true
+memoryCompressionEnabled: true
 
 homeAutomationBridge:
   host: 127.0.0.1

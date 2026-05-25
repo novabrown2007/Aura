@@ -6,15 +6,19 @@ import re
 from pathlib import Path
 from typing import Any
 
+from auraassistant.core.memory.conversation import ConversationContextManager
 from auraassistant.core.memory.handlers.memoryEventHandler import MemoryEventHandler
+from auraassistant.core.memory.injection import ContextCompressor, MemoryFormatter, PromptInjector
 from auraassistant.core.memory.indexing import MemoryIndex
 from auraassistant.core.memory.memoryInjector import MemoryInjector
 from auraassistant.core.memory.memoryRetriever import MemoryRetriever
 from auraassistant.core.memory.memoryScorer import MemoryScorer
 from auraassistant.core.memory.memorySummarizer import MemorySummarizer
 from auraassistant.core.memory.models import Memory, MemoryCategory, MemoryQuery
+from auraassistant.core.memory.retrieval import ContextualRetriever, RetrievalResult
 from auraassistant.core.memory.search import MemorySearchEngine
 from auraassistant.core.memory.storage import SQLiteMemoryStore
+from auraassistant.core.memory.tuning import RetrievalTuner
 from modules.base import AuraModule, ModuleMetadata
 
 
@@ -49,6 +53,13 @@ class MemoryManager(AuraModule):
         self.scorer = None
         self.summarizer = None
         self.injector = None
+        self.tuner = None
+        self.conversationContext = None
+        self.contextualRetriever = None
+        self.contextCompressor = None
+        self.memoryFormatter = None
+        self.promptInjector = None
+        self.lastRetrievalDebug = ""
         self.retriever = None
         self.eventHandler = None
         if context is not None:
@@ -76,6 +87,12 @@ class MemoryManager(AuraModule):
         self.scorer = MemoryScorer(context)
         self.summarizer = MemorySummarizer(context, summaryLength=self.summaryLength)
         self.injector = MemoryInjector(context)
+        self.tuner = RetrievalTuner(context)
+        self.conversationContext = ConversationContextManager(context)
+        self.contextualRetriever = ContextualRetriever(self.store, self.tuner, self.conversationContext, context)
+        self.contextCompressor = ContextCompressor(context=context)
+        self.memoryFormatter = MemoryFormatter(self.contextCompressor, context)
+        self.promptInjector = PromptInjector(self.memoryFormatter, context)
         self.retriever = MemoryRetriever(self.store, self.index, self.searchEngine, context)
         self.rebuildIndex()
 
@@ -188,14 +205,59 @@ class MemoryManager(AuraModule):
     def injectContext(self, userMessage: str, prompt: str = "", limit: int | None = None) -> str:
         """Inject relevant memories into a prompt."""
 
-        memories = self.retrieveMemories(MemoryQuery(keywords=userMessage, limit=limit or self.maxResults))
-        return self.injector.injectIntoPrompt(prompt, memories, maxItems=limit or self.maxResults)
+        injected, result = self.injectPrompt(prompt, userMessage, limit=limit)
+        self.lastRetrievalDebug = result.debugOutput
+        return injected
 
-    def getContext(self, userMessage: str = "", limit: int | None = None) -> dict[str, str]:
+    def getContext(self, userMessage: str = "", limit: int | None = None, conversationHistory: list | None = None) -> dict[str, str]:
         """Return prompt-friendly contextual memory."""
 
-        memories = self.retrieveMemories(MemoryQuery(keywords=userMessage, limit=limit or self.maxResults))
-        return self.injector.buildContext(memories, maxItems=limit or self.maxResults)
+        result = self.retrieveContext(userMessage, limit=limit, conversationHistory=conversationHistory)
+        context = {}
+        for scored in result.injectedMemories:
+            memory = scored.memory
+            key = f"{memory.category}.{self.injector._key(memory.title)}"
+            context[key] = memory.content
+        return context
+
+    def retrieveContext(
+        self,
+        userMessage: str,
+        limit: int | None = None,
+        conversationHistory: list | None = None,
+        sessionId: str = "",
+    ) -> RetrievalResult:
+        """Run tuned contextual retrieval and return full diagnostics."""
+
+        if limit is not None:
+            originalLimit = self.tuner.maxInjectionCount
+            self.tuner.maxInjectionCount = int(limit)
+            try:
+                result = self.contextualRetriever.retrieve(userMessage, conversationHistory=conversationHistory, sessionId=sessionId)
+            finally:
+                self.tuner.maxInjectionCount = originalLimit
+        else:
+            result = self.contextualRetriever.retrieve(userMessage, conversationHistory=conversationHistory, sessionId=sessionId)
+        self.lastRetrievalDebug = result.debugOutput
+        return result
+
+    def injectPrompt(
+        self,
+        prompt: str,
+        userMessage: str,
+        conversationHistory: list | None = None,
+        sessionId: str = "",
+        limit: int | None = None,
+    ) -> tuple[str, RetrievalResult]:
+        """Inject tuned memory context into a system prompt."""
+
+        if limit is not None:
+            result = self.retrieveContext(userMessage, limit=limit, conversationHistory=conversationHistory, sessionId=sessionId)
+            injected = self.promptInjector.inject(prompt, result.memorySection)
+        else:
+            injected, result = self.contextualRetriever.injectPrompt(prompt, userMessage, conversationHistory=conversationHistory, sessionId=sessionId)
+        self.lastRetrievalDebug = result.debugOutput
+        return injected, result
 
     def learnFromMessage(self, text: str, sessionId: str = ""):
         """Extract obvious structured memories from a single user message."""
@@ -253,7 +315,11 @@ class MemoryManager(AuraModule):
     def summarizeMemories(self, query: str, limit: int | None = None) -> dict[str, str]:
         """Return relevant memories in prompt-ready key/value form."""
 
-        memories = self.searchMemories(query, limit=limit or self.maxResults)
+        if self.contextualRetriever is not None:
+            result = self.retrieveContext(query, limit=limit or self.maxResults)
+            memories = [scored.memory for scored in result.injectedMemories]
+        else:
+            memories = self.searchMemories(query, limit=limit or self.maxResults)
         result = {}
         for memory in memories:
             key = str(memory.metadata.get("legacyKey") or memory.title)

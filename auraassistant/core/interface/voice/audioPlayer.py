@@ -34,6 +34,7 @@ class AudioPlayer:
         with self._lock:
             try:
                 start = time.perf_counter()
+                self._ensureDependency()
                 self._isPlaying = True
                 if self.logger:
                     self.logger.info(f"Playing voice audio: {path}")

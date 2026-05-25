@@ -131,14 +131,18 @@ class LLMHandler(AuraModule):
         """Build Aura's base system prompt with optional memory injection."""
 
         memoryData = {}
+        conversationHistory = self._getConversationHistory()
         if self.memoryEnabled and self.memory:
-            if hasattr(self.memory, "getContext"):
-                memoryData = self.memory.getContext(userInput) or {}
+            if hasattr(self.memory, "injectPrompt"):
+                memoryData = {}
+            elif hasattr(self.memory, "getContext"):
+                memoryData = self.memory.getContext(userInput, conversationHistory=conversationHistory) or {}
             else:
                 memoryData = self.memory.getMemory() or {}
 
         if self._isOfflineMode():
-            return self._buildOfflineSystemPrompt(memoryData)
+            prompt = self._buildOfflineSystemPrompt({} if hasattr(self.memory, "injectPrompt") else memoryData)
+            return self._injectMemoryPrompt(prompt, userInput, conversationHistory)
 
         basePrompt = """
 You are Aura, a private AI assistant for Nova.
@@ -157,12 +161,13 @@ Rules:
 - If an action requires a tool, return the configured JSON tool-call format instead of pretending the action is complete.
 - If required tool arguments are missing, ask a concise follow-up question instead of calling a tool.
 """
-        return PromptBuilder.buildSystemPrompt(
+        prompt = PromptBuilder.buildSystemPrompt(
             basePrompt,
-            memory=memoryData,
+            memory={} if hasattr(self.memory, "injectPrompt") else memoryData,
             toolDefinitions=self._getToolSchemas(),
             profile="conversation",
         )
+        return self._injectMemoryPrompt(prompt, userInput, conversationHistory)
 
     def _buildOfflineSystemPrompt(self, memoryData: dict[str, Any]) -> str:
         """Build the offline prompt used when provider tooling is unavailable."""
@@ -185,6 +190,23 @@ Rules:
 - Do not return JSON tool calls in offline mode.
 """
         return PromptBuilder.buildSystemPrompt(basePrompt, memory=memoryData)
+
+    def _injectMemoryPrompt(self, prompt: str, userInput: str, conversationHistory: list | None = None) -> str:
+        """Inject tuned memory context when the structured memory pipeline is available."""
+
+        if not self.memoryEnabled or not self.memory or not hasattr(self.memory, "injectPrompt"):
+            return prompt
+        try:
+            injected, _ = self.memory.injectPrompt(
+                prompt,
+                userInput,
+                conversationHistory=conversationHistory or [],
+            )
+            return injected
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Memory prompt injection failed: {error}")
+            return prompt
 
     def _isOfflineMode(self) -> bool:
         """Return whether the active LLM manager is configured for offline mode."""
