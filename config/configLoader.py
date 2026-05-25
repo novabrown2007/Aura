@@ -62,7 +62,15 @@ DEFAULT_CONFIG = {
         "voiceOutputDirectory": "temp/voice",
         "voicePlaybackEnabled": True,
         "voiceSampleRate": 22050,
+        "pushToTalkEnabled": False,
+        "pushToTalkHotkey": "enter",
+        "pushToTalkAutoSpeak": True,
+        "pushToTalkTempAudioDirectory": "temp/push_to_talk",
     },
+    "pushToTalkEnabled": False,
+    "pushToTalkHotkey": "enter",
+    "pushToTalkAutoSpeak": True,
+    "pushToTalkTempAudioDirectory": "temp/push_to_talk",
     "memory": {
         "enabled": True,
         "databasePath": "aura_memory.sqlite3",
@@ -156,6 +164,14 @@ class ConfigLoader:
             "voice.modelPath": "VOICE_MODEL_PATH",
             "voice.outputDirectory": "VOICE_OUTPUT_DIRECTORY",
             "voice.playbackEnabled": "VOICE_PLAYBACK_ENABLED",
+            "voice.pushToTalkEnabled": "PUSH_TO_TALK_ENABLED",
+            "voice.pushToTalkHotkey": "PUSH_TO_TALK_HOTKEY",
+            "voice.pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
+            "voice.pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
+            "pushToTalkEnabled": "PUSH_TO_TALK_ENABLED",
+            "pushToTalkHotkey": "PUSH_TO_TALK_HOTKEY",
+            "pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
+            "pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
         }
 
         self.load()

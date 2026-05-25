@@ -124,6 +124,9 @@ class RuntimeContext:
         self.voiceManager = None
         """Local push-to-talk speech transcription manager."""
 
+        self.pushToTalkManager = None
+        """Held push-to-talk voice conversation loop manager."""
+
         self.textToSpeech = None
         """Local speech synthesis engine for assistant responses."""
 
