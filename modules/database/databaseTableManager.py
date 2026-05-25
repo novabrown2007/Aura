@@ -31,6 +31,7 @@ class DatabaseTableManager:
         self.createSemanticMemoryTable()
         self.createContextSignalsTable()
         self.createAutonomousTasksTable()
+        self.createAutomationPlansTable()
         self.createNotificationsTable()
         self.createRemindersTable()
         self.createCalendarCalendarsTable()
@@ -133,6 +134,31 @@ class DatabaseTableManager:
                 event_name VARCHAR(255) NULL,
                 state TEXT,
                 memory_context TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+    def createAutomationPlansTable(self):
+        """Create persisted user-facing automation plans."""
+
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS automation_plans (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                goal TEXT NOT NULL,
+                trigger_type VARCHAR(64) NOT NULL,
+                trigger_value TEXT,
+                conditions TEXT,
+                actions TEXT NOT NULL,
+                safety TEXT,
+                status VARCHAR(32) DEFAULT 'draft',
+                autonomous_task_id INT NULL,
+                last_run_at DATETIME NULL,
+                last_result TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP

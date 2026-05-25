@@ -292,6 +292,56 @@ context.eventManager.emit("autonomous.task.create", {
 context.eventManager.emit("autonomous.task.run", {"task_id": 1})
 ```
 
+## Automation Composer
+
+Aura exposes reviewable user-facing automations through:
+
+```python
+context.automationComposer
+```
+
+Automation Composer stores draft plans, lets the user activate/pause/resume
+them, and delegates scheduled or event-driven execution to
+`context.autonomousTasks`. Plans are intentionally reviewable before activation:
+
+- `manual`, `interval`, `datetime`, and `event` triggers
+- simple condition blocks such as `always` and `context_equals`
+- event actions for decoupled module workflows
+- tool actions through Aura's deterministic tool executor
+- last-run result tracking on the plan
+
+Example:
+
+```python
+plan = context.automationComposer.createDraft(
+    name="Door alert",
+    goal="Notify me when the front door opens.",
+    trigger_type="event",
+    trigger_value="door.opened",
+    actions=[
+        {
+            "type": "event",
+            "name": "notifications.create",
+            "data": {
+                "title": "Door",
+                "content": "The front door opened.",
+            },
+        }
+    ],
+)
+context.automationComposer.activatePlan(plan["id"])
+context.autonomousTasks.handleEventWakeup("door.opened", {"room": "front"})
+```
+
+The deterministic tools exposed for LLM/UI workflows are:
+
+- `automation.createDraft`
+- `automation.listPlans`
+- `automation.activate`
+- `automation.pause`
+- `automation.resume`
+- `automation.runNow`
+
 ## Context Awareness
 
 Aura exposes current environment context through:
