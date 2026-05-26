@@ -68,6 +68,11 @@ class ContextualRetriever:
         if not self.tuner.injectionEnabled:
             result.debugOutput = "[MEMORY RETRIEVAL]\nInjection disabled."
             return result
+        if self._isGenericLowContextMessage(userMessage):
+            result.debugOutput = "[MEMORY RETRIEVAL]\nSkipped: generic low-context message."
+            if self.logger:
+                self.logger.info(result.debugOutput)
+            return result
 
         try:
             context = self.conversationContext.buildContext(userMessage, conversationHistory)
@@ -77,6 +82,11 @@ class ContextualRetriever:
                 for memory in result.retrievedMemories
                 if self._validMemory(memory)
             ]
+            if not self._shouldUseConversationSummaries(userMessage):
+                result.scoredMemories = [
+                    scored for scored in result.scoredMemories
+                    if scored.memory.category != "conversation_summaries"
+                ]
             result.rankedMemories = self.ranker.rank(result.scoredMemories)
             rankedForInjection, repeated = self._filterRecentlyInjected(result.rankedMemories)
             kept, filtered = self.filter.filter(rankedForInjection)
@@ -130,6 +140,31 @@ class ContextualRetriever:
     @staticmethod
     def _validMemory(memory: Memory) -> bool:
         return bool(memory and memory.category and memory.content.strip())
+
+    @staticmethod
+    def _isGenericLowContextMessage(userMessage: str) -> bool:
+        tokens = ContextualRetriever._tokenize(userMessage)
+        if not tokens:
+            return True
+        generic = {
+            "hello", "hi", "hey", "how", "are", "you", "today", "doing",
+            "good", "morning", "afternoon", "evening", "thanks", "thank",
+        }
+        return tokens.issubset(generic)
+
+    @staticmethod
+    def _shouldUseConversationSummaries(userMessage: str) -> bool:
+        tokens = ContextualRetriever._tokenize(userMessage)
+        summarySignals = {
+            "conversation", "summary", "summarize", "recap", "recent",
+            "last", "previous", "earlier", "discussed", "talked",
+        }
+        return bool(tokens & summarySignals)
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        cleaned = "".join(character.lower() if character.isalnum() else " " for character in str(text or ""))
+        return {token for token in cleaned.split() if token}
 
     def _buildDebugOutput(self, result: RetrievalResult) -> str:
         top = result.rankedMemories[0] if result.rankedMemories else None

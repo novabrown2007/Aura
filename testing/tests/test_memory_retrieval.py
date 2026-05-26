@@ -109,6 +109,50 @@ class MemoryRetrievalTuningTests(unittest.TestCase):
         self.assertIn("Retrieved: 0 memories", result.debugOutput)
         self.assertEqual(self.memory.getContext("no matching memory"), {})
 
+    def test_generic_greeting_does_not_inject_stale_memory(self):
+        self.memory.createMemory(
+            "conversation_summaries",
+            "Conversation summary",
+            "That's great to hear, Nova! I'm glad I could help.",
+            tags=["hello", "how"],
+            importance=0.9,
+        )
+        self.memory.createMemory(
+            "preferences",
+            "Favorite color",
+            "Nova's favorite color is purple.",
+            tags=["favorite", "color"],
+            importance=0.9,
+        )
+
+        result = self.memory.retrieveContext("Hello, how are you today?")
+
+        self.assertEqual(result.injectedMemories, [])
+        self.assertEqual(result.memorySection, "")
+        self.assertIn("Skipped: generic low-context message", result.debugOutput)
+
+    def test_personal_question_excludes_conversation_summaries(self):
+        self.memory.createMemory(
+            "conversation_summaries",
+            "Conversation summary",
+            "A stale chat summary that mentions age and old test replies.",
+            tags=["age"],
+            importance=0.9,
+        )
+        self.memory.createMemory(
+            "preferences",
+            "Birthday",
+            "My birthday is March 22nd, 2007. I'm 19 years old.",
+            tags=["birthday", "age"],
+            importance=0.9,
+        )
+
+        result = self.memory.retrieveContext("How old am I?")
+        injectedCategories = {item.memory.category for item in result.injectedMemories}
+
+        self.assertIn("preferences", injectedCategories)
+        self.assertNotIn("conversation_summaries", injectedCategories)
+
 
 if __name__ == "__main__":
     unittest.main()

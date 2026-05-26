@@ -42,6 +42,27 @@ class ConversationHistoryTests(unittest.TestCase):
 
         self.assertEqual(self.history.getRecentMessages(limit=10), [])
 
+    def test_history_resets_on_startup_by_default(self):
+        """Short-term conversation history should not leak across restarts."""
+
+        self.history.logMessage("user", "old message")
+        self.assertEqual(len(self.history.getRecentMessages(limit=10)), 1)
+
+        restarted = ConversationHistory(self.context)
+
+        self.assertEqual(restarted.getRecentMessages(limit=10), [])
+
+    def test_history_can_persist_across_restarts_when_configured(self):
+        """Persistence remains available behind an explicit config switch."""
+
+        self.context.config._data["llm"]["history"]["persistAcrossRestarts"] = True
+        self.history = ConversationHistory(self.context)
+        self.history.logMessage("user", "keep me")
+
+        restarted = ConversationHistory(self.context)
+
+        self.assertEqual(restarted.getRecentMessages(limit=10), [("user", "keep me")])
+
     def test_history_limit_comes_from_config(self):
         """Conversation history should roll over at the configured limit."""
 

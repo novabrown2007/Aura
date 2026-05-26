@@ -136,6 +136,7 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertTrue(config_path.exists())
             self.assertEqual(config.get("llm.activeProvider"), "gemini")
             self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
+            self.assertEqual(config.get("llm.history.persistAcrossRestarts"), False)
             self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
             self.assertEqual(config.get("threading.max_threads"), 10)
             self.assertEqual(config.get("voice.enabled"), False)

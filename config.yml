@@ -15,6 +15,7 @@ llm:
   history:
     enabled: true
     limit: 25
+    persistAcrossRestarts: false
 
   memory:
     enabled: true

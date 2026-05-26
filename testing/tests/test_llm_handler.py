@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -303,6 +304,69 @@ class LLMHandlerTests(unittest.TestCase):
         handler = LLMHandler(context)
 
         result = handler.generateResponse("Hello, how are you today?")
+
+        self.assertEqual(result, "Hello Nova.")
+
+    def test_profile_age_question_is_answered_deterministically_from_memory(self):
+        """Profile age should be calculated from birthday memory, not model math."""
+
+        context = make_llm_context()
+        context.memoryManager.memory = {
+            "profile": "My birthday is March 22nd, 2007. I'm 19 years old. I am omnisexual."
+        }
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="You're 21 years old.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("How old am I?")
+
+        today = date.today()
+        expectedAge = today.year - 2007 - ((today.month, today.day) < (3, 22))
+        self.assertEqual(result, f"You are {expectedAge} years old.")
+
+    def test_profile_combined_question_separates_sexuality_from_gender_identity(self):
+        """Profile summaries should not conflate sexual orientation and gender identity."""
+
+        context = make_llm_context()
+        context.memoryManager.memory = {
+            "profile": (
+                "My birthday is March 22nd, 2007. I'm 19 years old. "
+                "I am omnisexual, non-binaring questioning MTF, and polyamorous."
+            )
+        }
+        context.llmManager = SimpleNamespace(offlineMode=True)
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Tell me my name, age, and sexual orientation.")
+
+        today = date.today()
+        expectedAge = today.year - 2007 - ((today.month, today.day) < (3, 22))
+        self.assertIn("your name is Nova", result)
+        self.assertIn(f"you are {expectedAge} years old", result)
+        self.assertIn("your sexual orientation is omnisexual", result)
+        self.assertNotIn("MTF", result)
+
+    def test_provider_prefix_is_removed_from_conversation_response(self):
+        """Interfaces already label Aura responses, so provider prefixes are stripped."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="Aura: Hello Nova.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Hello")
 
         self.assertEqual(result, "Hello Nova.")
 

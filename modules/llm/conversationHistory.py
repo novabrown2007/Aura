@@ -56,8 +56,11 @@ class ConversationHistory(AuraModule):
         self.historyLimit = int(config.get("llm.history.limit", 25))
         self.memoryEnabled = bool(config.get("llm.memory.enabled", True))
         self.memoryFrequency = int(config.get("llm.memory.frequency", 20))
+        self.persistAcrossRestarts = bool(config.get("llm.history.persistAcrossRestarts", False))
 
         self._initializeDatabase()
+        if not self.persistAcrossRestarts:
+            self.clear()
 
         if self.logger:
             self.logger.info("Initialized.")

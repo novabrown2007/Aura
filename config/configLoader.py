@@ -22,6 +22,7 @@ DEFAULT_CONFIG = {
         "history": {
             "enabled": True,
             "limit": 25,
+            "persistAcrossRestarts": False,
         },
         "memory": {
             "enabled": True,

@@ -7,6 +7,9 @@ conversation concerns, then delegates all provider access to modules.llm.LLMMana
 
 from __future__ import annotations
 
+import calendar
+import re
+from datetime import date, datetime
 from typing import Any
 
 from core.tools.toolOrchestrator import ToolOrchestrator
@@ -77,10 +80,18 @@ class LLMHandler(AuraModule):
         """Generate a conversational response while preserving legacy API shape."""
 
         self._emit("message.received", {"text": userInput})
+        profileReply = self._tryAnswerProfileQuestion(userInput)
+        if profileReply is not None:
+            cleaned = self._cleanResponseText(profileReply)
+            self._logConversation(userInput, cleaned)
+            self._emit("response.generated", {"text": cleaned})
+            self._speakResponse(cleaned)
+            return cleaned
+
         systemPrompt = self._buildSystemPrompt(userInput)
         conversationHistory = self._getConversationHistory()
         if self._supportsIntentPipeline():
-            cleaned = self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory)
+            cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
             self._speakResponse(cleaned)
@@ -93,10 +104,10 @@ class LLMHandler(AuraModule):
                 self.logger.error(f"LLM response failed: {response.error}")
             return self._providerFailureMessage(response.error)
 
-        cleaned = response.text.strip() or "I don't have a response for that."
+        cleaned = self._cleanResponseText(response.text) or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)
         if toolResult is not None:
-            cleaned = toolResult
+            cleaned = self._cleanResponseText(toolResult)
 
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
@@ -155,6 +166,8 @@ class LLMHandler(AuraModule):
         basePrompt = """
 You are Aura, a private AI assistant for Nova.
 
+Current date: {currentDate}.
+
 Purpose:
 - Help with conversation, planning, reminders, calendar management, home automation, and general assistant tasks.
 - Use long-term memory only as context; do not expose it unless it is relevant to the user's request.
@@ -163,12 +176,13 @@ Purpose:
 
 Rules:
 - Respond as Aura only.
+- Do not prefix replies with "Aura:".
 - Do not speak for the user.
 - Keep responses concise and helpful.
 - Do not claim to access internal system data unless explicitly provided.
 - If an action requires a tool, return the configured JSON tool-call format instead of pretending the action is complete.
 - If required tool arguments are missing, ask a concise follow-up question instead of calling a tool.
-"""
+""".format(currentDate=date.today().isoformat())
         prompt = PromptBuilder.buildSystemPrompt(
             basePrompt,
             memory={} if hasattr(self.memory, "injectPrompt") else memoryData,
@@ -183,6 +197,8 @@ Rules:
         basePrompt = """
 You are Aura, a private AI assistant for Nova running in offline mode.
 
+Current date: {currentDate}.
+
 Purpose:
 - Help with normal conversation, planning, explanations, and lightweight reasoning.
 - Use long-term memory only as context; do not expose it unless it is relevant to the user's request.
@@ -191,12 +207,13 @@ Purpose:
 
 Rules:
 - Respond as Aura only.
+- Do not prefix replies with "Aura:".
 - Do not speak for the user.
 - Keep responses concise and helpful.
 - Do not claim that you created, updated, deleted, started, stopped, or controlled anything.
 - If the user asks for an action that would require a tool, respond with a generic message that the action cannot be completed in offline mode.
 - Do not return JSON tool calls in offline mode.
-"""
+""".format(currentDate=date.today().isoformat())
         return PromptBuilder.buildSystemPrompt(basePrompt, memory=memoryData)
 
     def _injectMemoryPrompt(self, prompt: str, userInput: str, conversationHistory: list | None = None) -> str:
@@ -250,6 +267,117 @@ Rules:
         """Execute tool calls returned by the LLM JSON contract."""
 
         return self.tools.executeToolEnvelope(text, offlineMode=self._isOfflineMode())
+
+    def _tryAnswerProfileQuestion(self, userInput: str) -> str | None:
+        """Answer simple personal profile questions deterministically from memory."""
+
+        lowered = str(userInput or "").lower()
+        asksAge = bool(re.search(r"\b(how old|age)\b", lowered))
+        asksName = bool(re.search(r"\b(my name|what(?:'s| is) my name|tell me my name)\b", lowered))
+        asksSexuality = bool(re.search(r"\b(sexuality|sexual orientation)\b", lowered))
+        if not any((asksAge, asksName, asksSexuality)):
+            return None
+
+        memoryText = self._profileMemoryText()
+        parts = []
+        if asksName:
+            parts.append("your name is Nova")
+        if asksAge:
+            age = self._ageFromMemory(memoryText)
+            if age is None:
+                return None
+            parts.append(f"you are {age} years old")
+        if asksSexuality:
+            sexuality = self._sexualityFromMemory(memoryText)
+            if sexuality:
+                parts.append(f"your sexual orientation is {sexuality}")
+
+        if not parts:
+            return None
+        if len(parts) == 1:
+            return parts[0][0].upper() + parts[0][1:] + "."
+        return "You asked for profile info: " + "; ".join(parts) + "."
+
+    def _profileMemoryText(self) -> str:
+        """Collect memory text for deterministic profile extraction."""
+
+        memory = self.memory
+        if memory is None:
+            return ""
+        texts: list[str] = []
+        try:
+            if hasattr(memory, "retrieveMemories"):
+                for item in memory.retrieveMemories(limit=20):
+                    texts.append(str(getattr(item, "content", "")))
+            elif hasattr(memory, "getMemory"):
+                data = memory.getMemory() or {}
+                if isinstance(data, dict):
+                    texts.extend(str(value) for value in data.values())
+        except Exception as error:
+            if self.logger:
+                self.logger.debug(f"Profile memory extraction failed: {error}")
+        return "\n".join(text for text in texts if text)
+
+    def _ageFromMemory(self, memoryText: str) -> int | None:
+        """Calculate age from a remembered birth date, falling back to stated age."""
+
+        birthDate = self._birthDateFromText(memoryText)
+        if birthDate is not None:
+            today = date.today()
+            return today.year - birthDate.year - ((today.month, today.day) < (birthDate.month, birthDate.day))
+
+        match = re.search(r"\b(?:i am|i'm)\s+(\d{1,3})\s+years?\s+old\b", memoryText, flags=re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        return None
+
+    @staticmethod
+    def _birthDateFromText(text: str) -> date | None:
+        """Parse common remembered birthday formats."""
+
+        cleaned = re.sub(r"(\d{1,2})(st|nd|rd|th)", r"\1", str(text or ""), flags=re.IGNORECASE)
+        monthNames = "|".join(calendar.month_name[1:])
+        match = re.search(rf"\b({monthNames})\s+(\d{{1,2}}),?\s+(\d{{4}})\b", cleaned, flags=re.IGNORECASE)
+        if match:
+            month = list(calendar.month_name).index(match.group(1).capitalize())
+            return date(int(match.group(3)), month, int(match.group(2)))
+
+        match = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", cleaned)
+        if match:
+            first, second, year = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            if first > 12:
+                return date(year, second, first)
+            return date(year, first, second)
+        return None
+
+    @staticmethod
+    def _sexualityFromMemory(memoryText: str) -> str | None:
+        """Extract sexual orientation without conflating gender identity."""
+
+        lowered = str(memoryText or "").lower()
+        orientations = [
+            "omnisexual",
+            "bisexual",
+            "pansexual",
+            "asexual",
+            "lesbian",
+            "gay",
+            "straight",
+            "heterosexual",
+            "homosexual",
+        ]
+        for orientation in orientations:
+            if re.search(rf"\b{re.escape(orientation)}\b", lowered):
+                return orientation
+        return None
+
+    @staticmethod
+    def _cleanResponseText(text: str) -> str:
+        """Normalize provider text before sending it to interfaces."""
+
+        cleaned = str(text or "").strip()
+        cleaned = re.sub(r"^(?:Aura|Assistant)\s*:\s*", "", cleaned, flags=re.IGNORECASE).strip()
+        return cleaned
 
     def _speakResponse(self, text: str):
         """Send assistant text through the shared voice output interface when available."""
