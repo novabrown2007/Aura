@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from core.tools.toolOrchestrator import ToolOrchestrator
@@ -24,6 +25,7 @@ class IntentPipeline:
         self.rawLogger = getattr(manager, "rawLogger", None)
         self.recentToolContext: list[dict[str, Any]] = []
         self.contextWindow = int(self._getConfigValue("llm.intent.contextWindow", 6))
+        self.pendingClarification: dict[str, Any] | None = None
 
     def handleUserInput(
         self,
@@ -33,6 +35,15 @@ class IntentPipeline:
         confirmed: bool = False,
     ) -> str:
         """Run the complete cognition path from user input to final reply."""
+
+        pendingReply = self._tryResolvePendingClarification(
+            userInput,
+            baseSystemPrompt,
+            conversationHistory,
+            confirmed=confirmed,
+        )
+        if pendingReply is not None:
+            return pendingReply
 
         self._logStage("LLM", "Prompt Sent")
         intentResult = self.parseIntents(userInput, baseSystemPrompt, conversationHistory)
@@ -55,8 +66,43 @@ class IntentPipeline:
 
         validation = self.validateIntents(intents)
         if not validation["success"]:
+            repaired = self._repairMissingArgumentFromInput(intents, validation["error"], userInput)
+            if repaired is not None:
+                intents = repaired
+                validation = self.validateIntents(intents)
+                if validation["success"]:
+                    self._logStage("VALIDATION", "Repaired missing argument from user input")
+                else:
+                    self._logStage("VALIDATION", validation["error"])
+            if validation["success"]:
+                return self._executeValidatedIntents(
+                    baseSystemPrompt,
+                    userInput,
+                    intents,
+                    conversationHistory,
+                    confirmed=confirmed,
+                )
             self._logStage("VALIDATION", validation["error"])
+            self._storePendingClarification(intents[0], validation["error"])
             return self.askClarification(intents[0], validation["error"])
+
+        return self._executeValidatedIntents(
+            baseSystemPrompt,
+            userInput,
+            intents,
+            conversationHistory,
+            confirmed=confirmed,
+        )
+
+    def _executeValidatedIntents(
+        self,
+        baseSystemPrompt: str,
+        userInput: str,
+        intents: list[StructuredIntent],
+        conversationHistory: list | None = None,
+        confirmed: bool = False,
+    ) -> str:
+        """Execute already-validated intents and generate the final reply."""
 
         self._logStage("VALIDATION", "Success")
         executions = self.executeIntents(intents, confirmed=confirmed)
@@ -72,6 +118,220 @@ class IntentPipeline:
         )
         self._logStage("RESPONSE", "Generated")
         return reply
+
+    def _tryResolvePendingClarification(
+        self,
+        userInput: str,
+        baseSystemPrompt: str,
+        conversationHistory: list | None = None,
+        confirmed: bool = False,
+    ) -> str | None:
+        """Use a short follow-up answer to complete a pending tool intent."""
+
+        if self.pendingClarification is None:
+            return None
+
+        if self._isCancellation(userInput):
+            self.pendingClarification = None
+            self._logStage("CLARIFICATION", "Cancelled pending intent")
+            return "Okay, I won't worry about that for now."
+
+        missingParameter = self.pendingClarification.get("missingParameter")
+        pendingIntent = self.pendingClarification.get("intent")
+        if not missingParameter or not isinstance(pendingIntent, StructuredIntent):
+            self.pendingClarification = None
+            return None
+
+        value = self._extractClarificationValue(userInput, missingParameter, allowBare=True)
+        if value is None:
+            if self._looksLikeNewConversation(userInput):
+                self.pendingClarification = None
+                self._logStage("CLARIFICATION", "Cleared stale pending intent")
+                return None
+            return self.askClarification(pendingIntent, self.pendingClarification.get("reason"))
+
+        completedIntent = self._withUpdatedArgument(pendingIntent, missingParameter, value)
+        validation = self.validateIntents([completedIntent])
+        if not validation["success"]:
+            self._storePendingClarification(completedIntent, validation["error"])
+            return self.askClarification(completedIntent, validation["error"])
+
+        self.pendingClarification = None
+        self._logStage("CLARIFICATION", f"Resolved {missingParameter}")
+        return self._executeValidatedIntents(
+            baseSystemPrompt,
+            userInput,
+            [completedIntent],
+            conversationHistory,
+            confirmed=confirmed,
+        )
+
+    def _repairMissingArgumentFromInput(
+        self,
+        intents: list[StructuredIntent],
+        error: str | None,
+        userInput: str,
+    ) -> list[StructuredIntent] | None:
+        """Recover an omitted required argument when it is obvious in the same turn."""
+
+        missingParameter = self._missingRequiredParameter(error)
+        if not missingParameter or not intents:
+            return None
+
+        value = self._extractClarificationValue(userInput, missingParameter, allowBare=False)
+        if value is None:
+            return None
+
+        repaired = list(intents)
+        repaired[0] = self._withUpdatedArgument(repaired[0], missingParameter, value)
+        return repaired
+
+    def _storePendingClarification(self, intent: StructuredIntent, reason: str | None):
+        """Remember one incomplete tool intent so the next short reply can finish it."""
+
+        missingParameter = self._missingRequiredParameter(reason)
+        if not missingParameter:
+            self.pendingClarification = None
+            return
+        self.pendingClarification = {
+            "intent": intent,
+            "missingParameter": missingParameter,
+            "reason": reason,
+        }
+        self._logStage("CLARIFICATION", f"Waiting for {missingParameter}")
+
+    def _withUpdatedArgument(
+        self,
+        intent: StructuredIntent,
+        parameter: str,
+        value: Any,
+    ) -> StructuredIntent:
+        """Return a copy of an intent with one argument filled in."""
+
+        arguments = dict(intent.arguments or {})
+        arguments[parameter] = value
+        return StructuredIntent(
+            intent=intent.intent,
+            arguments=arguments,
+            confidence=intent.confidence,
+            response=intent.response,
+        )
+
+    def _extractClarificationValue(
+        self,
+        userInput: str,
+        parameter: str,
+        allowBare: bool = True,
+    ) -> Any | None:
+        """Extract a simple deterministic value for a missing tool parameter."""
+
+        text = str(userInput or "").strip()
+        if not text:
+            return None
+
+        keyValue = re.search(
+            rf"\b{re.escape(parameter)}\s*(?:=|:|is)\s*([A-Za-z0-9 _-]+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if keyValue:
+            return self._coerceClarificationValue(parameter, keyValue.group(1).strip(" .,!?'\""))
+
+        if parameter == "room":
+            roomFromDevicePhrase = self._extractRoomFromDevicePhrase(text)
+            if roomFromDevicePhrase:
+                return roomFromDevicePhrase
+
+        if allowBare:
+            bareValue = self._cleanBareClarification(text)
+            if bareValue:
+                return self._coerceClarificationValue(parameter, bareValue)
+        return None
+
+    @staticmethod
+    def _extractRoomFromDevicePhrase(text: str) -> str | None:
+        """Extract room names from phrases like 'my bedroom lights'."""
+
+        match = re.search(
+            r"\b(?:my|the|a|an)\s+([A-Za-z][A-Za-z0-9 _-]{0,40}?)\s+(?:lights?|lamps?)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return match.group(1).strip(" .,!?'\"").lower() or None
+
+        match = re.search(
+            r"\b([A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,2})\s+(?:lights?|lamps?)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            return None
+        room = match.group(1).strip(" .,!?'\"").lower()
+        ignored = {"turn", "on", "off", "set", "dim", "brighten", "my", "the", "a", "an"}
+        words = [word for word in room.split() if word not in ignored]
+        return " ".join(words).strip() or None
+
+    @staticmethod
+    def _cleanBareClarification(text: str) -> str | None:
+        """Clean a short clarification answer such as 'bedroom'."""
+
+        cleaned = text.strip().strip(" .,!?'\"")
+        cleaned = re.sub(r"^(it'?s|its|the|my|room is)\s+", "", cleaned, flags=re.IGNORECASE)
+        tokenCount = len(cleaned.split())
+        if tokenCount == 0 or tokenCount > 5:
+            return None
+        if "?" in cleaned:
+            return None
+        return cleaned.lower()
+
+    @staticmethod
+    def _coerceClarificationValue(parameter: str, value: str) -> Any:
+        """Coerce common parameter types without using model inference."""
+
+        if parameter in {"brightness", "level", "percent", "percentage"}:
+            match = re.search(r"\d+", value)
+            if match:
+                return int(match.group(0))
+        return value.strip().lower()
+
+    @staticmethod
+    def _missingRequiredParameter(error: str | None) -> str | None:
+        """Parse the required parameter name from tool validation errors."""
+
+        if not error:
+            return None
+        match = re.search(r"Missing required parameter:\s*([A-Za-z_][A-Za-z0-9_]*)", error)
+        return match.group(1) if match else None
+
+    @staticmethod
+    def _isCancellation(userInput: str) -> bool:
+        """Return whether the user is dismissing a pending clarification."""
+
+        normalized = str(userInput or "").strip().lower()
+        cancellationPhrases = {
+            "cancel",
+            "nevermind",
+            "never mind",
+            "don't worry",
+            "dont worry",
+            "forget it",
+            "ignore it",
+            "not now",
+            "don't worry about it",
+            "dont worry about it",
+        }
+        return any(phrase in normalized for phrase in cancellationPhrases)
+
+    @staticmethod
+    def _looksLikeNewConversation(userInput: str) -> bool:
+        """Return whether text is likely a new request rather than a slot answer."""
+
+        tokens = IntentPipeline._tokenize(userInput)
+        if len(tokens) > 7:
+            return True
+        questionWords = {"what", "who", "when", "where", "why", "how"}
+        return bool(tokens & questionWords)
 
     def parseIntent(
         self,

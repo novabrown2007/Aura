@@ -12,4 +12,4 @@ logs/
 build/
 dist/
 *.spec
-aura.sqlite3
+*.sqlite3

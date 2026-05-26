@@ -45,6 +45,23 @@ class StubIntentManager:
 class IntentPipelineTests(unittest.TestCase):
     """Validate structured intent parsing, validation, execution, and replies."""
 
+    def registerLightTurnOnTool(self, context, calls):
+        """Register a light tool backed by a deterministic test module."""
+
+        context.toolRegistry.registerTool(
+            Tool(
+                name="lights.turnOn",
+                description="Turn on a light by room or light name.",
+                parameters={"room": {"type": "string"}, "brightness": {"type": "integer"}},
+                requiredParameters=("room",),
+                module="homeAutomation",
+                method="turnLightOnByRoom",
+            )
+        )
+        context.homeAutomation = SimpleNamespace(
+            turnLightOnByRoom=lambda **kwargs: calls.append(kwargs) or {"is_on": True, **kwargs}
+        )
+
     def test_handler_runs_structured_intent_end_to_end(self):
         """User input should parse, validate, execute, and return a final reply."""
 
@@ -92,6 +109,84 @@ class IntentPipelineTests(unittest.TestCase):
         reply = handler.generateResponse("Maybe put something on my calendar")
 
         self.assertIn("understood correctly", reply)
+        self.assertEqual(calls, [])
+
+    def test_handler_recovers_missing_room_from_original_light_request(self):
+        """Obvious room text in the original message should repair an incomplete intent."""
+
+        calls = []
+        context = make_llm_context()
+        self.registerLightTurnOnTool(context, calls)
+        context.llmManager = StubIntentManager(
+            {
+                "intent": "lights.turnOn",
+                "arguments": {},
+                "confidence": 0.96,
+                "response": "Turning on the lights.",
+            },
+            finalText="The bedroom lights are on.",
+        )
+
+        handler = LLMHandler(context)
+        reply = handler.generateResponse("Can you turn on my bedroom lights please?")
+
+        self.assertEqual(reply, "The bedroom lights are on.")
+        self.assertEqual(calls, [{"room": "bedroom"}])
+
+    def test_follow_up_supplies_missing_room_for_pending_light_intent(self):
+        """A short clarification reply should complete the pending tool call."""
+
+        calls = []
+        context = make_llm_context()
+        self.registerLightTurnOnTool(context, calls)
+        context.llmManager = StubIntentManager(
+            {
+                "intent": "lights.turnOn",
+                "arguments": {},
+                "confidence": 0.96,
+                "response": "Turning on the lights.",
+            },
+            finalText="The bedroom lights are on.",
+        )
+
+        handler = LLMHandler(context)
+        firstReply = handler.generateResponse("Can you turn on my lights please?")
+        secondReply = handler.generateResponse("bedroom")
+
+        self.assertIn("Missing required parameter: room", firstReply)
+        self.assertEqual(secondReply, "The bedroom lights are on.")
+        self.assertEqual(calls, [{"room": "bedroom"}])
+
+    def test_cancel_pending_clarification_returns_to_conversation(self):
+        """Dismissing a pending tool clarification should not poison later chat."""
+
+        calls = []
+        context = make_llm_context()
+        self.registerLightTurnOnTool(context, calls)
+        context.llmManager = StubIntentManager(
+            {
+                "intent": "lights.turnOn",
+                "arguments": {},
+                "confidence": 0.96,
+                "response": "Turning on the lights.",
+            },
+            finalText="Your name is Nova.",
+        )
+
+        handler = LLMHandler(context)
+        firstReply = handler.generateResponse("Can you turn on my lights please?")
+        cancelReply = handler.generateResponse("Don't worry about it for now.")
+        context.llmManager.intentPayload = {
+            "intent": "conversation.respond",
+            "arguments": {},
+            "confidence": 0.98,
+            "response": "Your name is Nova.",
+        }
+        finalReply = handler.generateResponse("What is my name?")
+
+        self.assertIn("Missing required parameter: room", firstReply)
+        self.assertIn("won't worry", cancelReply)
+        self.assertEqual(finalReply, "Your name is Nova.")
         self.assertEqual(calls, [])
 
     def test_intent_harness_compares_expected_tool_and_arguments(self):

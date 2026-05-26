@@ -96,8 +96,12 @@ class ThreadingManager:
             threading.Thread
         """
 
-        if name in self.threads:
-            raise RuntimeError(f"Thread '{name}' already exists.")
+        existing = self.threads.get(name)
+        if existing is not None:
+            if existing.is_alive():
+                raise RuntimeError(f"Thread '{name}' already exists.")
+            self.threads.pop(name, None)
+            self.controls.pop(name, None)
 
         kwargs = kwargs or {}
 

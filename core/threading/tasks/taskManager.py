@@ -1,5 +1,6 @@
 """Core implementation for `taskManager` in the Aura assistant project."""
 
+import threading
 from typing import Dict, Optional
 from .task import Task
 
@@ -33,6 +34,11 @@ class TaskManager:
         self.tasks: Dict[str, Task] = {}
         """Dictionary of tasks indexed by task name."""
 
+        self.completedTaskHistory: list[Task] = []
+        """Completed tasks retained for diagnostics."""
+
+        self._lock = threading.RLock()
+
         if self.logger:
             self.logger.info(f"Initialized.")
 
@@ -51,10 +57,13 @@ class TaskManager:
                 Task instance to execute.
         """
 
-        if task.name in self.tasks:
-            raise RuntimeError(f"Task '{task.name}' already exists.")
-
-        self.tasks[task.name] = task
+        with self._lock:
+            existing = self.tasks.get(task.name)
+            if existing is not None and not existing.completed:
+                raise RuntimeError(f"Task '{task.name}' already exists.")
+            if existing is not None and existing.completed:
+                self.completedTaskHistory.append(existing)
+            self.tasks[task.name] = task
 
         if self.logger:
             self.logger.debug(f"Task submitted: {task.name}")
@@ -91,22 +100,28 @@ class TaskManager:
         if observability is not None:
             observability.recordTrace("task", task.name, status="started")
 
-        task.run()
+        try:
+            task.run()
 
-        if task.error:
-            if observability is not None:
-                observability.recordTrace("task", task.name, status="failed", details={"error": str(task.error)})
-            if self.logger:
-                self.logger.error(f"Task failed: {task.name} ({task.error})")
-        else:
-            if observability is not None:
-                observability.recordTrace("task", task.name, status="completed")
-            if self.logger:
-                self.logger.debug(f"Task completed: {task.name}")
+            if task.error:
+                if observability is not None:
+                    observability.recordTrace("task", task.name, status="failed", details={"error": str(task.error)})
+                if self.logger:
+                    self.logger.error(f"Task failed: {task.name} ({task.error})")
+            else:
+                if observability is not None:
+                    observability.recordTrace("task", task.name, status="completed")
+                if self.logger:
+                    self.logger.debug(f"Task completed: {task.name}")
 
-        # Emit completion event if event system exists
-        if self.context.eventManager:
-            self.context.eventManager.emit("task_completed", {"task": task})
+            # Emit completion event if event system exists
+            if self.context.eventManager:
+                self.context.eventManager.emit("task_completed", {"task": task})
+        finally:
+            with self._lock:
+                if self.tasks.get(task.name) is task:
+                    self.tasks.pop(task.name, None)
+                self.completedTaskHistory.append(task)
 
     # --------------------------------------------------
     # Task Access
@@ -123,7 +138,8 @@ class TaskManager:
             Task | None
         """
 
-        return self.tasks.get(name)
+        with self._lock:
+            return self.tasks.get(name)
 
     def listTasks(self):
         """
@@ -133,7 +149,8 @@ class TaskManager:
             list[str]
         """
 
-        return list(self.tasks.keys())
+        with self._lock:
+            return list(self.tasks.keys())
 
     # --------------------------------------------------
     # Debug Helpers
@@ -147,4 +164,7 @@ class TaskManager:
             list[Task]
         """
 
-        return [task for task in self.tasks.values() if task.completed]
+        with self._lock:
+            completed = list(self.completedTaskHistory)
+            completed.extend(task for task in self.tasks.values() if task.completed)
+            return completed
