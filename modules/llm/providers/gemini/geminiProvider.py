@@ -57,7 +57,15 @@ class GeminiProvider(LLMProvider):
                 self.logger.error(f"Gemini SDK is not installed: {error}")
             return
 
-        self.client = genai.Client(api_key=self.apiKey)
+        try:
+            self.client = genai.Client(api_key=self.apiKey)
+        except Exception as error:
+            self.initialized = False
+            self.client = None
+            if self.logger:
+                self.logger.error(f"Gemini client initialization failed: {error}")
+            return
+
         self.initialized = True
         if self.logger:
             self.logger.info(f"Gemini provider initialized with model '{self.model}'.")

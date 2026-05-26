@@ -221,6 +221,22 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertTrue(manager.offlineMode)
         self.assertEqual(manager.activeProviderName, "ollama")
 
+    def test_gemini_client_initialization_failure_does_not_crash_startup(self):
+        """Gemini transport/client failures should mark the provider unavailable."""
+
+        context = make_llm_context()
+        context.config._data["llm"]["gemini"] = {
+            "api_secret": "test-key",
+            "model": "gemini-2.5-flash",
+        }
+        provider = GeminiProvider(context)
+
+        with patch("google.genai.Client", side_effect=RuntimeError("transport unavailable")):
+            provider.initialize()
+
+        self.assertFalse(provider.initialized)
+        self.assertIsNone(provider.client)
+
     def test_ollama_rejects_structured_response_requests(self):
         """Ollama should not be trusted for structured tool or intent parsing."""
 
