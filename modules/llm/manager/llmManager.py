@@ -12,6 +12,9 @@ Example:
 
 from __future__ import annotations
 
+import re
+import time
+
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
@@ -33,8 +36,11 @@ class LLMManager:
         self.logger = None
         self.providers: dict[str, LLMProvider] = {}
         self.activeProviderName = "gemini"
+        self.preferredProviderName = "gemini"
         self.fallbackProviderName = "ollama"
         self.offlineMode = False
+        self.offlineReason = ""
+        self.offlineUntil = 0.0
         self.initialized = False
         self.rawLogger = None
 
@@ -52,6 +58,7 @@ class LLMManager:
         self.rawLogger = LLMLogger(self.context)
         self.activeProviderName = self._getConfigValue(config, "llm.activeProvider", None)
         self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
+        self.preferredProviderName = self.activeProviderName
         self.fallbackProviderName = self._getConfigValue(config, "llm.fallbackProvider", "ollama")
 
         self.providers = self._createDefaultProviders()
@@ -61,6 +68,7 @@ class LLMManager:
 
         self.offlineMode = not bool(self.providers.get("gemini") and self.providers["gemini"].initialized)
         if self.offlineMode:
+            self.offlineReason = "Gemini provider unavailable at startup."
             self.activeProviderName = self.fallbackProviderName
             if self.logger:
                 self.logger.info("Gemini provider unavailable. Using local Ollama in offline mode.")
@@ -92,6 +100,10 @@ class LLMManager:
             return False
 
         self.activeProviderName = providerName
+        self.preferredProviderName = providerName
+        self.offlineMode = False
+        self.offlineReason = ""
+        self.offlineUntil = 0.0
         if self.logger:
             self.logger.info(f"Active LLM provider switched to {providerName}.")
         return True
@@ -188,13 +200,12 @@ class LLMManager:
                     conversationHistory=conversationHistory,
                 )
             if response.success:
+                if providerName == self.preferredProviderName:
+                    self._restorePreferredProvider()
                 return response
 
-            if providerName == self.activeProviderName and self._shouldUseOfflineFallback(response.error):
-                self.offlineMode = True
-                self.activeProviderName = self.fallbackProviderName
-                if self.logger:
-                    self.logger.warning(f"Gemini became unavailable. Falling back to local Ollama: {response.error}")
+            if providerName == self.preferredProviderName and self._shouldUseOfflineFallback(response.error):
+                self._enterOfflineFallback(response.error)
 
             if self.logger:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
@@ -216,12 +227,80 @@ class LLMManager:
         """Return the active/fallback provider order for the current mode."""
 
         if self.offlineMode:
+            if self._fallbackCooldownExpired():
+                return [self.preferredProviderName, self.fallbackProviderName]
             return [self.fallbackProviderName]
 
         providerOrder = [self.activeProviderName]
         if self.fallbackProviderName not in providerOrder:
             providerOrder.append(self.fallbackProviderName)
         return providerOrder
+
+    def canUseStructuredOutput(self) -> bool:
+        """Return whether structured/tool parsing can be attempted now."""
+
+        if not self.offlineMode:
+            return True
+        return self._fallbackCooldownExpired()
+
+    def getStatus(self) -> dict:
+        """Return concise provider routing state for interfaces and diagnostics."""
+
+        activeProvider = self.providers.get(self.activeProviderName)
+        preferredProvider = self.providers.get(self.preferredProviderName)
+        fallbackProvider = self.providers.get(self.fallbackProviderName)
+        return {
+            "activeProvider": self.activeProviderName,
+            "preferredProvider": self.preferredProviderName,
+            "fallbackProvider": self.fallbackProviderName,
+            "activeModel": str(getattr(activeProvider, "model", "") or self.activeProviderName),
+            "preferredModel": str(getattr(preferredProvider, "model", "") or self.preferredProviderName),
+            "fallbackModel": str(getattr(fallbackProvider, "model", "") or self.fallbackProviderName),
+            "offlineMode": self.offlineMode,
+            "offlineReason": self.offlineReason,
+            "offlineUntil": self.offlineUntil,
+            "canUseStructuredOutput": self.canUseStructuredOutput(),
+        }
+
+    def _enterOfflineFallback(self, error: str | None):
+        """Switch routing to fallback temporarily after primary provider failure."""
+
+        self.offlineMode = True
+        self.offlineReason = str(error or "Primary provider unavailable.")
+        self.offlineUntil = time.time() + self._fallbackRetryDelay(error)
+        self.activeProviderName = self.fallbackProviderName
+        if self.logger:
+            self.logger.warning(f"Gemini became unavailable. Falling back to local Ollama: {error}")
+
+    def _restorePreferredProvider(self):
+        """Mark the preferred provider as active after a successful retry."""
+
+        if self.activeProviderName != self.preferredProviderName or self.offlineMode:
+            if self.logger:
+                self.logger.info(f"Preferred LLM provider restored: {self.preferredProviderName}")
+        self.activeProviderName = self.preferredProviderName
+        self.offlineMode = False
+        self.offlineReason = ""
+        self.offlineUntil = 0.0
+
+    def _fallbackCooldownExpired(self) -> bool:
+        """Return whether it is time to retry the preferred provider."""
+
+        return time.time() >= float(self.offlineUntil or 0.0)
+
+    @staticmethod
+    def _fallbackRetryDelay(error: str | None) -> float:
+        """Parse provider retry guidance; use a short default when absent."""
+
+        text = str(error or "")
+        for pattern in (r"retryDelay['\"]?\s*:\s*['\"]?(\d+)s", r"retry in\s+([0-9.]+)s"):
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                try:
+                    return max(5.0, min(float(match.group(1)), 300.0))
+                except Exception:
+                    continue
+        return 60.0
 
     def _getLogger(self, name: str):
         """Return a child logger when Aura logging is available."""

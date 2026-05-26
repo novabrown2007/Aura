@@ -51,11 +51,24 @@ class AndroidInterfaceTests(unittest.TestCase):
         context = SimpleNamespace(
             llmManager=SimpleNamespace(
                 activeProviderName="ollama",
-                providers={"ollama": SimpleNamespace(model="deepseek-r1:8b")},
+                providers={"ollama": SimpleNamespace(model="llama3.2:1b")},
             )
         )
 
-        self.assertEqual(format_current_model_label(context), "Currently Running: deepseek-r1:8b")
+        self.assertEqual(format_current_model_label(context), "Currently Running: llama3.2:1b")
+
+    def test_model_label_shows_offline_fallback_state(self):
+        context = SimpleNamespace(
+            llmManager=SimpleNamespace(
+                getStatus=lambda: {
+                    "activeModel": "llama3.2:1b",
+                    "activeProvider": "ollama",
+                    "offlineMode": True,
+                }
+            )
+        )
+
+        self.assertEqual(format_current_model_label(context), "Currently Running: llama3.2:1b (offline fallback)")
 
 
 if __name__ == "__main__":

@@ -94,6 +94,30 @@ class StubProvider:
         return self.response
 
 
+class SequenceProvider:
+    """Provider stub that returns responses in order."""
+
+    def __init__(self, provider_name, responses):
+        self.providerName = provider_name
+        self.responses = list(responses)
+        self.initialized = True
+        self.model = provider_name
+
+    def initialize(self):
+        self.initialized = True
+
+    def shutdown(self):
+        self.initialized = False
+
+    def generateResponse(self, *_args, **_kwargs):
+        if len(self.responses) > 1:
+            return self.responses.pop(0)
+        return self.responses[0]
+
+    def generateStructuredResponse(self, *_args, **_kwargs):
+        return self.generateResponse()
+
+
 def make_llm_context(endpoint="http://localhost:11434/api/generate"):
     """Construct and return a configured helper object for testing/tests/runtime wiring."""
     context = SimpleNamespace()
@@ -204,7 +228,9 @@ class LLMHandlerTests(unittest.TestCase):
             LLMResponse(provider="fallback", success=True, text="Recovered"),
         )
         manager.activeProviderName = "primary"
+        manager.preferredProviderName = "primary"
         manager.fallbackProviderName = "fallback"
+        manager.offlineMode = False
 
         response = manager.generateResponse("system", "hello")
 
@@ -226,6 +252,7 @@ class LLMHandlerTests(unittest.TestCase):
             LLMResponse(provider="ollama", success=True, text="Recovered locally"),
         )
         manager.activeProviderName = "gemini"
+        manager.preferredProviderName = "gemini"
         manager.fallbackProviderName = "ollama"
         manager.offlineMode = False
 
@@ -236,6 +263,36 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertEqual(response.text, "Recovered locally")
         self.assertTrue(manager.offlineMode)
         self.assertEqual(manager.activeProviderName, "ollama")
+        self.assertIn("quota", manager.offlineReason)
+
+    def test_manager_retries_and_restores_preferred_provider_after_cooldown(self):
+        """Temporary fallback should retry Gemini after the cooldown expires."""
+
+        context = make_llm_context()
+        manager = LLMManager(context)
+        manager.providers["gemini"] = SequenceProvider(
+            "gemini",
+            [
+                LLMResponse(provider="gemini", success=False, error="429 RESOURCE_EXHAUSTED retryDelay': '5s'"),
+                LLMResponse(provider="gemini", success=True, text="Gemini restored"),
+            ],
+        )
+        manager.providers["ollama"] = StubProvider(
+            "ollama",
+            LLMResponse(provider="ollama", success=True, text="Fallback"),
+        )
+        manager.activeProviderName = "gemini"
+        manager.preferredProviderName = "gemini"
+        manager.fallbackProviderName = "ollama"
+
+        first = manager.generateResponse("system", "hello")
+        manager.offlineUntil = 0
+        second = manager.generateResponse("system", "hello again")
+
+        self.assertEqual(first.provider, "ollama")
+        self.assertEqual(second.provider, "gemini")
+        self.assertFalse(manager.offlineMode)
+        self.assertEqual(manager.activeProviderName, "gemini")
 
     @patch.object(GeminiProvider, "initialize")
     def test_manager_uses_ollama_when_gemini_is_unavailable(self, mock_initialize):
@@ -307,6 +364,74 @@ class LLMHandlerTests(unittest.TestCase):
 
         self.assertEqual(result, "Hello Nova.")
 
+    def test_plain_conversation_does_not_use_structured_intent_pipeline(self):
+        """Normal chat should not spend structured Gemini calls."""
+
+        context = make_llm_context()
+        structuredCalls = []
+        context.llmManager = SimpleNamespace(
+            offlineMode=False,
+            rawLogger=None,
+            generateStructuredResponse=lambda *args, **kwargs: structuredCalls.append(args) or LLMResponse(
+                provider="gemini",
+                success=False,
+                error="should not be called",
+            ),
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="gemini",
+                success=True,
+                text="I'm doing well.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Hello, how are you?")
+
+        self.assertEqual(result, "I'm doing well.")
+        self.assertEqual(structuredCalls, [])
+
+    def test_tool_request_uses_structured_intent_pipeline(self):
+        """Action requests still use the structured tool path."""
+
+        context = make_llm_context()
+        structuredCalls = []
+        context.llmManager = SimpleNamespace(
+            offlineMode=False,
+            rawLogger=None,
+            generateStructuredResponse=lambda *args, **kwargs: structuredCalls.append(args) or LLMResponse(
+                provider="gemini",
+                success=True,
+                rawResponse={
+                    "intent": "lights.turnOn",
+                    "arguments": {"room": "bedroom"},
+                    "confidence": 0.96,
+                    "response": "Turning on the bedroom lights.",
+                },
+            ),
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="gemini",
+                success=True,
+                text="Done.",
+            ),
+        )
+        context.toolRegistry.registerTool(
+            Tool(
+                name="lights.turnOn",
+                description="Turn on a light by room.",
+                parameters={"room": {"type": "string"}},
+                requiredParameters=("room",),
+                module="homeAutomation",
+                method="turnLightOnByRoom",
+            )
+        )
+        context.homeAutomation = SimpleNamespace(turnLightOnByRoom=lambda **kwargs: {"ok": True})
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Turn on my bedroom lights")
+
+        self.assertEqual(result, "Done.")
+        self.assertEqual(len(structuredCalls), 1)
+
     def test_profile_age_question_is_answered_deterministically_from_memory(self):
         """Profile age should be calculated from birthday memory, not model math."""
 
@@ -369,6 +494,32 @@ class LLMHandlerTests(unittest.TestCase):
         result = handler.generateResponse("Hello")
 
         self.assertEqual(result, "Hello Nova.")
+
+    def test_offline_tool_request_reports_tool_path_unavailable(self):
+        """Offline fallback should not let Ollama claim Aura cannot control devices."""
+
+        context = make_llm_context()
+        calls = []
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            canUseStructuredOutput=lambda: False,
+            getStatus=lambda: {
+                "activeModel": "llama3.2:1b",
+                "offlineReason": "429 RESOURCE_EXHAUSTED quota exceeded",
+            },
+            generateResponse=lambda *args, **kwargs: calls.append(args) or LLMResponse(
+                provider="ollama",
+                success=True,
+                text="I cannot control devices.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Turn on my bedroom lights")
+
+        self.assertIn("Gemini tool path", result)
+        self.assertIn("temporarily unavailable", result)
+        self.assertEqual(calls, [])
 
     def test_system_prompt_includes_memory_and_tool_contract(self):
         """The generic assistant prompt should expose memory and tool-call rules."""

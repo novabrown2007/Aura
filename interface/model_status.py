@@ -10,6 +10,13 @@ def get_current_model_name(context) -> str:
     if manager is None:
         return "Unavailable"
 
+    if hasattr(manager, "getStatus"):
+        status = manager.getStatus()
+        model_name = str(status.get("activeModel") or status.get("activeProvider") or "Unknown")
+        if status.get("offlineMode"):
+            return f"{model_name} (offline fallback)"
+        return model_name
+
     provider_name = getattr(manager, "activeProviderName", "")
     providers = getattr(manager, "providers", {}) or {}
     provider = providers.get(provider_name) if hasattr(providers, "get") else None

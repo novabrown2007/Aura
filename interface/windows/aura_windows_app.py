@@ -3023,6 +3023,7 @@ class AuraWindowsApp:
         try:
             while True:
                 result_type, payload = self.pendingResponses.get_nowait()
+                self._refreshModelLabel()
                 if result_type == "response":
                     self._appendTranscript("Aura", payload)
                     self._setBusyState(False)
@@ -3038,6 +3039,15 @@ class AuraWindowsApp:
                     self.root.after(50, self._pollPendingResponses)
             except TclError:
                 pass
+
+    def _refreshModelLabel(self):
+        """Refresh the displayed active model after provider fallback changes."""
+
+        try:
+            self.currentModelLabel.config(text=format_current_model_label(self.context))
+        except Exception as error:
+            if self.logger:
+                self.logger.debug(f"Model label refresh failed: {error}")
 
     def _appendTranscript(self, speaker: str, message: str):
         """Append a line to the transcript panel."""

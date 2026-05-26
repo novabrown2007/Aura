@@ -489,6 +489,8 @@ class IntentPipeline:
     def _isOfflineMode(self) -> bool:
         """Return whether the manager is in offline mode."""
 
+        if hasattr(self.manager, "canUseStructuredOutput") and self.manager.canUseStructuredOutput():
+            return False
         return bool(getattr(self.manager, "offlineMode", False))
 
     def _getConfigValue(self, key: str, default):

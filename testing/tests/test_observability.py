@@ -81,6 +81,34 @@ class ObservabilityTests(unittest.TestCase):
         self.assertTrue(snapshot["modules"]["system"]["loaded"])
         self.assertEqual(snapshot["scheduler"]["schedules"][0]["name"], "poll")
 
+    def test_provider_snapshot_uses_manager_status_when_available(self):
+        context = make_context()
+        context.llmManager = SimpleNamespace(
+            getStatus=lambda: {
+                "offlineMode": True,
+                "activeProvider": "ollama",
+                "activeModel": "llama3.2:1b",
+                "preferredProvider": "gemini",
+                "preferredModel": "gemini-2.5-flash",
+                "fallbackProvider": "ollama",
+                "offlineReason": "429 RESOURCE_EXHAUSTED",
+                "canUseStructuredOutput": False,
+            },
+            providers={
+                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
+                "gemini": SimpleNamespace(initialized=True, model="gemini-2.5-flash"),
+            },
+        )
+        manager = ObservabilityManager(context)
+
+        providers = manager.getProviders()
+
+        self.assertTrue(providers["offlineMode"])
+        self.assertEqual(providers["activeProvider"], "ollama")
+        self.assertEqual(providers["preferredProvider"], "gemini")
+        self.assertEqual(providers["offlineReason"], "429 RESOURCE_EXHAUSTED")
+        self.assertFalse(providers["canUseStructuredOutput"])
+
     def test_event_and_tool_execution_record_traces(self):
         context = make_context()
         context.eventManager = EventManager(context)

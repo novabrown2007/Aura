@@ -138,9 +138,11 @@ class ObservabilityManager:
         if manager is None:
             return {"available": False, "providers": {}}
 
+        status = manager.getStatus() if hasattr(manager, "getStatus") else {}
         providers = {}
-        activeProviderName = getattr(manager, "activeProviderName", None)
-        fallbackProviderName = getattr(manager, "fallbackProviderName", None)
+        activeProviderName = status.get("activeProvider") or getattr(manager, "activeProviderName", None)
+        preferredProviderName = status.get("preferredProvider") or getattr(manager, "preferredProviderName", activeProviderName)
+        fallbackProviderName = status.get("fallbackProvider") or getattr(manager, "fallbackProviderName", None)
         activeModel = ""
         for name, provider in getattr(manager, "providers", {}).items():
             model = str(getattr(provider, "model", "") or "")
@@ -155,10 +157,14 @@ class ObservabilityManager:
 
         return {
             "available": True,
-            "offlineMode": bool(getattr(manager, "offlineMode", False)),
+            "offlineMode": bool(status.get("offlineMode", getattr(manager, "offlineMode", False))),
             "activeProvider": str(activeProviderName or ""),
             "activeModel": activeModel or str(activeProviderName or "Unknown"),
+            "preferredProvider": str(preferredProviderName or ""),
+            "preferredModel": str(status.get("preferredModel") or ""),
             "fallbackProvider": str(fallbackProviderName or ""),
+            "offlineReason": str(status.get("offlineReason") or ""),
+            "canUseStructuredOutput": bool(status.get("canUseStructuredOutput", True)),
             "providers": providers,
         }
 

@@ -88,9 +88,16 @@ class LLMHandler(AuraModule):
             self._speakResponse(cleaned)
             return cleaned
 
+        if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
+            cleaned = self._offlineToolUnavailableMessage()
+            self._logConversation(userInput, cleaned)
+            self._emit("response.generated", {"text": cleaned})
+            self._speakResponse(cleaned)
+            return cleaned
+
         systemPrompt = self._buildSystemPrompt(userInput)
         conversationHistory = self._getConversationHistory()
-        if self._supportsIntentPipeline():
+        if self._shouldUseIntentPipeline(userInput):
             cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
@@ -120,8 +127,17 @@ class LLMHandler(AuraModule):
         return (
             self.intentPipeline is not None
             and hasattr(self.manager, "generateStructuredResponse")
-            and not self._isOfflineMode()
+            and (not self._isOfflineMode() or self._canAttemptStructuredOutput())
         )
+
+    def _shouldUseIntentPipeline(self, userInput: str) -> bool:
+        """Return whether the request likely needs structured tool parsing."""
+
+        if not self._supportsIntentPipeline():
+            return False
+        if self.intentPipeline and getattr(self.intentPipeline, "pendingClarification", None):
+            return True
+        return self._looksLikeToolRequest(userInput)
 
     @staticmethod
     def _providerFailureMessage(error: str | None = None) -> str:
@@ -159,7 +175,7 @@ class LLMHandler(AuraModule):
             else:
                 memoryData = self.memory.getMemory() or {}
 
-        if self._isOfflineMode():
+        if self._effectiveOfflineMode():
             prompt = self._buildOfflineSystemPrompt({} if hasattr(self.memory, "injectPrompt") else memoryData)
             return self._injectMemoryPrompt(prompt, userInput, conversationHistory)
 
@@ -238,6 +254,18 @@ Rules:
 
         return bool(getattr(self.manager, "offlineMode", False))
 
+    def _effectiveOfflineMode(self) -> bool:
+        """Return whether this request should use the offline conversation path."""
+
+        return self._isOfflineMode() and not self._canAttemptStructuredOutput()
+
+    def _canAttemptStructuredOutput(self) -> bool:
+        """Return whether the manager can attempt Gemini/tool parsing now."""
+
+        if hasattr(self.manager, "canUseStructuredOutput"):
+            return bool(self.manager.canUseStructuredOutput())
+        return not self._isOfflineMode()
+
     def _getConversationHistory(self) -> list:
         """Return recent history when enabled."""
 
@@ -261,12 +289,54 @@ Rules:
     def _getToolSchemas(self) -> list[dict[str, Any]]:
         """Return schemas exported by the central tool registry."""
 
-        return self.tools.exportSchemas(offlineMode=self._isOfflineMode())
+        return self.tools.exportSchemas(offlineMode=self._effectiveOfflineMode())
 
     def _handleToolResponse(self, text: str) -> str | None:
         """Execute tool calls returned by the LLM JSON contract."""
 
-        return self.tools.executeToolEnvelope(text, offlineMode=self._isOfflineMode())
+        return self.tools.executeToolEnvelope(text, offlineMode=self._effectiveOfflineMode())
+
+    def _offlineToolUnavailableMessage(self) -> str:
+        """Explain that device/tool actions are temporarily unavailable."""
+
+        status = self.manager.getStatus() if hasattr(self.manager, "getStatus") else {}
+        reason = status.get("offlineReason") or "the structured tool provider is unavailable"
+        return (
+            "I can control devices through Aura's Gemini tool path, but that path is temporarily unavailable. "
+            f"Current fallback is {status.get('activeModel', 'offline mode')}. "
+            f"Reason: {reason}"
+        )
+
+    @staticmethod
+    def _looksLikeToolRequest(userInput: str) -> bool:
+        """Return whether a user message appears to require deterministic tools."""
+
+        text = str(userInput or "").lower()
+        actionWords = {
+            "turn", "switch", "set", "dim", "brighten", "create", "add",
+            "remind", "schedule", "start", "stop", "open", "close", "delete",
+            "update", "change", "put", "do", "run",
+        }
+        deviceWords = {
+            "light", "lights", "lamp", "lamps", "reminder", "calendar", "event",
+            "task", "camera", "stream", "automation", "brightness", "color",
+            "action", "actions",
+        }
+        temporalWords = {
+            "today", "tomorrow", "tonight", "morning", "afternoon", "evening",
+            "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+            "sunday",
+        }
+        tokens = set(re.findall(r"[a-z0-9_]+", text))
+        if not tokens & actionWords:
+            return False
+        if tokens & deviceWords:
+            return True
+        if tokens & {"add", "create", "schedule", "remind", "put"} and tokens & temporalWords:
+            return True
+        if re.search(r"\b\d{1,2}(:\d{2})?\s*(am|pm)?\b", text) and tokens & {"add", "create", "schedule", "put"}:
+            return True
+        return False
 
     def _tryAnswerProfileQuestion(self, userInput: str) -> str | None:
         """Answer simple personal profile questions deterministically from memory."""
