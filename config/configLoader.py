@@ -12,7 +12,7 @@ DEFAULT_CONFIG = {
         "retryCount": 2,
         "timeout": 30,
         "ollama": {
-            "model": "llama3.1:8b",
+            "model": "llama3.2:1b",
             "endpoint": "CHANGE_ME",
         },
         "gemini": {
@@ -168,6 +168,9 @@ class ConfigLoader:
             "llm.endpoint": "OLLAMA_ENDPOINT",
             "llm.ollama.endpoint": "OLLAMA_ENDPOINT",
             "llm.providers.ollama.endpoint": "OLLAMA_ENDPOINT",
+            "llm.model": "OLLAMA_MODEL",
+            "llm.ollama.model": "OLLAMA_MODEL",
+            "llm.providers.ollama.model": "OLLAMA_MODEL",
             "llm.gemini.api_secret": "GEMINI_API_KEY",
             "llm.gemini.apiKey": "GEMINI_API_KEY",
             "llm.providers.gemini.apiKey": "GEMINI_API_KEY",

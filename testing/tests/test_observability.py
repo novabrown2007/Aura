@@ -60,7 +60,7 @@ class ObservabilityTests(unittest.TestCase):
             activeProviderName="ollama",
             fallbackProviderName="gemini",
             providers={
-                "ollama": SimpleNamespace(initialized=True, model="llama3.1:8b"),
+                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
                 "gemini": SimpleNamespace(initialized=False, model="gemini-2.5-flash"),
             },
         )
@@ -75,7 +75,7 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(snapshot["memory"]["keys"], ["user_name"])
         self.assertEqual(snapshot["tools"][0]["name"], "system.getTime")
         self.assertEqual(snapshot["providers"]["activeProvider"], "ollama")
-        self.assertEqual(snapshot["providers"]["activeModel"], "llama3.1:8b")
+        self.assertEqual(snapshot["providers"]["activeModel"], "llama3.2:1b")
         self.assertTrue(snapshot["providers"]["providers"]["ollama"]["active"])
         self.assertEqual(snapshot["providers"]["providers"]["gemini"]["model"], "gemini-2.5-flash")
         self.assertTrue(snapshot["modules"]["system"]["loaded"])

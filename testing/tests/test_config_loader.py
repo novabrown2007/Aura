@@ -39,6 +39,31 @@ class ConfigLoaderTests(unittest.TestCase):
             else:
                 os.environ["OLLAMA_ENDPOINT"] = old_value
 
+    def test_ollama_model_can_use_environment_fallback(self):
+        """Ollama model placeholders should resolve through OLLAMA_MODEL."""
+
+        old_value = os.environ.get("OLLAMA_MODEL")
+        os.environ["OLLAMA_MODEL"] = "llama3.2:1b"
+
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "config.yml"
+                config_path.write_text(
+                    "llm:\n"
+                    "  ollama:\n"
+                    "    model: CHANGE_ME\n",
+                    encoding="utf-8",
+                )
+
+                config = ConfigLoader(path=str(config_path))
+
+                self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
+        finally:
+            if old_value is None:
+                os.environ.pop("OLLAMA_MODEL", None)
+            else:
+                os.environ["OLLAMA_MODEL"] = old_value
+
     def test_literal_config_value_wins_over_environment_variable(self):
         """Only CHANGE_ME placeholders should use environment fallback values."""
 
@@ -110,6 +135,7 @@ class ConfigLoaderTests(unittest.TestCase):
 
             self.assertTrue(config_path.exists())
             self.assertEqual(config.get("llm.activeProvider"), "gemini")
+            self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
             self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
             self.assertEqual(config.get("threading.max_threads"), 10)
             self.assertEqual(config.get("voice.enabled"), False)

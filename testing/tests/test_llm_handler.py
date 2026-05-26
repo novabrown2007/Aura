@@ -103,7 +103,7 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
                 "activeProvider": "ollama",
                 "fallbackProvider": "ollama",
                 "endpoint": endpoint,
-                "model": "llama3.1:8b",
+                "model": "llama3.2:1b",
                 "timeout": 10,
                 "retryCount": 1,
                 "history": {"enabled": True, "limit": 10},
@@ -111,7 +111,7 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
                 "providers": {
                     "ollama": {
                         "endpoint": endpoint,
-                        "model": "llama3.1:8b",
+                        "model": "llama3.2:1b",
                     }
                 },
             }
@@ -374,7 +374,7 @@ class LLMHandlerTests(unittest.TestCase):
             self.skipTest("Set RUN_LIVE_LLM_TEST=true to run live LLM connection test.")
 
         endpoint = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
-        model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+        model = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 
         try:
             response = requests.post(

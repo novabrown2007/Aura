@@ -740,7 +740,7 @@ Optional live LLM connectivity test:
 ```powershell
 $env:RUN_LIVE_LLM_TEST="true"
 $env:OLLAMA_ENDPOINT="http://localhost:11434/api/generate"
-$env:OLLAMA_MODEL="llama3.1:8b"
+$env:OLLAMA_MODEL="llama3.2:1b"
 python run_tests.py --suite llm
 ```
 

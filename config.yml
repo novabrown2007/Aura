@@ -5,7 +5,7 @@ llm:
   timeout: 30
 
   ollama:
-    model: deepseek-r1:8b
+    model: llama3.2:1b
     endpoint: CHANGE_ME
 
   gemini:

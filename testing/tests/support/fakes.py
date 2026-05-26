@@ -258,7 +258,7 @@ def make_context(database=None, extra=None):
                 "fallbackProvider": "ollama",
                 "ollama": {
                     "endpoint": "http://localhost:11434/api/generate",
-                    "model": "llama3.1:8b",
+                    "model": "llama3.2:1b",
                 },
                 "history": {"enabled": True, "limit": 25},
                 "memory": {"enabled": True, "frequency": 20},
