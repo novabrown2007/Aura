@@ -51,6 +51,10 @@ class MemorySummarizer:
         lowered = str(text or "").lower()
         if self._looksSensitive(lowered):
             return None
+        if re.search(r"\b(i am|i'm)\s+(omnisexual|bisexual|pansexual|asexual|lesbian|gay|straight|heterosexual|homosexual|polyamorous|monogamous)\b", lowered):
+            return "preferences"
+        if re.search(r"\bmy (sexual|gender|romantic|relationship) orientation\b|\bgender identity\b", lowered):
+            return "preferences"
         if re.search(r"\bi prefer\b|\bi like\b|\bi dislike\b|\bmy favorite\b|\bplease always\b|\bplease never\b", lowered):
             return "preferences"
         if re.search(r"\bi'?m working on\b|\bproject\b|\bpipeline\b|\bbuilding\b|\bimplementing\b", lowered):
@@ -97,4 +101,3 @@ class MemorySummarizer:
             role = "aura" if role in {"assistant", "aura"} else "user"
             normalized.append((role, content.strip()))
         return normalized
-

@@ -501,6 +501,63 @@ class LLMHandlerTests(unittest.TestCase):
 
         self.assertEqual(result, "Your gender identity is non-binary questioning MTF.")
 
+    def test_profile_relationship_orientation_question_is_deterministic(self):
+        """Relationship orientation should be separate from sexuality and gender."""
+
+        context = make_llm_context()
+        context.memoryManager.memory = {
+            "profile": (
+                "My birthday is March 22nd, 2007. I'm 19 years old. "
+                "I am omnisexual, non-binaring questioning MTF, and polyamorous."
+            )
+        }
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="I don't know your romantic orientation.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Romantic orientation?")
+
+        self.assertEqual(result, "Your relationship orientation is polyamorous.")
+
+    def test_profile_relationship_orientation_statement_updates_memory(self):
+        """Explicit relationship orientation statements should not drift into unrelated memory."""
+
+        context = make_llm_context()
+        createdMemories = []
+        context.memoryManager.memory = {}
+        context.memoryManager.createMemory = (
+            lambda category, title, content, **kwargs: createdMemories.append(
+                {
+                    "category": category,
+                    "title": title,
+                    "content": content,
+                    **kwargs,
+                }
+            )
+        )
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="You prefer dd/mm/yyyy.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("I am polyamorous")
+
+        self.assertEqual(result, "Got it. Your relationship orientation is polyamorous.")
+        self.assertEqual(createdMemories[0]["category"], "preferences")
+        self.assertEqual(createdMemories[0]["title"], "Relationship orientation")
+        self.assertEqual(createdMemories[0]["content"], "Nova's relationship orientation is polyamorous.")
+
     def test_provider_prefix_is_removed_from_conversation_response(self):
         """Interfaces already label Aura responses, so provider prefixes are stripped."""
 

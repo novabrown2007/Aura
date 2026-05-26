@@ -87,6 +87,13 @@ class LLMHandler(AuraModule):
             self._emit("response.generated", {"text": cleaned})
             self._speakResponse(cleaned)
             return cleaned
+        profileStatementReply = self._tryHandleProfileStatement(userInput)
+        if profileStatementReply is not None:
+            cleaned = self._cleanResponseText(profileStatementReply)
+            self._logConversation(userInput, cleaned)
+            self._emit("response.generated", {"text": cleaned})
+            self._speakResponse(cleaned)
+            return cleaned
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
             cleaned = self._offlineToolUnavailableMessage()
@@ -346,7 +353,11 @@ Rules:
         asksName = bool(re.search(r"\b(my name|what(?:'s| is) my name|tell me my name)\b", lowered))
         asksSexuality = bool(re.search(r"\b(sexuality|sexual orientation)\b", lowered))
         asksGenderIdentity = bool(re.search(r"\b(gender|gendre)(?:\s+identity)?\b", lowered))
-        if not any((asksAge, asksName, asksSexuality, asksGenderIdentity)):
+        asksRelationshipOrientation = bool(
+            re.search(r"\b(romantic|relationship)\s+orientation\b", lowered)
+            or re.search(r"\bpolyamory\b|\bpolyamorous\b", lowered)
+        )
+        if not any((asksAge, asksName, asksSexuality, asksGenderIdentity, asksRelationshipOrientation)):
             return None
 
         memoryText = self._profileMemoryText()
@@ -366,12 +377,34 @@ Rules:
             genderIdentity = self._genderIdentityFromMemory(memoryText)
             if genderIdentity:
                 parts.append(f"your gender identity is {genderIdentity}")
+        if asksRelationshipOrientation:
+            relationshipOrientation = self._relationshipOrientationFromMemory(memoryText)
+            if relationshipOrientation:
+                parts.append(f"your relationship orientation is {relationshipOrientation}")
 
         if not parts:
             return None
         if len(parts) == 1:
             return parts[0][0].upper() + parts[0][1:] + "."
         return "You asked for profile info: " + "; ".join(parts) + "."
+
+    def _tryHandleProfileStatement(self, userInput: str) -> str | None:
+        """Persist explicit profile statements without asking a provider to infer them."""
+
+        text = str(userInput or "").strip()
+        lowered = text.lower()
+        if not re.search(r"\b(i am|i'm|my romantic orientation is|my relationship orientation is)\b", lowered):
+            return None
+
+        relationshipOrientation = self._relationshipOrientationFromMemory(lowered)
+        if relationshipOrientation:
+            self._rememberProfileFact(
+                title="Relationship orientation",
+                content=f"Nova's relationship orientation is {relationshipOrientation}.",
+                tags=["profile", "relationship_orientation", relationshipOrientation],
+            )
+            return f"Got it. Your relationship orientation is {relationshipOrientation}."
+        return None
 
     def _profileMemoryText(self) -> str:
         """Collect memory text for deterministic profile extraction."""
@@ -466,6 +499,39 @@ Rules:
         if identityParts:
             return " ".join(identityParts)
         return None
+
+    @staticmethod
+    def _relationshipOrientationFromMemory(memoryText: str) -> str | None:
+        """Extract relationship orientation without mixing it into sexuality or gender."""
+
+        lowered = str(memoryText or "").lower()
+        if re.search(r"\bpolyamorous\b|\bpolyamory\b", lowered):
+            return "polyamorous"
+        if re.search(r"\bmonogamous\b|\bmonogamy\b", lowered):
+            return "monogamous"
+        return None
+
+    def _rememberProfileFact(self, title: str, content: str, tags: list[str]):
+        """Store an explicit profile fact when the structured memory system is available."""
+
+        memory = self.memory
+        if memory is None or not hasattr(memory, "createMemory"):
+            return
+        try:
+            existing = self._profileMemoryText().lower()
+            if content.lower() in existing:
+                return
+            memory.createMemory(
+                "preferences",
+                title,
+                content,
+                tags=tags,
+                importance=0.85,
+                source="profile.statement",
+            )
+        except Exception as error:
+            if self.logger:
+                self.logger.debug(f"Profile memory write failed: {error}")
 
     @staticmethod
     def _cleanResponseText(text: str) -> str:
