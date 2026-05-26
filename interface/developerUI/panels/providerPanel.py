@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class ProviderPanel(QWidget):
+class ProviderPanel(TextPanel):
     """Display LLM provider state, fallback state, and timing."""
 
     title = "Providers"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         providers = snapshot.providers
@@ -29,5 +21,4 @@ class ProviderPanel(QWidget):
             lines.append(f"Fallback: {provider.get('fallback')}")
         lines.append("")
         lines.append(f"Performance: {snapshot.performance.get('aggregates', {})}")
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

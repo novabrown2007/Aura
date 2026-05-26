@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class ErrorPanel(QWidget):
+class ErrorPanel(TextPanel):
     """Display recent exceptions and operational failures."""
 
     title = "Errors"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         lines = ["[ERRORS]"]
@@ -27,5 +19,4 @@ class ErrorPanel(QWidget):
             lines.append(f"[{error.get('timestamp')}] {error.get('name')}")
             lines.append(f"Error: {error.get('error')}")
             lines.append(f"Payload: {error.get('payload')}")
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

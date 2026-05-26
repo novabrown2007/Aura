@@ -15,8 +15,6 @@ from __future__ import annotations
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
-from modules.llm.providers.gemini.geminiProvider import GeminiProvider
-from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
 from modules.llm.utils.llmLogger import LLMLogger
 from modules.llm.utils.promptBuilder import PromptBuilder
 
@@ -56,10 +54,7 @@ class LLMManager:
         self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
         self.fallbackProviderName = self._getConfigValue(config, "llm.fallbackProvider", "ollama")
 
-        self.providers = {
-            "gemini": GeminiProvider(self.context),
-            "ollama": OllamaProvider(self.context),
-        }
+        self.providers = self._createDefaultProviders()
 
         for provider in self.providers.values():
             provider.initialize()
@@ -234,6 +229,17 @@ class LLMManager:
         if self.context and getattr(self.context, "logger", None):
             return self.context.logger.getChild(name)
         return None
+
+    def _createDefaultProviders(self) -> dict[str, LLMProvider]:
+        """Create default providers lazily so importing LLMManager stays lightweight."""
+
+        from modules.llm.providers.gemini.geminiProvider import GeminiProvider
+        from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
+
+        return {
+            "gemini": GeminiProvider(self.context),
+            "ollama": OllamaProvider(self.context),
+        }
 
     @staticmethod
     def _shouldUseOfflineFallback(error: str | None) -> bool:

@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class MemoryPanel(QWidget):
+class MemoryPanel(TextPanel):
     """Display retrieval scores, injected memories, and memory summaries."""
 
     title = "Memory"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         memory = snapshot.memory
@@ -30,5 +22,4 @@ class MemoryPanel(QWidget):
             "Debug Output:",
             memory.get("debugOutput", "") or "No memory retrieval debug output yet.",
         ]
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

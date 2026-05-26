@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class SystemPanel(QWidget):
+class SystemPanel(TextPanel):
     """Display subsystem status, modules, uptime, and event throughput."""
 
     title = "System"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         system = snapshot.system
@@ -40,5 +32,4 @@ class SystemPanel(QWidget):
         if isinstance(modules, dict):
             for name, module in sorted(modules.items()):
                 lines.append(f"- {name}: loaded={module.get('loaded', True)} class={module.get('class')}")
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class VoicePanel(QWidget):
+class VoicePanel(TextPanel):
     """Display microphone, STT, TTS, and playback state."""
 
     title = "Voice"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         voice = snapshot.voice
@@ -33,5 +25,4 @@ class VoicePanel(QWidget):
             "",
             f"Timing: {voice.get('lastTiming', {})}",
         ]
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

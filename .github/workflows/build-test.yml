@@ -197,7 +197,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build\reports\tests | Out-Null
-          $output = & .\.venv\Scripts\python.exe -m unittest tests.interfaceTests.test_windows_interface -v 2>&1
+          $output = & .\.venv\Scripts\python.exe -m unittest testing.tests.interfaceTests.test_windows_interface -v 2>&1
           $exitCode = $LASTEXITCODE
           $output | Set-Content build\reports\tests\windows.txt
           $output
@@ -215,7 +215,7 @@ jobs:
           $env:KIVY_AUDIO = "mock"
           $env:KIVY_GL_BACKEND = "mock"
           New-Item -ItemType Directory -Force -Path build\reports\tests | Out-Null
-          $output = & .\.venv\Scripts\python.exe -m unittest tests.interfaceTests.test_android_interface -v 2>&1
+          $output = & .\.venv\Scripts\python.exe -m unittest testing.tests.interfaceTests.test_android_interface -v 2>&1
           $exitCode = $LASTEXITCODE
           $output | Set-Content build\reports\tests\android.txt
           $output
@@ -228,7 +228,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build\reports\tests | Out-Null
-          $output = & .\.venv\Scripts\python.exe -m unittest tests.interfaceTests.test_web_interface -v 2>&1
+          $output = & .\.venv\Scripts\python.exe -m unittest testing.tests.interfaceTests.test_web_interface -v 2>&1
           $exitCode = $LASTEXITCODE
           $output | Set-Content build\reports\tests\web.txt
           $output

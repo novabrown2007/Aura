@@ -3,7 +3,7 @@
 from .debugging import AssistantConsole, EventTracer, IntentDebugger, IntentRecord, SessionDebugger, SessionRecord, TracedEvent
 from .mock import MockNotifications, MockUser, MockVoiceInput
 from .simulation import AssistantSimulator, WorkflowSimulator
-from .testing import IntegrationTester, IntentTester, VoiceTestResult, VoiceTester, WorkflowTester
+from .harnesses import IntegrationTester, IntentTester, VoiceTestResult, VoiceTester, WorkflowTester
 
 __all__ = [
     "AssistantConsole",

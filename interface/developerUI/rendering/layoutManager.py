@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QTabWidget
+from tkinter import ttk
 
 from interface.developerUI.panels import (
     BridgePanel,
@@ -34,19 +34,19 @@ class LayoutManager:
         SystemPanel,
     )
 
-    def __init__(self, context=None):
+    def __init__(self, context=None, parent=None):
         self.context = context
+        self.parent = parent
         logger = getattr(context, "logger", None)
         self.logger = logger.getChild("DeveloperUI.Layout") if logger else None
 
-    def build(self) -> tuple[QTabWidget, list]:
+    def build(self):
         """Build the tab widget and panel instances."""
 
-        tabs = QTabWidget()
+        tabs = ttk.Notebook(self.parent)
         panels = []
         for panelClass in self.panelClasses:
-            panel = panelClass()
+            panel = panelClass(tabs)
             panels.append(panel)
-            tabs.addTab(panel, getattr(panel, "title", panelClass.__name__))
+            tabs.add(panel, text=getattr(panel, "title", panelClass.__name__))
         return tabs, panels
-

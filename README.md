@@ -27,7 +27,7 @@ interface/windows/      Windows visual interface
 interface/android/      Android visual interface
 interface/web/          Web visual interface and static assets
 interface/inputProcessing/
-tests/                  Automated test suites
+testing/tests/                  Automated test suites
 scripts/                Build and maintenance helpers
 ```
 
@@ -161,7 +161,7 @@ context.homeAutomation
 ```
 
 It talks to the Home Automation Bridge through the Aura Protocol client in
-`core/bridge` and handles service-start requests locally inside Aura:
+`bridge` and handles service-start requests locally inside Aura:
 
 - assistant notifications, responses, errors, and stream metadata from the bridge
 - bridge-owned device state and deterministic light/camera actions
@@ -718,18 +718,18 @@ and Web executables. When generation succeeds, the executables are uploaded as a
 GitHub Actions artifact. On failure, the workflow logs the failed task and still
 cleans up the Python environment.
 
-Interface-specific tests live in `tests/interfaceTests/`:
+Interface-specific tests live in `testing/tests/interfaceTests/`:
 
 ```text
-tests/interfaceTests/test_windows_interface.py
-tests/interfaceTests/test_android_interface.py
-tests/interfaceTests/test_web_interface.py
+testing/tests/interfaceTests/test_windows_interface.py
+testing/tests/interfaceTests/test_android_interface.py
+testing/tests/interfaceTests/test_web_interface.py
 ```
 
 Assistant ecosystem simulation tests live in:
 
 ```text
-tests/test_assistant_testing.py
+testing/tests/test_assistant_testing.py
 ```
 
 They cover the mock assistant console, event tracer, session and intent

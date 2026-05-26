@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class BridgePanel(QWidget):
+class BridgePanel(TextPanel):
     """Display bridge connection state and recent protocol traffic."""
 
     title = "Bridge"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         bridge = snapshot.bridge
@@ -30,5 +22,4 @@ class BridgePanel(QWidget):
         lines.append("Recent Messages:")
         for message in (bridge.get("messages") or [])[-60:]:
             lines.append(f"- {message.get('timestamp')} {message.get('name')}: {message.get('summary')}")
-        self.text.setPlainText("\n".join(str(line) for line in lines))
-
+        self.setText("\n".join(str(line) for line in lines))

@@ -12,7 +12,7 @@ from ..debugging.sessionDebugger import SessionDebugger
 from ..mock.mockNotifications import MockNotifications
 from ..mock.mockUser import MockUser
 from ..mock.mockVoiceInput import MockVoiceInput
-from ..testing.intentTester import IntentTester
+from ..harnesses.intentTester import IntentTester
 
 
 class AssistantSimulator:

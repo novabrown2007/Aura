@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
+from interface.developerUI.panels.basePanel import TextPanel
 
 
-class IntentPanel(QWidget):
+class IntentPanel(TextPanel):
     """Display generated intents, confidence, arguments, and status."""
 
     title = "Intents"
-
-    def __init__(self):
-        super().__init__()
-        self.text = QPlainTextEdit()
-        self.text.setReadOnly(True)
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        self.setLayout(layout)
 
     def refresh(self, snapshot):
         lines = ["Intent Flow"]
@@ -30,5 +22,4 @@ class IntentPanel(QWidget):
             lines.append(f"Confidence: {payload.get('confidence', '')}")
             lines.append(f"Arguments: {payload.get('arguments', {})}")
             lines.append(f"Status: {payload.get('status', payload.get('success', ''))}")
-        self.text.setPlainText("\n".join(lines))
-
+        self.setText("\n".join(lines))

@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-import sys
-
 from interface.developerUI.developerUI import DeveloperUI
 
 
 class DeveloperApplication:
-    """Initialize runtime integrations and manage the PyQt6 UI lifecycle."""
+    """Initialize runtime integrations and manage the Tkinter UI lifecycle."""
 
     def __init__(self, context, ownsRuntime: bool = False):
         self.context = context
         self.ownsRuntime = bool(ownsRuntime)
         self.developerUI = DeveloperUI(context)
-        self.app = None
         self.window = None
         logger = getattr(context, "logger", None)
         self.logger = logger.getChild("DeveloperUI.Application") if logger else None
@@ -30,23 +27,20 @@ class DeveloperApplication:
         return cls(context, ownsRuntime=True)
 
     def run(self) -> int:
-        """Run the PyQt6 developer console."""
+        """Run the Tkinter developer console."""
 
         try:
-            from PyQt6.QtWidgets import QApplication
             from interface.developerUI.developerWindow import DeveloperWindow
         except Exception as error:
-            message = f"PyQt6 is required for Aura Developer UI: {error}"
+            message = f"Tkinter is required for Aura Developer UI: {error}"
             if self.logger:
                 self.logger.error(message)
             print(message)
             return 1
 
         self.developerUI.initialize()
-        self.app = QApplication.instance() or QApplication(sys.argv)
         self.window = DeveloperWindow(self.developerUI)
-        self.window.show()
-        exitCode = self.app.exec()
+        exitCode = self.window.run()
         self.shutdown()
         return int(exitCode)
 
@@ -68,4 +62,3 @@ class DeveloperApplication:
                 logger = getattr(self.context, "logger", None)
                 if logger:
                     logger.close()
-

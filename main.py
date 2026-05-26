@@ -15,9 +15,9 @@ from core.threading.threadingManager import ThreadingManager
 from core.threading.events.eventManager import EventManager
 from core.threading.tasks.taskManager import TaskManager
 from core.threading.scheduler.scheduler import Scheduler
-from core.autonomy import AutonomousTaskManager
-from core.contextAwareness import ContextAwarenessManager
-from core.observability import ObservabilityManager
+from core.eventBus.autonomy import AutonomousTaskManager
+from modules.llm.contextAwareness import ContextAwarenessManager
+from core.runtime.observability import ObservabilityManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -27,15 +27,15 @@ from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.home_automation.config import buildHomeAutomationConfig
-from core.bridge import AuraBridgeClient
+from bridge import AuraBridgeClient
 from interface.voice import VoiceManager
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.conversationHistory import ConversationHistory
-from core.memory import MemoryManager
+from modules.llm.memory import MemoryManager
 
-from core.engine.engine import Engine
+from core.engine import Engine
 
 from config.configLoader import ConfigLoader
 
