@@ -477,6 +477,30 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertIn("your sexual orientation is omnisexual", result)
         self.assertNotIn("MTF", result)
 
+    def test_profile_gender_identity_question_handles_typo_deterministically(self):
+        """Gender identity questions should not fall through to provider guesses."""
+
+        context = make_llm_context()
+        context.memoryManager.memory = {
+            "profile": (
+                "My birthday is March 22nd, 2007. I'm 19 years old. "
+                "I am omnisexual, non-binaring questioning MTF, and polyamorous."
+            )
+        }
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text='You prefer to be referred to as "M".',
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("What is my gendre identity")
+
+        self.assertEqual(result, "Your gender identity is non-binary questioning MTF.")
+
     def test_provider_prefix_is_removed_from_conversation_response(self):
         """Interfaces already label Aura responses, so provider prefixes are stripped."""
 

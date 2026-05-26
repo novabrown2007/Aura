@@ -345,7 +345,8 @@ Rules:
         asksAge = bool(re.search(r"\b(how old|age)\b", lowered))
         asksName = bool(re.search(r"\b(my name|what(?:'s| is) my name|tell me my name)\b", lowered))
         asksSexuality = bool(re.search(r"\b(sexuality|sexual orientation)\b", lowered))
-        if not any((asksAge, asksName, asksSexuality)):
+        asksGenderIdentity = bool(re.search(r"\b(gender|gendre)(?:\s+identity)?\b", lowered))
+        if not any((asksAge, asksName, asksSexuality, asksGenderIdentity)):
             return None
 
         memoryText = self._profileMemoryText()
@@ -361,6 +362,10 @@ Rules:
             sexuality = self._sexualityFromMemory(memoryText)
             if sexuality:
                 parts.append(f"your sexual orientation is {sexuality}")
+        if asksGenderIdentity:
+            genderIdentity = self._genderIdentityFromMemory(memoryText)
+            if genderIdentity:
+                parts.append(f"your gender identity is {genderIdentity}")
 
         if not parts:
             return None
@@ -439,6 +444,27 @@ Rules:
         for orientation in orientations:
             if re.search(rf"\b{re.escape(orientation)}\b", lowered):
                 return orientation
+        return None
+
+    @staticmethod
+    def _genderIdentityFromMemory(memoryText: str) -> str | None:
+        """Extract gender identity separately from sexuality and relationship orientation."""
+
+        lowered = str(memoryText or "").lower()
+        normalized = lowered.replace("non-binaring", "non-binary").replace("nonbinary", "non-binary")
+
+        identityParts: list[str] = []
+        if re.search(r"\bnon[- ]binary\b", normalized):
+            identityParts.append("non-binary")
+        if re.search(r"\bquestioning\b", normalized):
+            identityParts.append("questioning")
+        if re.search(r"\bmtf\b", normalized):
+            identityParts.append("MTF")
+        if re.search(r"\btrans(?:gender)?\b", normalized) and "transgender" not in identityParts:
+            identityParts.append("transgender")
+
+        if identityParts:
+            return " ".join(identityParts)
         return None
 
     @staticmethod
