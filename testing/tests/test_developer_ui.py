@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from interface.developerUI import DeveloperUI
-from interface.developerUI.logging import PerformanceTracker, UIEventTracer
+from interface.developerUI.tracing import PerformanceTracker, UIEventTracer
 from interface.developerUI.models import ConsoleEvent
+from interface.developerUI.panels.systemPanel import SystemPanel
 from interface.developerUI.state import DeveloperUIState
 from interface.developerUI.subscriptions import UISubscriptionManager
 from core.threading.events.eventManager import EventManager
@@ -80,7 +84,12 @@ class DeveloperUITests(unittest.TestCase):
                     "modules": {"llm": {"loaded": True, "class": "LLMHandler"}},
                     "threads": [],
                     "scheduler": {"running": False},
-                    "providers": {"available": True, "providers": {"gemini": {"active": True}}},
+                    "providers": {
+                        "available": True,
+                        "activeProvider": "gemini",
+                        "activeModel": "gemini-2.5-flash",
+                        "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash"}},
+                    },
                 }
             },
         )()
@@ -90,9 +99,27 @@ class DeveloperUITests(unittest.TestCase):
         snapshot = state.snapshot()
 
         self.assertTrue(snapshot.providers["available"])
+        self.assertEqual(snapshot.providers["activeProvider"], "gemini")
+        self.assertEqual(snapshot.providers["activeModel"], "gemini-2.5-flash")
         self.assertEqual(snapshot.memory["retrieved"], 2)
         self.assertEqual(snapshot.memory["injected"], 1)
         self.assertIn("llm", snapshot.system["modules"])
+
+    def test_system_panel_displays_active_llm_model(self):
+        state = DeveloperUIState(maxEvents=10)
+        state.updateSystem({"events": {}, "modules": {}})
+        state.updateProviders(
+            {
+                "available": True,
+                "activeProvider": "gemini",
+                "activeModel": "gemini-2.5-flash",
+                "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash"}},
+            }
+        )
+
+        lines = SystemPanel.buildLines(state.snapshot())
+
+        self.assertIn("LLM: gemini / gemini-2.5-flash", lines)
 
     def test_developer_ui_reads_config_and_initializes_without_window(self):
         developerUI = DeveloperUI(self.context)
@@ -105,6 +132,29 @@ class DeveloperUITests(unittest.TestCase):
             self.assertIs(self.context.developerUI, developerUI)
         finally:
             developerUI.shutdown()
+
+    def test_direct_script_import_does_not_shadow_standard_logging(self):
+        """Direct developer UI launches must not mask Python's stdlib logging module."""
+
+        projectRoot = Path(__file__).resolve().parents[2]
+        developerUiPath = projectRoot / "interface" / "developerUI"
+        script = (
+            "import sys; "
+            f"sys.path.insert(0, {str(developerUiPath)!r}); "
+            "import main; "
+            "import logging; "
+            "assert logging.INFO == 20, logging"
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=projectRoot,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
 if __name__ == "__main__":

@@ -139,16 +139,26 @@ class ObservabilityManager:
             return {"available": False, "providers": {}}
 
         providers = {}
+        activeProviderName = getattr(manager, "activeProviderName", None)
+        fallbackProviderName = getattr(manager, "fallbackProviderName", None)
+        activeModel = ""
         for name, provider in getattr(manager, "providers", {}).items():
+            model = str(getattr(provider, "model", "") or "")
+            if name == activeProviderName:
+                activeModel = model
             providers[name] = {
                 "initialized": bool(getattr(provider, "initialized", False)),
-                "active": name == getattr(manager, "activeProviderName", None),
-                "fallback": name == getattr(manager, "fallbackProviderName", None),
+                "active": name == activeProviderName,
+                "fallback": name == fallbackProviderName,
+                "model": model,
             }
 
         return {
             "available": True,
             "offlineMode": bool(getattr(manager, "offlineMode", False)),
+            "activeProvider": str(activeProviderName or ""),
+            "activeModel": activeModel or str(activeProviderName or "Unknown"),
+            "fallbackProvider": str(fallbackProviderName or ""),
             "providers": providers,
         }
 

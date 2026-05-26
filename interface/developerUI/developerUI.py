@@ -10,9 +10,9 @@ if __name__ == "__main__":
     if str(projectRoot) not in sys.path:
         sys.path.insert(0, str(projectRoot))
 
-from interface.developerUI.logging import PerformanceTracker, UIEventTracer
 from interface.developerUI.state import DeveloperUIState
 from interface.developerUI.subscriptions import UISubscriptionManager
+from interface.developerUI.tracing import PerformanceTracker, UIEventTracer
 
 
 class DeveloperUI:

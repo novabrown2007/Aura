@@ -11,8 +11,17 @@ class SystemPanel(TextPanel):
     title = "System"
 
     def refresh(self, snapshot):
+        self.setText("\n".join(str(line) for line in self.buildLines(snapshot)))
+
+    @staticmethod
+    def buildLines(snapshot):
+        """Build display lines for the system panel."""
+
         system = snapshot.system
         modules = system.get("modules", {})
+        providers = snapshot.providers or {}
+        activeProvider = providers.get("activeProvider") or "Unavailable"
+        activeModel = providers.get("activeModel") or "Unavailable"
         lines = [
             "[SYSTEM]",
             f"Uptime Seconds: {system.get('uptimeSeconds', 0)}",
@@ -26,10 +35,11 @@ class SystemPanel(TextPanel):
             f"Memory: {'Online' if snapshot.memory else 'Unavailable'}",
             f"Bridge: {'Connected' if snapshot.bridge.get('connected') else 'Disconnected'}",
             f"Providers: {'Available' if snapshot.providers.get('available') else 'Unavailable'}",
+            f"LLM: {activeProvider} / {activeModel}",
             "",
             "Loaded Modules:",
         ]
         if isinstance(modules, dict):
             for name, module in sorted(modules.items()):
                 lines.append(f"- {name}: loaded={module.get('loaded', True)} class={module.get('class')}")
-        self.setText("\n".join(str(line) for line in lines))
+        return lines
