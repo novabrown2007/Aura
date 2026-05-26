@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 
 from interface.developerUI import DeveloperUI
 from interface.developerUI.tracing import PerformanceTracker, UIEventTracer
@@ -155,6 +156,26 @@ class DeveloperUITests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_pycharm_run_configs_use_standard_windows_venv_interpreter(self):
+        """PyCharm run configs should target the standard Windows venv interpreter."""
+
+        projectRoot = Path(__file__).resolve().parents[2]
+        configDir = projectRoot / ".idea" / "runConfigurations"
+        configs = sorted(configDir.glob("*.xml"))
+
+        self.assertTrue(configs, "Expected PyCharm run configurations to be present.")
+        for configPath in configs:
+            root = ET.parse(configPath).getroot()
+            sdkHomeOptions = [
+                option.get("value", "")
+                for option in root.iter("option")
+                if option.get("name") == "SDK_HOME"
+            ]
+            for sdkHome in sdkHomeOptions:
+                self.assertNotIn("/.venv/python.exe", sdkHome, configPath.name)
+                self.assertNotIn("\\.venv\\python.exe", sdkHome, configPath.name)
+                self.assertIn(".venv/Scripts/python.exe", sdkHome.replace("\\", "/"), configPath.name)
 
 
 if __name__ == "__main__":
