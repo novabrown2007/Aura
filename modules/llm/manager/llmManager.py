@@ -261,6 +261,11 @@ class LLMManager:
                 "name or service not known",
                 "network",
                 "unreachable",
+                "429",
+                "resource_exhausted",
+                "quota",
+                "rate limit",
+                "rate-limit",
             )
         )
 

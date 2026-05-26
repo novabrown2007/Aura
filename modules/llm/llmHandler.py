@@ -91,7 +91,7 @@ class LLMHandler(AuraModule):
         if not response.success:
             if self.logger:
                 self.logger.error(f"LLM response failed: {response.error}")
-            return "I couldn't interpret that request well enough to respond."
+            return self._providerFailureMessage(response.error)
 
         cleaned = response.text.strip() or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)
@@ -111,6 +111,14 @@ class LLMHandler(AuraModule):
             and hasattr(self.manager, "generateStructuredResponse")
             and not self._isOfflineMode()
         )
+
+    @staticmethod
+    def _providerFailureMessage(error: str | None = None) -> str:
+        """Return a clear user-facing message when no LLM provider can answer."""
+
+        if error:
+            return f"I can't reach an available language provider right now. Last provider error: {error}"
+        return "I can't reach an available language provider right now."
 
     def generateStructuredResponse(self, userInput: str, schema: dict) -> dict | None:
         """Generate structured JSON through the active provider."""

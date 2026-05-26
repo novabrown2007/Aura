@@ -29,6 +29,7 @@ class OllamaProvider(LLMProvider):
         self.endpoint = self._getConfigValue(config, "llm.providers.ollama.endpoint", None)
         self.endpoint = self.endpoint or self._getConfigValue(config, "llm.ollama.endpoint", None)
         self.endpoint = self.endpoint or self._getConfigValue(config, "llm.endpoint", "http://localhost:11434/api/generate")
+        self.endpoint = self._normalizeEndpoint(self.endpoint)
         self.model = self._getConfigValue(config, "llm.providers.ollama.model", None)
         self.model = self.model or self._getConfigValue(config, "llm.ollama.model", None)
         self.model = self.model or self._getConfigValue(config, "llm.model", "llama3.1:8b")
@@ -121,6 +122,20 @@ class OllamaProvider(LLMProvider):
         if self.context and getattr(self.context, "logger", None):
             return self.context.logger.getChild(name)
         return None
+
+    @staticmethod
+    def _normalizeEndpoint(endpoint: str | None) -> str:
+        """Normalize Ollama base URLs to the generate API endpoint."""
+
+        endpoint = str(endpoint or "").strip()
+        if not endpoint or endpoint == "CHANGE_ME":
+            return "http://localhost:11434/api/generate"
+        endpoint = endpoint.rstrip("/")
+        if endpoint.endswith("/api/generate"):
+            return endpoint
+        if endpoint.endswith("/api"):
+            return f"{endpoint}/generate"
+        return f"{endpoint}/api/generate"
 
     @staticmethod
     def _getConfigValue(config, key: str, default=None):

@@ -482,6 +482,8 @@ class IntentPipeline:
         response = self.manager.generateResponse(baseSystemPrompt, userInput, conversationHistory)
         if response.success and response.text.strip():
             return response.text.strip()
+        if response.error:
+            return f"I can't reach an available language provider right now. Last provider error: {response.error}"
         return "I couldn't interpret that request well enough to respond."
 
     def _isOfflineMode(self) -> bool:

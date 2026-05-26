@@ -107,6 +107,8 @@ class GeminiProvider(LLMProvider):
             if not response.success:
                 if self.logger:
                     self.logger.warning(f"Gemini structured request failed on attempt {attempt}: {response.error}")
+                if self._isQuotaOrRateLimit(response.error):
+                    break
                 continue
 
             valid, parsed, error = ResponseValidator.parseJson(response.text)
@@ -200,6 +202,13 @@ class GeminiProvider(LLMProvider):
             firstCandidate = candidates[0]
             return getattr(firstCandidate, "finish_reason", None)
         return None
+
+    @staticmethod
+    def _isQuotaOrRateLimit(error: str | None) -> bool:
+        """Return whether a Gemini error should not be retried immediately."""
+
+        lowered = str(error or "").lower()
+        return any(token in lowered for token in ("429", "resource_exhausted", "quota", "rate limit", "rate-limit"))
 
     def _getLogger(self, name: str):
         """Return a child logger when Aura logging is available."""

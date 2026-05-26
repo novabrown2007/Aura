@@ -158,7 +158,8 @@ class LLMHandlerTests(unittest.TestCase):
 
         result = handler.generateResponse("Hello")
 
-        self.assertEqual(result, "I couldn't interpret that request well enough to respond.")
+        self.assertIn("can't reach an available language provider", result)
+        self.assertIn("server error", result)
 
     def test_generate_structured_response_uses_manager_validation(self):
         """Structured responses should be parsed and returned as dictionaries."""
@@ -210,6 +211,31 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertEqual(response.provider, "fallback")
         self.assertEqual(response.text, "Recovered")
 
+    def test_manager_enters_offline_fallback_on_gemini_quota_error(self):
+        """Gemini quota failures should stop routing new requests to Gemini."""
+
+        context = make_llm_context()
+        manager = LLMManager(context)
+        manager.providers["gemini"] = StubProvider(
+            "gemini",
+            LLMResponse(provider="gemini", success=False, error="429 RESOURCE_EXHAUSTED quota exceeded"),
+        )
+        manager.providers["ollama"] = StubProvider(
+            "ollama",
+            LLMResponse(provider="ollama", success=True, text="Recovered locally"),
+        )
+        manager.activeProviderName = "gemini"
+        manager.fallbackProviderName = "ollama"
+        manager.offlineMode = False
+
+        response = manager.generateResponse("system", "hello")
+
+        self.assertTrue(response.success)
+        self.assertEqual(response.provider, "ollama")
+        self.assertEqual(response.text, "Recovered locally")
+        self.assertTrue(manager.offlineMode)
+        self.assertEqual(manager.activeProviderName, "ollama")
+
     @patch.object(GeminiProvider, "initialize")
     def test_manager_uses_ollama_when_gemini_is_unavailable(self, mock_initialize):
         """Gemini startup failure should force offline mode and use Ollama."""
@@ -247,6 +273,38 @@ class LLMHandlerTests(unittest.TestCase):
 
         self.assertFalse(response.success)
         self.assertIn("offline conversation only", response.error)
+
+    def test_ollama_base_url_is_normalized_to_generate_endpoint(self):
+        """Ollama should accept a base URL and post to /api/generate."""
+
+        provider = OllamaProvider(make_llm_context(endpoint="http://localhost:11434"))
+        provider.initialize()
+
+        self.assertEqual(provider.endpoint, "http://localhost:11434/api/generate")
+
+    def test_structured_intent_failure_falls_back_to_conversation_reply(self):
+        """A structured parse failure should not break normal chat."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            offlineMode=False,
+            rawLogger=None,
+            generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
+                provider="gemini",
+                success=False,
+                error="429 RESOURCE_EXHAUSTED quota exceeded",
+            ),
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="ollama",
+                success=True,
+                text="Hello Nova.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Hello, how are you today?")
+
+        self.assertEqual(result, "Hello Nova.")
 
     def test_system_prompt_includes_memory_and_tool_contract(self):
         """The generic assistant prompt should expose memory and tool-call rules."""
