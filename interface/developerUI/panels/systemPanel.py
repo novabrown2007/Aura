@@ -35,7 +35,7 @@ class SystemPanel(TextPanel):
             f"Memory: {'Online' if snapshot.memory else 'Unavailable'}",
             f"Bridge: {'Connected' if snapshot.bridge.get('connected') else 'Disconnected'}",
             f"Providers: {'Available' if snapshot.providers.get('available') else 'Unavailable'}",
-            f"LLM: {activeProvider} / {activeModel}",
+            f"Active LLM: {activeProvider} ({activeModel})",
             "",
             "Loaded Modules:",
         ]

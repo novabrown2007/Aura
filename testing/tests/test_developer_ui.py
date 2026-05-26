@@ -119,7 +119,7 @@ class DeveloperUITests(unittest.TestCase):
 
         lines = SystemPanel.buildLines(state.snapshot())
 
-        self.assertIn("LLM: gemini / gemini-2.5-flash", lines)
+        self.assertIn("Active LLM: gemini (gemini-2.5-flash)", lines)
 
     def test_developer_ui_reads_config_and_initializes_without_window(self):
         developerUI = DeveloperUI(self.context)
