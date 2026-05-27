@@ -31,6 +31,15 @@ DEFAULT_USER_CONFIG = {
         "port": 8080,
         "ssl": False,
     },
+    "modules": {
+        "llm": "enabled",
+        "calendar": "enabled",
+        "database": "enabled",
+        "home_automation": "enabled",
+        "notifications": "enabled",
+        "reminders": "enabled",
+        "system": "enabled",
+    },
 }
 
 
@@ -49,14 +58,14 @@ DEFAULT_DEV_CONFIG = {
         "history": {
             "enabled": True,
             "limit": 25,
-            "persistAcrossRestarts": False,
+            "persistAcrossRestarts": True,
         },
         "memory": {
             "enabled": True,
-            "frequency": 20,
+            "frequency": 5,
             "semantic": {
                 "enabled": True,
-                "limit": 5,
+                "limit": 6,
                 "provider": "local",
             },
         },
@@ -73,23 +82,28 @@ DEFAULT_DEV_CONFIG = {
         "max_threads": 10,
     },
     "voice": {
-        "enabled": False,
-        "model": "small.en",
-        "device": "cpu",
-        "computeType": "int8",
-        "sampleRate": 16000,
-        "voiceEnabled": True,
-        "voiceModelPath": "en_US-lessac-medium",
-        "voiceOutputDirectory": "temp/voice",
-        "voicePlaybackEnabled": True,
-        "voiceSampleRate": 22050,
-        "pushToTalkEnabled": False,
-        "pushToTalkHotkey": "enter",
-        "pushToTalkAutoSpeak": True,
-        "pushToTalkTempAudioDirectory": "temp/push_to_talk",
+        "STT": {
+            "enabled": False,
+            "model": "small.en",
+            "device": "cpu",
+            "computeType": "int8",
+            "sampleRate": 16000,
+        },
+        "TTS": {
+            "voiceEnabled": True,
+            "voiceModelPath": "en_US-lessac-medium",
+            "voiceOutputDirectory": "temp/voice",
+            "voicePlaybackEnabled": True,
+            "voiceSampleRate": 22050,
+        },
+        "PTT": {
+            "pushToTalkEnabled": False,
+            "pushToTalkHotkey": "enter",
+            "pushToTalkAutoSpeak": True,
+            "pushToTalkTempAudioDirectory": "temp/push_to_talk",
+        },
         "wakeWord": {
             "wakeWordEnabled": True,
-            "wakeWordPhrase": "Hey Aura",
             "wakeWordPhrases": ["Aura", "Hey Aura", "Aura Wake"],
             "wakeWordSensitivity": 0.5,
             "wakeWordCooldownSeconds": 5,
@@ -98,29 +112,30 @@ DEFAULT_DEV_CONFIG = {
             "wakeWordInferenceFramework": "onnx",
             "wakeWordAutoStart": True,
             "wakeWordDebugLogging": False,
+            "wakeWordDebugLoggingLocation": "logs/wake_word",
         },
     },
     "memory": {
         "enabled": True,
         "databasePath": "aura_memory.sqlite3",
-        "maxResults": 8,
+        "maxResults": 10,
         "summaryLength": 280,
         "importanceThreshold": 0.35,
         "autoSummarization": True,
         "injectionEnabled": True,
-        "maxInjectionCount": 5,
-        "maxInjectionCharacters": 900,
+        "maxInjectionCount": 10,
+        "maxInjectionCharacters": 1024,
         "recencyWeight": 0.18,
         "importanceWeight": 0.24,
         "duplicateFiltering": True,
         "compressionEnabled": True,
-        "minRelevance": 0.18,
+        "minRelevance": 0.2,
         "retrievalCandidateLimit": 24,
         "retrievalDebug": True,
     },
     "developerUI": {
         "enabled": True,
-        "refreshRate": 750,
+        "refreshRate": 1000,
         "maxEvents": 500,
         "verboseLogging": False,
         "traceEvents": True,
@@ -133,9 +148,27 @@ DEFAULT_DEV_CONFIG = {
         "subscriptionsPath": "/protocol/subscriptions",
         "heartbeatPath": "/protocol/heartbeat",
         "sessionId": "auto",
-        "interface": "desktop",
+        "interface": "windows",
         "heartbeatSeconds": 30,
     },
+}
+
+
+CONFIG_ALIASES = {
+    "voice.enabled": "voice.STT.enabled",
+    "voice.model": "voice.STT.model",
+    "voice.device": "voice.STT.device",
+    "voice.computeType": "voice.STT.computeType",
+    "voice.sampleRate": "voice.STT.sampleRate",
+    "voice.voiceEnabled": "voice.TTS.voiceEnabled",
+    "voice.voiceModelPath": "voice.TTS.voiceModelPath",
+    "voice.voiceOutputDirectory": "voice.TTS.voiceOutputDirectory",
+    "voice.voicePlaybackEnabled": "voice.TTS.voicePlaybackEnabled",
+    "voice.voiceSampleRate": "voice.TTS.voiceSampleRate",
+    "voice.pushToTalkEnabled": "voice.PTT.pushToTalkEnabled",
+    "voice.pushToTalkHotkey": "voice.PTT.pushToTalkHotkey",
+    "voice.pushToTalkAutoSpeak": "voice.PTT.pushToTalkAutoSpeak",
+    "voice.pushToTalkTempAudioDirectory": "voice.PTT.pushToTalkTempAudioDirectory",
 }
 
 
@@ -211,27 +244,41 @@ class ConfigLoader:
             "discord.webhook_url": "DISCORD_WEBHOOK_URL",
             "discord.webhookUrl": "DISCORD_WEBHOOK_URL",
             "voice.enabled": "VOICE_INPUT_ENABLED",
+            "voice.STT.enabled": "VOICE_INPUT_ENABLED",
             "voiceEnabled": "VOICE_ENABLED",
             "voice.model": "VOICE_INPUT_MODEL",
+            "voice.STT.model": "VOICE_INPUT_MODEL",
             "voiceModel": "VOICE_INPUT_MODEL",
             "voice.device": "VOICE_INPUT_DEVICE",
+            "voice.STT.device": "VOICE_INPUT_DEVICE",
             "voiceDevice": "VOICE_INPUT_DEVICE",
             "voice.computeType": "VOICE_INPUT_COMPUTE_TYPE",
+            "voice.STT.computeType": "VOICE_INPUT_COMPUTE_TYPE",
             "voiceComputeType": "VOICE_INPUT_COMPUTE_TYPE",
             "voice.sampleRate": "VOICE_INPUT_SAMPLE_RATE",
+            "voice.STT.sampleRate": "VOICE_INPUT_SAMPLE_RATE",
             "voiceSampleRate": "VOICE_SAMPLE_RATE",
             "voice.voiceEnabled": "VOICE_ENABLED",
+            "voice.TTS.voiceEnabled": "VOICE_ENABLED",
             "voice.voiceModelPath": "VOICE_MODEL_PATH",
+            "voice.TTS.voiceModelPath": "VOICE_MODEL_PATH",
             "voice.voiceOutputDirectory": "VOICE_OUTPUT_DIRECTORY",
+            "voice.TTS.voiceOutputDirectory": "VOICE_OUTPUT_DIRECTORY",
             "voice.voicePlaybackEnabled": "VOICE_PLAYBACK_ENABLED",
+            "voice.TTS.voicePlaybackEnabled": "VOICE_PLAYBACK_ENABLED",
             "voice.voiceSampleRate": "VOICE_SAMPLE_RATE",
+            "voice.TTS.voiceSampleRate": "VOICE_SAMPLE_RATE",
             "voice.modelPath": "VOICE_MODEL_PATH",
             "voice.outputDirectory": "VOICE_OUTPUT_DIRECTORY",
             "voice.playbackEnabled": "VOICE_PLAYBACK_ENABLED",
             "voice.pushToTalkEnabled": "PUSH_TO_TALK_ENABLED",
+            "voice.PTT.pushToTalkEnabled": "PUSH_TO_TALK_ENABLED",
             "voice.pushToTalkHotkey": "PUSH_TO_TALK_HOTKEY",
+            "voice.PTT.pushToTalkHotkey": "PUSH_TO_TALK_HOTKEY",
             "voice.pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
+            "voice.PTT.pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
             "voice.pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
+            "voice.PTT.pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
             "voice.wakeWord.wakeWordEnabled": "WAKE_WORD_ENABLED",
             "voice.wakeWord.wakeWordPhrase": "WAKE_WORD_PHRASE",
             "voice.wakeWord.wakeWordPhrases": "WAKE_WORD_PHRASES",
@@ -242,6 +289,7 @@ class ConfigLoader:
             "voice.wakeWord.wakeWordInferenceFramework": "WAKE_WORD_INFERENCE_FRAMEWORK",
             "voice.wakeWord.wakeWordAutoStart": "WAKE_WORD_AUTO_START",
             "voice.wakeWord.wakeWordDebugLogging": "WAKE_WORD_DEBUG_LOGGING",
+            "voice.wakeWord.wakeWordDebugLoggingLocation": "WAKE_WORD_DEBUG_LOGGING_LOCATION",
             "wakeWordEnabled": "WAKE_WORD_ENABLED",
             "wakeWordPhrase": "WAKE_WORD_PHRASE",
             "wakeWordPhrases": "WAKE_WORD_PHRASES",
@@ -346,6 +394,18 @@ class ConfigLoader:
             Any
         """
 
+        value = self._getRaw(key, None)
+        if value is None and key in CONFIG_ALIASES:
+            value = self._getRaw(CONFIG_ALIASES[key], None)
+        if value is None:
+            return default
+        if value == "CHANGE_ME":
+            return self._getEnvFallback(key, default)
+        return value
+
+    def _getRaw(self, key: str, default=None):
+        """Retrieve a raw config value without alias or environment handling."""
+
         value = self.data
         for part in key.split("."):
             if not isinstance(value, dict):
@@ -353,8 +413,6 @@ class ConfigLoader:
             if part not in value:
                 return default
             value = value[part]
-        if value == "CHANGE_ME":
-            return self._getEnvFallback(key, default)
         return value
 
     def require(self, key: str):

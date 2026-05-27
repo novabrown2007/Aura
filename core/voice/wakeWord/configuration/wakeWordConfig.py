@@ -20,6 +20,7 @@ class WakeWordConfig:
     wakeWordInferenceFramework: str = "onnx"
     wakeWordAutoStart: bool = True
     wakeWordDebugLogging: bool = False
+    wakeWordDebugLoggingLocation: str = "logs/wake_word"
     wakeWordFrameDurationMs: int = 80
     wakeWordSampleRate: int = 16000
     wakeWordCaptureSeconds: float = 5.0
@@ -41,8 +42,14 @@ class WakeWordConfig:
         def nested_or_flat(name: str, default: Any = None):
             return value(name, value(f"voice.wakeWord.{name}", value(f"wakeWord.{name}", default)))
 
-        activePhrase = str(nested_or_flat("wakeWordPhrase", "hey_aura")).strip() or "hey_aura"
-        configuredPhrases = _string_list(nested_or_flat("wakeWordPhrases", [activePhrase]))
+        configuredPhrases = _string_list(nested_or_flat("wakeWordPhrases", []))
+        activePhrase = str(nested_or_flat("wakeWordPhrase", "")).strip()
+        if not activePhrase and configuredPhrases:
+            activePhrase = configuredPhrases[0]
+        if not activePhrase:
+            activePhrase = "Hey Aura"
+        if not configuredPhrases:
+            configuredPhrases = [activePhrase]
         if activePhrase not in configuredPhrases:
             configuredPhrases.insert(0, activePhrase)
 
@@ -57,6 +64,7 @@ class WakeWordConfig:
             wakeWordInferenceFramework=str(nested_or_flat("wakeWordInferenceFramework", "onnx")),
             wakeWordAutoStart=_bool(nested_or_flat("wakeWordAutoStart", True), True),
             wakeWordDebugLogging=_bool(nested_or_flat("wakeWordDebugLogging", False), False),
+            wakeWordDebugLoggingLocation=str(nested_or_flat("wakeWordDebugLoggingLocation", "logs/wake_word")),
             wakeWordFrameDurationMs=int(_float(nested_or_flat("wakeWordFrameDurationMs", 80), 80)),
             wakeWordSampleRate=int(_float(nested_or_flat("wakeWordSampleRate", 16000), 16000)),
             wakeWordCaptureSeconds=_float(nested_or_flat("wakeWordCaptureSeconds", 5.0), 5.0),

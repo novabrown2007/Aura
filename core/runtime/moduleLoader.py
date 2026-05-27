@@ -313,19 +313,64 @@ class ModuleLoader:
         if config is None or not hasattr(config, "get"):
             return True
 
-        module_config = config.get(f"modules.{module_name}", None)
-        if isinstance(module_config, dict) and "enabled" in module_config:
-            return bool(module_config["enabled"])
+        for alias in self._moduleConfigAliases(module_name):
+            module_config = config.get(f"modules.{alias}", None)
+            parsed = self._parseModuleStatus(module_config)
+            if parsed is not None:
+                return parsed
 
         enabled_modules = config.get("modules.enabled", None)
         if isinstance(enabled_modules, list):
-            return module_name in enabled_modules
+            enabled_aliases = {self._normalizeModuleName(name) for name in enabled_modules}
+            return self._normalizeModuleName(module_name) in enabled_aliases
 
         disabled_modules = config.get("modules.disabled", [])
-        if isinstance(disabled_modules, list) and module_name in disabled_modules:
+        disabled_aliases = {self._normalizeModuleName(name) for name in disabled_modules} if isinstance(disabled_modules, list) else set()
+        if self._normalizeModuleName(module_name) in disabled_aliases:
             return False
 
         return True
+
+    @classmethod
+    def _moduleConfigAliases(cls, module_name: str) -> list[str]:
+        """Return config key aliases for a module metadata name."""
+
+        aliases = [str(module_name)]
+        snake = cls._camelToSnake(module_name)
+        normalized = cls._normalizeModuleName(module_name)
+        for alias in (snake, normalized):
+            if alias and alias not in aliases:
+                aliases.append(alias)
+        return aliases
+
+    @staticmethod
+    def _parseModuleStatus(value):
+        """Parse user-facing module status values."""
+
+        if isinstance(value, dict) and "enabled" in value:
+            return ModuleLoader._parseModuleStatus(value["enabled"])
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"enabled", "enable", "on", "true", "yes", "1"}:
+                return True
+            if normalized in {"disabled", "disable", "off", "false", "no", "0"}:
+                return False
+        return None
+
+    @staticmethod
+    def _normalizeModuleName(value) -> str:
+        return str(value or "").replace("_", "").replace("-", "").lower()
+
+    @staticmethod
+    def _camelToSnake(value: str) -> str:
+        result = []
+        for index, character in enumerate(str(value or "")):
+            if character.isupper() and index > 0:
+                result.append("_")
+            result.append(character.lower())
+        return "".join(result)
 
     @staticmethod
     def _reloadPackageTree(import_path: str):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -77,6 +78,8 @@ class WakeWordDetector:
             self.totalPredictionTimeMs += predictionTimeMs
             if self.config.wakeWordDebugLogging and self.logger:
                 self.logger.debug(f"Wake word prediction confidence={confidence:.3f}, detected={detected}.")
+            if self.config.wakeWordDebugLogging:
+                self._writeDebugPrediction(result)
             return result
         except Exception as error:
             self.lastError = str(error)
@@ -131,6 +134,25 @@ class WakeWordDetector:
             models.append(localModel or _normalizePhrase(phrase))
 
         return models
+
+    def _writeDebugPrediction(self, result: WakeWordResult):
+        """Append wake-word prediction diagnostics when debug logging is enabled."""
+
+        try:
+            debugDirectory = Path(self.config.wakeWordDebugLoggingLocation or "logs/wake_word")
+            debugDirectory.mkdir(parents=True, exist_ok=True)
+            path = debugDirectory / "wake_word_predictions.log"
+            with open(path, "a", encoding="utf-8") as handle:
+                handle.write(
+                    f"{datetime.now().isoformat(timespec='milliseconds')} "
+                    f"phrase={result.phrase!r} model={result.modelName!r} "
+                    f"confidence={result.confidence:.4f} detected={result.detected} "
+                    f"predictionTimeMs={result.predictionTimeMs:.3f}\n"
+                )
+        except Exception as error:
+            self.lastError = str(error)
+            if self.logger:
+                self.logger.warning(f"Wake word debug prediction log failed: {error}")
 
     @staticmethod
     def _normalizePredictions(predictions: Any) -> dict[str, float]:

@@ -17,43 +17,35 @@ llm:
     # Valid value: an API key string, or CHANGE_ME to read GEMINI_API_KEY from .env.
     api_secret: CHANGE_ME
 
+# Database login credentials
 database:
-  # Database host name or IP address.
-  # Valid value: hostname, IPv4/IPv6 address, or localhost.
   host: localhost
-
-  # Database port.
-  # Valid value: integer TCP port. MySQL default is 3306.
   port: 3306
-
-  # Database/schema name Aura should use.
-  # Valid value: database name string.
   name: aura
-
-  # Database username.
-  # Valid value: username string, or CHANGE_ME to use environment/config fallbacks where supported.
   user: CHANGE_ME
-
-  # Database password.
-  # Valid value: password string, or CHANGE_ME to use environment/config fallbacks where supported.
   password: CHANGE_ME
 
 voice:
   wakeWord:
     # User-facing wake words Aura should accept.
-    # Valid value: YAML list of phrases. Human-readable phrases are normalized for model lookup.
     # Examples: ["Aura"], ["Hey Aura"], ["Aura", "Hey Aura", "Aura Wake"]
-    wakeWordPhrases: ["Aura", "Hey Aura", "Aura Wake"]
+    wakeWordPhrases: ["Aura", "Hey Aura"]
 
+# Connection credentials for the Home Automation Bridge
 homeAutomationBridge:
-  # Bridge host name or IP address for the home automation bridge service.
-  # Valid value: hostname, IPv4/IPv6 address, or localhost.
   host: 127.0.0.1
-
-  # Bridge TCP port.
-  # Valid value: integer TCP port.
   port: 8080
-
-  # Whether to connect to the bridge using HTTPS.
-  # Valid values: true, false.
   ssl: false
+
+# List of modules and their status
+# Valid status values: enabled, disabled.
+# Loadable module keys can use package names like home_automation or module names like homeAutomation.
+# Note: llm and database are core runtime systems today; they are listed for visibility but are initialized during runtime bootstrap.
+modules:
+  llm: enabled
+  calendar: enabled
+  database: enabled
+  home_automation: enabled
+  notifications: enabled
+  reminders: enabled
+  system: enabled

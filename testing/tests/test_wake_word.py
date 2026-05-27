@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import time
 import types
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -69,12 +71,11 @@ class WakeWordTests(unittest.TestCase):
         self.context.config._data["voice"] = {
             "wakeWord": {
                 "wakeWordEnabled": True,
-                "wakeWordPhrase": "Hey Aura",
                 "wakeWordPhrases": ["Aura", "Hey Aura", "Aura Wake"],
                 "wakeWordSensitivity": 0.5,
                 "wakeWordCooldownSeconds": 0,
                 "wakeWordAutoStart": False,
-                "wakeWordDebugLogging": True,
+                "wakeWordDebugLogging": False,
             }
         }
 
@@ -143,6 +144,25 @@ class WakeWordTests(unittest.TestCase):
         detector = WakeWordDetector(self.context, config)
 
         self.assertEqual(detector._wakeWordModels(), ["aura", "hey_aura", "aura_wake"])
+
+    def test_wake_word_phrase_defaults_to_first_configured_phrase(self):
+        config = WakeWordConfig.fromContext(self.context)
+
+        self.assertEqual(config.wakeWordPhrase, "Aura")
+
+    def test_detector_writes_debug_predictions_to_configured_location(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = WakeWordConfig.fromContext(self.context)
+            config.wakeWordDebugLogging = True
+            config.wakeWordDebugLoggingLocation = temp_dir
+            detector = WakeWordDetector(self.context, config)
+            result = WakeWordResult(detected=True, phrase="Aura", confidence=0.9, modelName="aura")
+
+            detector._writeDebugPrediction(result)
+
+            log_path = Path(temp_dir) / "wake_word_predictions.log"
+            self.assertTrue(log_path.exists())
+            self.assertIn("confidence=0.9000", log_path.read_text(encoding="utf-8"))
 
     def test_manager_emits_wake_events_and_reuses_push_to_talk_pipeline(self):
         push = FakePushToTalk()

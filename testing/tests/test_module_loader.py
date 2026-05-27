@@ -158,6 +158,56 @@ class ModuleLoaderTests(unittest.TestCase):
         self.assertNotIn("weather", loader.loadedModules)
         self.assertFalse(hasattr(context, "loaded_weather"))
 
+    def test_user_facing_module_status_strings_control_loading(self):
+        """Config can use enabled/disabled strings for module status."""
+
+        self._writePlugin(
+            "weather",
+            """
+            from modules.base import AuraModule, ModuleMetadata
+            MODULE_METADATA = ModuleMetadata(name="weather")
+            def createModule(context=None):
+                return Weather()
+            class Weather(AuraModule):
+                metadata = MODULE_METADATA
+                def initialize(self, context):
+                    super().initialize(context)
+                    context.loaded_weather = True
+            """,
+        )
+        context = self._makeContext({"modules": {"weather": "disabled"}})
+
+        loader = ModuleLoader(context, package_name=self.package_name)
+        loader.loadModules()
+
+        self.assertNotIn("weather", loader.loadedModules)
+        self.assertFalse(hasattr(context, "loaded_weather"))
+
+    def test_user_facing_snake_case_module_aliases_control_loading(self):
+        """Config can use package-style snake_case names for camelCase modules."""
+
+        self._writePlugin(
+            "home_automation",
+            """
+            from modules.base import AuraModule, ModuleMetadata
+            MODULE_METADATA = ModuleMetadata(name="homeAutomation")
+            def createModule(context=None):
+                return HomeAutomation()
+            class HomeAutomation(AuraModule):
+                metadata = MODULE_METADATA
+                def initialize(self, context):
+                    super().initialize(context)
+                    context.loaded_home_automation = True
+            """,
+        )
+        context = self._makeContext({"modules": {"home_automation": "disabled"}})
+
+        loader = ModuleLoader(context, package_name=self.package_name)
+        loader.loadModules()
+
+        self.assertNotIn("homeAutomation", loader.loadedModules)
+        self.assertFalse(hasattr(context, "loaded_home_automation"))
+
     def test_metadata_permissions_and_capabilities_are_available(self):
         """Loader exposes plugin metadata, permissions, and capabilities."""
 
