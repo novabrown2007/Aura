@@ -22,6 +22,7 @@ class UISubscriptionManager:
         "wakeword.listening.started",
         "wakeword.listening.stopped",
         "wakeword.detected",
+        "wakeword.voice.completed",
         "wakeword.cooldown.started",
         "wakeword.cooldown.finished",
         "wakeword.error",

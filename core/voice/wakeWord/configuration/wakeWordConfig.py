@@ -54,7 +54,7 @@ class WakeWordConfig:
             configuredPhrases.insert(0, activePhrase)
 
         return cls(
-            wakeWordEnabled=_bool(nested_or_flat("wakeWordEnabled", True), True),
+            wakeWordEnabled=_bool(nested_or_flat("enabled", True), True),
             wakeWordPhrase=activePhrase,
             wakeWordPhrases=configuredPhrases,
             wakeWordSensitivity=_float(nested_or_flat("wakeWordSensitivity", 0.5), 0.5),

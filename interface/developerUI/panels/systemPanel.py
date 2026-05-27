@@ -22,6 +22,9 @@ class SystemPanel(TextPanel):
         providers = snapshot.providers or {}
         activeProvider = providers.get("activeProvider") or "Unavailable"
         activeModel = providers.get("activeModel") or "Unavailable"
+        voiceProviders = providers.get("voice", {}) or {}
+        stt = voiceProviders.get("stt", {}) or {}
+        tts = voiceProviders.get("tts", {}) or {}
         lines = [
             "[SYSTEM]",
             f"Uptime Seconds: {system.get('uptimeSeconds', 0)}",
@@ -36,6 +39,8 @@ class SystemPanel(TextPanel):
             f"Bridge: {'Connected' if snapshot.bridge.get('connected') else 'Disconnected'}",
             f"Providers: {'Available' if snapshot.providers.get('available') else 'Unavailable'}",
             f"Active LLM: {activeProvider} ({activeModel})",
+            f"Active STT: {stt.get('provider', 'Unavailable')} ({stt.get('model', 'Unavailable')})",
+            f"Active TTS: {tts.get('provider', 'Unavailable')} ({tts.get('model', 'Unavailable')})",
             "",
             "Loaded Modules:",
         ]

@@ -61,6 +61,7 @@ class AuraWindowsApp:
         self.root.protocol("WM_DELETE_WINDOW", self._closeWindow)
 
         self._buildLayout()
+        self._subscribeWakeWordEvents()
         self._appendTranscript("Aura", "Windows interface initialized.")
 
         if self.logger:
@@ -3096,6 +3097,64 @@ class AuraWindowsApp:
         else:
             self.pendingResponses.put(("error", f"Push-to-talk failed: {result.errorMessage}"))
 
+    def _subscribeWakeWordEvents(self):
+        """Route background wake-word voice events into the chat transcript."""
+
+        self._wakeWordSubscriptions = (
+            ("wakeword.detected", self._onWakeWordDetectedEvent),
+            ("wakeword.voice.completed", self._onWakeWordVoiceCompletedEvent),
+            ("wakeword.error", self._onWakeWordErrorEvent),
+        )
+        eventManager = getattr(self.context, "eventManager", None)
+        if eventManager is None:
+            return
+        for eventName, handler in self._wakeWordSubscriptions:
+            try:
+                eventManager.subscribe(eventName, handler)
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Wake-word UI subscription failed for {eventName}: {error}")
+
+    def _unsubscribeWakeWordEvents(self):
+        """Remove wake-word UI event subscriptions during shutdown."""
+
+        eventManager = getattr(self.context, "eventManager", None)
+        if eventManager is None:
+            return
+        for eventName, handler in getattr(self, "_wakeWordSubscriptions", ()):
+            try:
+                eventManager.unsubscribe(eventName, handler)
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Wake-word UI unsubscribe failed for {eventName}: {error}")
+
+    def _onWakeWordDetectedEvent(self, event):
+        """Show wake-word activation in the transcript."""
+
+        phrase = (getattr(event, "data", {}) or {}).get("phrase", "wake word")
+        self.pendingResponses.put(("status", f"Wake word detected: {phrase}. Listening..."))
+
+    def _onWakeWordVoiceCompletedEvent(self, event):
+        """Show a wake-triggered voice result in the chat transcript."""
+
+        payload = getattr(event, "data", {}) or {}
+        self.pendingResponses.put(
+            (
+                "voice_response",
+                {
+                    "user": payload.get("transcribedText", ""),
+                    "response": payload.get("assistantResponse", ""),
+                    "speechError": payload.get("speechError", ""),
+                },
+            )
+        )
+
+    def _onWakeWordErrorEvent(self, event):
+        """Surface wake-word errors without crashing the UI."""
+
+        payload = getattr(event, "data", {}) or {}
+        self.pendingResponses.put(("status", f"Wake word error: {payload.get('errorMessage', 'Unknown error')}"))
+
     def _onSubmit(self):
         """Dispatch a request to Aura in a background worker."""
 
@@ -3147,6 +3206,8 @@ class AuraWindowsApp:
                     if speechError:
                         self._appendTranscript("Voice", f"Speech output failed: {speechError}")
                     self._setBusyState(False)
+                elif result_type == "status":
+                    self._appendTranscript("Aura", str(payload))
                 else:
                     self._appendTranscript("Aura", f"Error: {payload}")
                     self._showErrorPopup(payload)
@@ -3209,6 +3270,7 @@ class AuraWindowsApp:
         if self.isClosing:
             return
         self.isClosing = True
+        self._unsubscribeWakeWordEvents()
         self.context.should_exit = True
         if self.root.winfo_exists():
             self.root.destroy()

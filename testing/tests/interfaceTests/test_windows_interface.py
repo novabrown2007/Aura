@@ -158,6 +158,44 @@ class WindowsInterfaceTests(unittest.TestCase):
         self.assertIn(("Voice", "Speech output failed: Voice model not found: en_US-lessac-medium"), app.appended)
         self.assertFalse(app.busy)
 
+    def test_wake_word_voice_event_queues_chat_response(self):
+        app = AuraWindowsApp.__new__(AuraWindowsApp)
+        app.pendingResponses = Queue()
+
+        AuraWindowsApp._onWakeWordVoiceCompletedEvent(
+            app,
+            SimpleNamespace(
+                data={
+                    "transcribedText": "turn on the lights",
+                    "assistantResponse": "Turning on the lights.",
+                    "speechError": "",
+                }
+            ),
+        )
+
+        resultType, payload = app.pendingResponses.get_nowait()
+        self.assertEqual(resultType, "voice_response")
+        self.assertEqual(payload["user"], "turn on the lights")
+        self.assertEqual(payload["response"], "Turning on the lights.")
+
+    def test_wake_word_events_are_subscribed_and_unsubscribed(self):
+        app = AuraWindowsApp.__new__(AuraWindowsApp)
+        app.logger = None
+        eventManager = FakeEventManager()
+        app.context = SimpleNamespace(eventManager=eventManager)
+
+        AuraWindowsApp._subscribeWakeWordEvents(app)
+        AuraWindowsApp._unsubscribeWakeWordEvents(app)
+
+        self.assertEqual(
+            [name for name, _handler in eventManager.subscriptions],
+            ["wakeword.detected", "wakeword.voice.completed", "wakeword.error"],
+        )
+        self.assertEqual(
+            [name for name, _handler in eventManager.unsubscriptions],
+            ["wakeword.detected", "wakeword.voice.completed", "wakeword.error"],
+        )
+
 
 class FakeEntry:
     """Minimal Tk Entry stand-in for Windows UI key handling tests."""
@@ -193,6 +231,20 @@ class FakePushToTalkManager:
 
     def stopAndProcess(self):
         return SimpleNamespace(success=True, transcribedText="hello aura", assistantResponse="Hello Nova.")
+
+
+class FakeEventManager:
+    """Collect subscriptions for Windows UI event wiring tests."""
+
+    def __init__(self):
+        self.subscriptions = []
+        self.unsubscriptions = []
+
+    def subscribe(self, eventName, handler):
+        self.subscriptions.append((eventName, handler))
+
+    def unsubscribe(self, eventName, handler):
+        self.unsubscriptions.append((eventName, handler))
 
 
 if __name__ == "__main__":

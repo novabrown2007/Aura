@@ -20,7 +20,6 @@ llm:
 # Hugging Face credentials used for local model downloads such as Faster-Whisper.
 huggingFace:
   # Hugging Face access token.
-  # Valid value: an HF token string, or CHANGE_ME/change_me to read HF_TOKEN from .env.
   apiToken: CHANGE_ME
 
 # Database login credentials
@@ -32,10 +31,17 @@ database:
   password: CHANGE_ME
 
 voice:
-  wakeWord:
+  pushToTalk:
+    # Whether held push-to-talk activation is enabled.
+    # Valid values: true, false.
+    enabled: true
+
+  alwaysActive:
+    # Whether passive local wake-word activation is enabled.
+    # Valid values: true, false.
+    enabled: true
     # User-facing wake words Aura should accept.
-    # Examples: ["Aura"], ["Hey Aura"], ["Aura", "Hey Aura", "Aura Wake"]
-    wakeWordPhrases: ["Aura", "Hey Aura"]
+    activationPhrases: [ "Aura", "Hey Aura"]
 
 # Connection credentials for the Home Automation Bridge
 homeAutomationBridge:
@@ -46,12 +52,12 @@ homeAutomationBridge:
 # List of modules and their status
 # Valid status values: enabled, disabled.
 # Loadable module keys can use package names like home_automation or module names like homeAutomation.
-# Note: llm and database are core runtime systems today; they are listed for visibility but are initialized during runtime bootstrap.
+# Note: llm and database are core runtime systems; they are listed for visibility but are initialized during runtime bootstrap.
 modules:
-  llm: enabled
-  calendar: enabled
+  system: enabled
   database: enabled
   home_automation: enabled
-  notifications: enabled
+  llm: enabled
+  calendar: enabled
   reminders: enabled
-  system: enabled
+  notifications: enabled

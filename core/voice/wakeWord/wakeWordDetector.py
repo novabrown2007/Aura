@@ -23,6 +23,7 @@ class WakeWordDetector:
         self.lastResult = WakeWordResult(phrase=self.config.wakeWordPhrase)
         self.activeWakePhrases = self.config.validWakeWordPhrases()
         self.lastError = ""
+        self.modelReadinessWarning = ""
         self.predictionCount = 0
         self.totalPredictionTimeMs = 0.0
 
@@ -35,6 +36,15 @@ class WakeWordDetector:
             from openwakeword.model import Model
 
             modelNames = self._wakeWordModels()
+            missingCustomModels = self._missingCustomModelPhrases()
+            if missingCustomModels:
+                self.modelReadinessWarning = (
+                    "OpenWakeWord needs local custom model files for configured wake phrases: "
+                    f"{', '.join(missingCustomModels)}. Add .onnx/.tflite models to "
+                    "core/voice/wakeWord/models or set voice.wakeWord.wakeWordModelPath."
+                )
+                if self.logger:
+                    self.logger.warning(self.modelReadinessWarning)
             kwargs = {"inference_framework": self.config.wakeWordInferenceFramework}
             if modelNames:
                 kwargs["wakeword_models"] = modelNames
@@ -45,11 +55,14 @@ class WakeWordDetector:
                 self.logger.info(f"OpenWakeWord model initialized for phrase '{self.config.wakeWordPhrase}'.")
             return self.model
         except Exception as error:
-            self.lastError = str(error)
+            detail = str(error)
+            if self.modelReadinessWarning and self.modelReadinessWarning not in detail:
+                detail = f"{detail}. {self.modelReadinessWarning}"
+            self.lastError = detail
             self.initialized = False
             if self.logger:
-                self.logger.error(f"OpenWakeWord model initialization failed: {error}")
-            raise
+                self.logger.error(f"OpenWakeWord model initialization failed: {detail}")
+            raise RuntimeError(detail) from error
 
     def processFrame(self, frame: Any) -> WakeWordResult:
         """Run prediction for one PCM frame and return a normalized result."""
@@ -101,6 +114,8 @@ class WakeWordDetector:
             "predictionCount": self.predictionCount,
             "averagePredictionTimeMs": avgMs,
             "lastError": self.lastError,
+            "modelReadinessWarning": self.modelReadinessWarning,
+            "missingCustomModelPhrases": self._missingCustomModelPhrases(),
             "lastResult": self.lastResult.asDict(),
         }
 
@@ -134,6 +149,30 @@ class WakeWordDetector:
             models.append(localModel or _normalizePhrase(phrase))
 
         return models
+
+    def _missingCustomModelPhrases(self) -> list[str]:
+        missing = []
+        for phrase in self.config.validWakeWordPhrases():
+            normalized = _normalizePhrase(phrase)
+            if normalized in _OPENWAKEWORD_PRETRAINED_MODELS:
+                continue
+            if self._localModelPathForPhrase(phrase) is None:
+                missing.append(str(phrase))
+        return missing
+
+    @staticmethod
+    def _localModelPathForPhrase(phrase: str) -> Path | None:
+        phrasePath = Path(str(phrase or "").strip()).expanduser()
+        if phrasePath.exists():
+            return phrasePath
+        modelDirectory = Path(__file__).resolve().parent / "models"
+        modelNames = [str(phrase or "").strip(), _normalizePhrase(phrase)]
+        for suffix in (".onnx", ".tflite"):
+            for modelName in modelNames:
+                localPath = modelDirectory / f"{modelName}{suffix}"
+                if localPath.exists():
+                    return localPath
+        return None
 
     def _writeDebugPrediction(self, result: WakeWordResult):
         """Append wake-word prediction diagnostics when debug logging is enabled."""
@@ -184,3 +223,13 @@ class WakeWordDetector:
 
 def _normalizePhrase(value: str) -> str:
     return str(value or "").strip().lower().replace(" ", "_")
+
+
+_OPENWAKEWORD_PRETRAINED_MODELS = {
+    "alexa",
+    "hey_mycroft",
+    "hey_jarvis",
+    "hey_rhasspy",
+    "current_weather",
+    "timers",
+}

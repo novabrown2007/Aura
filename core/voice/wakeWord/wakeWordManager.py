@@ -190,6 +190,16 @@ class WakeWordManager:
             result = pushToTalk.stopAndProcess()
             if not getattr(result, "success", False):
                 self._emitError(getattr(result, "errorMessage", "") or "Wake word voice loop failed.")
+            else:
+                speech = getattr(result, "speech", None)
+                self._emit(
+                    WakeWordEvents.VOICE_COMPLETED,
+                    {
+                        "transcribedText": getattr(result, "transcribedText", ""),
+                        "assistantResponse": getattr(result, "assistantResponse", ""),
+                        "speechError": getattr(speech, "errorMessage", "") if speech and not getattr(speech, "success", False) else "",
+                    },
+                )
         except Exception as error:
             self._emitError(f"Wake word voice activation failed: {error}")
         finally:

@@ -19,6 +19,8 @@ class ProviderPanel(TextPanel):
             f"Active LLM: {activeProvider} ({activeModel})",
             f"Fallback Provider: {providers.get('fallbackProvider', '')}",
             f"Offline Mode: {providers.get('offlineMode', '')}",
+            f"Active STT: {self._formatVoiceProvider(providers, 'stt')}",
+            f"Active TTS: {self._formatVoiceProvider(providers, 'tts')}",
             "",
             "Configured Providers:",
         ]
@@ -32,3 +34,15 @@ class ProviderPanel(TextPanel):
         lines.append("")
         lines.append(f"Performance: {snapshot.performance.get('aggregates', {})}")
         self.setText("\n".join(str(line) for line in lines))
+
+    @staticmethod
+    def _formatVoiceProvider(providers: dict, key: str) -> str:
+        voice = providers.get("voice", {}) or {}
+        provider = voice.get(key, {}) or {}
+        if not provider:
+            return "Unavailable"
+        name = provider.get("provider") or "Unavailable"
+        model = provider.get("model") or "Unknown"
+        enabled = "enabled" if provider.get("enabled") else "disabled"
+        initialized = "initialized" if provider.get("initialized") else "idle"
+        return f"{name} ({model}, {enabled}, {initialized})"

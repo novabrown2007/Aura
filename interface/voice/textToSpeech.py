@@ -62,7 +62,7 @@ class TextToSpeech:
                 self.lastError = (
                     f"Voice model not found: {self.modelPath}. "
                     f"Searched: {searched}. Set voice.TTS.voiceModelPath to a local Piper .onnx file "
-                    "or disable voice.PTT.pushToTalkAutoSpeak until a voice model is installed."
+                    "or disable voice.pushToTalk.pushToTalkAutoSpeak until a voice model is installed."
                 )
                 self.initialized = False
                 if self.logger:

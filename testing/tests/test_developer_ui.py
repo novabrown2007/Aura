@@ -141,6 +141,10 @@ class DeveloperUITests(unittest.TestCase):
                 "fallbackProvider": "",
                 "offlineMode": False,
                 "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash", "initialized": True}},
+                "voice": {
+                    "stt": {"provider": "faster-whisper", "model": "small.en", "enabled": True, "initialized": True},
+                    "tts": {"provider": "piper", "model": "en_US-lessac-medium", "enabled": True, "initialized": False},
+                },
             },
             bridge={
                 "connected": True,
@@ -385,12 +389,18 @@ class DeveloperUITests(unittest.TestCase):
                 "activeProvider": "gemini",
                 "activeModel": "gemini-2.5-flash",
                 "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash"}},
+                "voice": {
+                    "stt": {"provider": "faster-whisper", "model": "small.en"},
+                    "tts": {"provider": "piper", "model": "en_US-lessac-medium"},
+                },
             }
         )
 
         lines = SystemPanel.buildLines(state.snapshot())
 
         self.assertIn("Active LLM: gemini (gemini-2.5-flash)", lines)
+        self.assertIn("Active STT: faster-whisper (small.en)", lines)
+        self.assertIn("Active TTS: piper (en_US-lessac-medium)", lines)
 
     def test_developer_ui_reads_config_and_initializes_without_window(self):
         developerUI = DeveloperUI(self.context)

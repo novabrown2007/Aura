@@ -7,6 +7,7 @@ class WakeWordEvents:
     LISTENING_STARTED = "wakeword.listening.started"
     LISTENING_STOPPED = "wakeword.listening.stopped"
     DETECTED = "wakeword.detected"
+    VOICE_COMPLETED = "wakeword.voice.completed"
     COOLDOWN_STARTED = "wakeword.cooldown.started"
     COOLDOWN_FINISHED = "wakeword.cooldown.finished"
     ERROR = "wakeword.error"

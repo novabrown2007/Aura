@@ -181,11 +181,19 @@ class WakeWordTests(unittest.TestCase):
 
         emitted = [name for name, _ in self.context.eventManager.events]
         self.assertIn(WakeWordEvents.DETECTED, emitted)
+        self.assertIn(WakeWordEvents.VOICE_COMPLETED, emitted)
         self.assertIn(WakeWordEvents.COOLDOWN_STARTED, emitted)
         self.assertIn(WakeWordEvents.COOLDOWN_FINISHED, emitted)
         self.assertTrue(push.started)
         self.assertTrue(push.stopped)
         self.assertFalse(push.enabled)
+
+    def test_detector_reports_missing_custom_wake_word_models(self):
+        config = WakeWordConfig.fromContext(self.context)
+        config.wakeWordPhrases = ["Aura", "Hey Aura"]
+        detector = WakeWordDetector(self.context, config)
+
+        self.assertEqual(detector._missingCustomModelPhrases(), ["Aura", "Hey Aura"])
 
     def test_session_blocks_duplicate_activation_during_active_turn(self):
         push = FakePushToTalk()

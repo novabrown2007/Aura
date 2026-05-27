@@ -40,7 +40,7 @@ class DeveloperUIState:
             "transcription": "",
             "playback": "Idle",
             "lastTiming": {},
-            "wakeWord": {
+            "alwaysActive": {
                 "state": "Unknown",
                 "listening": False,
                 "phrases": [],
@@ -137,9 +137,9 @@ class DeveloperUIState:
         """Update the wake word portion of the voice panel."""
 
         with self._lock:
-            wakeWord = dict(self.voice.get("wakeWord") or {})
+            wakeWord = dict(self.voice.get("alwaysActive") or {})
             wakeWord.update(dict(wakeWordState or {}))
-            self.voice["wakeWord"] = wakeWord
+            self.voice["alwaysActive"] = wakeWord
 
     def snapshot(self) -> ConsoleStateSnapshot:
         """Return a stable snapshot for rendering."""
@@ -219,7 +219,7 @@ class DeveloperUIState:
             return 0
 
     def _applyWakeWordEvent(self, name: str, payload: dict[str, Any], timestamp: str):
-        wakeWord = dict(self.voice.get("wakeWord") or {})
+        wakeWord = dict(self.voice.get("alwaysActive") or {})
         wakeWord["confidence"] = float(payload.get("confidence") or wakeWord.get("confidence") or 0.0)
         wakeWord["predictionTimeMs"] = float(payload.get("predictionTimeMs") or wakeWord.get("predictionTimeMs") or 0.0)
         wakeWord["activationCount"] = int(payload.get("activationCount") or wakeWord.get("activationCount") or 0)
@@ -243,4 +243,4 @@ class DeveloperUIState:
             wakeWord.update({"state": "Idle", "cooldown": False, "cooldownRemainingSeconds": 0.0})
         elif name == "wakeword.error":
             wakeWord.update({"state": "Error", "listening": False, "microphone": "Unavailable"})
-        self.voice["wakeWord"] = wakeWord
+        self.voice["alwaysActive"] = wakeWord

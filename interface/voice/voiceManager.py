@@ -31,7 +31,7 @@ class VoiceManager:
         self.outputDirectory = self._getConfigValue("voice.voiceOutputDirectory", self._getConfigValue("voiceOutputDirectory", "temp/voice"))
         self.playbackEnabled = self._getBoolConfig("voice.voicePlaybackEnabled", self._getBoolConfig("voicePlaybackEnabled", True))
         self.outputSampleRate = int(self._getConfigValue("voice.voiceSampleRate", self._getConfigValue("voiceSampleRate", 22050)))
-        self.pushToTalkEnabled = self._getBoolConfig("pushToTalkEnabled", self._getBoolConfig("voice.pushToTalkEnabled", False))
+        self.pushToTalkEnabled = self._getBoolConfig("enabled", self._getBoolConfig("voice.enabled", False))
         self.pushToTalkTempAudioDirectory = self._getConfigValue(
             "pushToTalkTempAudioDirectory",
             self._getConfigValue("voice.pushToTalkTempAudioDirectory", "temp/push_to_talk"),

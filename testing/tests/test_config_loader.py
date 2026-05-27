@@ -178,10 +178,11 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.get("voice.voiceOutputDirectory"), "temp/voice")
             self.assertEqual(config.get("voice.voicePlaybackEnabled"), True)
             self.assertEqual(config.get("voice.voiceSampleRate"), 22050)
-            self.assertEqual(config.get("voice.pushToTalkEnabled"), True)
-            self.assertEqual(config.get("voice.PTT.pushToTalkEnabled"), True)
-            self.assertEqual(config.get("voice.wakeWord.wakeWordEnabled"), False)
-            self.assertEqual(config.get("voice.wakeWord.wakeWordDebugLoggingLocation"), "logs/wake_word")
+            self.assertEqual(config.get("voice.enabled"), True)
+            self.assertEqual(config.get("voice.pushToTalk.enabled"), True)
+            self.assertEqual(config.get("voice.alwaysActive.enabled"), True)
+            self.assertEqual(config.get("voice.alwaysActive.wakeWordPhrases"), ["Aura", "Hey Aura", "Aura Wake"])
+            self.assertEqual(config.get("voice.alwaysActive.wakeWordDebugLoggingLocation"), "logs/wake_word")
             self.assertEqual(config.get("memory.maxResults"), 10)
             self.assertEqual(config.get("memory.maxInjectionCount"), 10)
             self.assertEqual(config.get("developerUI.refreshRate"), 1000)
@@ -198,11 +199,11 @@ class ConfigLoaderTests(unittest.TestCase):
             config = ConfigLoader(path=str(config_path))
 
             duplicate_keys = {
-                "pushToTalkEnabled",
+                "enabled",
                 "pushToTalkHotkey",
                 "pushToTalkAutoSpeak",
                 "pushToTalkTempAudioDirectory",
-                "wakeWordEnabled",
+                "enabled",
                 "wakeWordPhrase",
                 "wakeWordPhrases",
                 "wakeWordSensitivity",
@@ -290,8 +291,8 @@ class ConfigLoaderTests(unittest.TestCase):
                 "    voiceOutputDirectory: tmp/tts\n"
                 "    voicePlaybackEnabled: false\n"
                 "    voiceSampleRate: 24000\n"
-                "  PTT:\n"
-                "    pushToTalkEnabled: true\n"
+                "  pushToTalk:\n"
+                "    enabled: true\n"
                 "    pushToTalkHotkey: space\n"
                 "    pushToTalkAutoSpeak: false\n"
                 "    pushToTalkTempAudioDirectory: tmp/ptt\n",
@@ -306,7 +307,7 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.get("voice.computeType"), "float16")
             self.assertEqual(config.get("voice.voiceEnabled"), False)
             self.assertEqual(config.get("voice.voiceModelPath"), "voice.onnx")
-            self.assertEqual(config.get("voice.pushToTalkEnabled"), True)
+            self.assertEqual(config.get("voice.enabled"), True)
             self.assertEqual(config.get("voice.pushToTalkHotkey"), "space")
 
     def test_missing_config_files_are_created_separately(self):
@@ -322,6 +323,12 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertTrue(dev_path.exists())
             self.assertIn("database", config.userData)
             self.assertIn("developerUI", config.devData)
+            self.assertEqual(config.userData["voice"]["pushToTalk"]["enabled"], True)
+            self.assertEqual(config.userData["voice"]["alwaysActive"]["enabled"], True)
+            self.assertEqual(config.userData["voice"]["alwaysActive"]["wakeWordPhrases"], ["Aura", "Hey Aura", "Aura Wake"])
+            self.assertNotIn("enabled", config.devData["voice"]["pushToTalk"])
+            self.assertNotIn("enabled", config.devData["voice"]["alwaysActive"])
+            self.assertNotIn("wakeWordPhrases", config.devData["voice"]["alwaysActive"])
 
 
 if __name__ == "__main__":

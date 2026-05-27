@@ -155,6 +155,26 @@ class ObservabilityManager:
                 "model": model,
             }
 
+        voice = getattr(self.context, "voiceManager", None)
+        stt = {}
+        tts = {}
+        if voice is not None:
+            stt = {
+                "provider": "faster-whisper",
+                "model": str(getattr(voice, "inputModelName", "") or ""),
+                "enabled": bool(getattr(voice, "inputEnabled", False)),
+                "initialized": bool(getattr(getattr(voice, "speechToText", None), "initialized", False)),
+                "device": str(getattr(voice, "inputDevice", "") or ""),
+                "computeType": str(getattr(voice, "inputComputeType", "") or ""),
+            }
+            tts = {
+                "provider": "piper",
+                "model": str(getattr(voice, "outputModelPath", "") or ""),
+                "enabled": bool(getattr(voice, "outputEnabled", False)),
+                "initialized": bool(getattr(getattr(voice, "textToSpeech", None), "initialized", False)),
+                "playbackEnabled": bool(getattr(voice, "playbackEnabled", False)),
+            }
+
         return {
             "available": True,
             "offlineMode": bool(status.get("offlineMode", getattr(manager, "offlineMode", False))),
@@ -166,6 +186,10 @@ class ObservabilityManager:
             "offlineReason": str(status.get("offlineReason") or ""),
             "canUseStructuredOutput": bool(status.get("canUseStructuredOutput", True)),
             "providers": providers,
+            "voice": {
+                "stt": stt,
+                "tts": tts,
+            },
         }
 
     def getModuleHealth(self):

@@ -168,12 +168,12 @@ class VoiceTests(unittest.TestCase):
             "voiceOutputDirectory": "temp/voice",
             "voicePlaybackEnabled": True,
             "voiceSampleRate": 22050,
-            "pushToTalkEnabled": True,
+            "enabled": True,
             "pushToTalkHotkey": "enter",
             "pushToTalkAutoSpeak": True,
             "pushToTalkTempAudioDirectory": "temp/push_to_talk",
         }
-        self.context.config._data["pushToTalkEnabled"] = True
+        self.context.config._data["enabled"] = True
         self.context.config._data["pushToTalkHotkey"] = "enter"
         self.context.config._data["pushToTalkAutoSpeak"] = True
         self.context.config._data["pushToTalkTempAudioDirectory"] = "temp/push_to_talk"

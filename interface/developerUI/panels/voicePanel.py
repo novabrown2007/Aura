@@ -12,7 +12,7 @@ class VoicePanel(TextPanel):
 
     def refresh(self, snapshot):
         voice = snapshot.voice
-        wakeWord = voice.get("wakeWord", {}) or {}
+        wakeWord = voice.get("alwaysActive", {}) or {}
         lines = [
             "[VOICE]",
             f"Mic: {voice.get('mic', 'Unknown')}",
