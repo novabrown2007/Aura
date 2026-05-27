@@ -126,6 +126,51 @@ class DeveloperUITests(unittest.TestCase):
         self.assertEqual(snapshot.memory["items"][0]["title"], "Relationship orientation")
         self.assertIn("llm", snapshot.system["modules"])
 
+    def test_subscription_manager_reads_memory_store_without_retrieval_polling(self):
+        """Developer UI refresh should not trigger scored retrieval on every tick."""
+
+        state = DeveloperUIState(maxEvents=10)
+
+        class MemoryStoreStub:
+            def __init__(self):
+                self.queryCalls = 0
+
+            def queryMemories(self, query):
+                self.queryCalls += 1
+                self.lastLimit = query.limit
+                return [
+                    SimpleNamespace(
+                        category="preferences",
+                        title="Birthday",
+                        content="Nova's birthday is March 22nd, 2007.",
+                        importance=0.85,
+                        source="profile.statement",
+                        updatedAt="2026-05-26T00:00:00+00:00",
+                    )
+                ]
+
+        class MemoryManagerStub:
+            def __init__(self):
+                self.store = MemoryStoreStub()
+                self.lastRetrievalDebug = ""
+                self.retrieveCalls = 0
+
+            def retrieveMemories(self, **_kwargs):
+                self.retrieveCalls += 1
+                return []
+
+        self.context.memoryManager = MemoryManagerStub()
+        subscriptions = UISubscriptionManager(self.context, state)
+
+        subscriptions.refreshSubsystemState()
+        snapshot = state.snapshot()
+
+        self.assertEqual(self.context.memoryManager.store.queryCalls, 1)
+        self.assertEqual(self.context.memoryManager.store.lastLimit, 10)
+        self.assertEqual(self.context.memoryManager.retrieveCalls, 0)
+        self.assertEqual(snapshot.memory["storedCount"], 1)
+        self.assertEqual(snapshot.memory["items"][0]["title"], "Birthday")
+
     def test_system_panel_displays_active_llm_model(self):
         state = DeveloperUIState(maxEvents=10)
         state.updateSystem({"events": {}, "modules": {}})

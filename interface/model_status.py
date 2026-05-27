@@ -14,6 +14,9 @@ def get_current_model_name(context) -> str:
         status = manager.getStatus()
         model_name = str(status.get("activeModel") or status.get("activeProvider") or "Unknown")
         if status.get("offlineMode"):
+            reason = str(status.get("offlineReason") or "").lower()
+            if any(token in reason for token in ("429", "resource_exhausted", "quota", "rate limit", "rate-limit")):
+                return f"{model_name} (Gemini quota fallback)"
             return f"{model_name} (offline fallback)"
         return model_name
 

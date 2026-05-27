@@ -476,6 +476,10 @@ Rules:
         """Answer local utility questions that should never require an LLM."""
 
         lowered = str(userInput or "").lower().strip()
+        if self._isSimpleGreeting(lowered):
+            return "Hello."
+        if re.fullmatch(r"(how are you|how are you today|how's it going|how are things)[?.!]*", lowered):
+            return "I'm running normally and ready to help."
         if re.search(r"\bwhat(?:'s| is) the time\b|\bwhat time is it\b|\bcurrent time\b", lowered):
             system = getattr(self.context, "system", None)
             if system is not None and hasattr(system, "getTime"):
@@ -486,6 +490,13 @@ Rules:
                     return f"It is {hour}:{minute}."
             return f"It is {datetime.now().strftime('%H:%M')}."
         return None
+
+    @staticmethod
+    def _isSimpleGreeting(text: str) -> bool:
+        """Return whether a message is only a lightweight greeting."""
+
+        cleaned = re.sub(r"[^a-z\s]", "", str(text or "").lower()).strip()
+        return cleaned in {"hi", "hello", "hey", "hiya", "hello aura", "hi aura", "hey aura"}
 
     def _ageFromMemory(self, memoryText: str) -> int | None:
         """Calculate age from a remembered birth date, falling back to stated age."""

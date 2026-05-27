@@ -14,6 +14,7 @@ from core.tools.toolRegistry import ToolRegistry
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.llmHandler import LLMHandler
+from modules.llm.providers.base.providerCapabilities import ProviderCapabilities
 from modules.llm.providers.gemini.geminiProvider import GeminiProvider
 from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
 from testing.tests.support.fakes import DictConfig
@@ -91,6 +92,8 @@ class StubProvider:
         self.providerName = provider_name
         self.response = response
         self.initialized = True
+        self.plainCalls = 0
+        self.structuredCalls = 0
 
     def initialize(self):
         """Mark provider initialized."""
@@ -105,11 +108,13 @@ class StubProvider:
     def generateResponse(self, systemPrompt, userPrompt, conversationHistory=None):
         """Return the configured plain response."""
 
+        self.plainCalls += 1
         return self.response
 
     def generateStructuredResponse(self, systemPrompt, userPrompt, schema, conversationHistory=None):
         """Return the configured structured response."""
 
+        self.structuredCalls += 1
         return self.response
 
 
@@ -188,11 +193,31 @@ class LLMHandlerTests(unittest.TestCase):
         mock_post.return_value = DummyResponse(200, {"response": "Hello from Aura"})
         handler = LLMHandler(make_llm_context())
 
-        result = handler.generateResponse("Hello")
+        result = handler.generateResponse("Tell me something useful.")
 
         self.assertEqual(result, "Hello from Aura")
-        self.assertEqual(handler.history.messages[-2], ("user", "Hello"))
-        self.assertEqual(handler.history.messages[-1], ("aura", "Hello from Aura"))
+        self.assertEqual(handler.history.messages[-2], ("user", "Tell me something useful."))
+
+    def test_simple_greeting_does_not_call_provider(self):
+        """Simple greetings should not spend Gemini calls or trigger fallback."""
+
+        context = make_llm_context()
+        calls = []
+        context.llmManager = SimpleNamespace(
+            offlineMode=False,
+            generateResponse=lambda *args, **kwargs: calls.append(args) or LLMResponse(
+                provider="test",
+                success=True,
+                text="Provider hello.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Hello!")
+
+        self.assertEqual(result, "Hello.")
+        self.assertEqual(calls, [])
+        self.assertEqual(handler.history.messages[-1], ("aura", "Hello."))
 
     @patch("modules.llm.providers.ollama.ollamaProvider.requests.post")
     def test_generate_response_handles_http_error(self, mock_post):
@@ -200,7 +225,7 @@ class LLMHandlerTests(unittest.TestCase):
         mock_post.return_value = DummyResponse(500, text="server error")
         handler = LLMHandler(make_llm_context())
 
-        result = handler.generateResponse("Hello")
+        result = handler.generateResponse("Tell me something useful.")
 
         self.assertIn("can't reach an available language provider", result)
         self.assertIn("server error", result)
@@ -283,6 +308,35 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertTrue(manager.offlineMode)
         self.assertEqual(manager.activeProviderName, "ollama")
         self.assertIn("quota", manager.offlineReason)
+
+    def test_manager_does_not_send_structured_requests_to_untrusted_fallback(self):
+        """Quota failures should not create extra structured requests to Ollama."""
+
+        context = make_llm_context()
+        manager = LLMManager(context)
+        gemini = StubProvider(
+            "gemini",
+            LLMResponse(provider="gemini", success=False, error="429 RESOURCE_EXHAUSTED quota exceeded"),
+        )
+        ollama = StubProvider(
+            "ollama",
+            LLMResponse(provider="ollama", success=True, text='{"intent": "bad.fallback"}'),
+        )
+        ollama.capabilities = ProviderCapabilities(supportsStructuredOutput=False)
+        manager.providers["gemini"] = gemini
+        manager.providers["ollama"] = ollama
+        manager.activeProviderName = "gemini"
+        manager.preferredProviderName = "gemini"
+        manager.fallbackProviderName = "ollama"
+        manager.offlineMode = False
+
+        response = manager.generateStructuredResponse("system", "Turn on lights", {"type": "object"})
+
+        self.assertFalse(response.success)
+        self.assertEqual(response.provider, "gemini")
+        self.assertEqual(gemini.structuredCalls, 1)
+        self.assertEqual(ollama.structuredCalls, 0)
+        self.assertTrue(manager.offlineMode)
 
     def test_manager_retries_and_restores_preferred_provider_after_cooldown(self):
         """Temporary fallback should retry Gemini after the cooldown expires."""
@@ -675,7 +729,7 @@ class LLMHandlerTests(unittest.TestCase):
         )
         handler = LLMHandler(context)
 
-        result = handler.generateResponse("Hello")
+        result = handler.generateResponse("Tell me something useful.")
 
         self.assertEqual(result, "Hello Nova.")
 

@@ -108,7 +108,7 @@ class UISubscriptionManager:
                 if store is not None:
                     databasePath = str(getattr(store, "databasePath", "") or "")
                 if hasattr(memory, "retrieveMemories"):
-                    memories = memory.retrieveMemories(limit=10)
+                    memories = self._loadStoredMemories(memory, limit=10)
                     items = []
                     for item in memories:
                         items.append(
@@ -146,3 +146,17 @@ class UISubscriptionManager:
                 self.state.updateBridge(bridge.snapshot())
         except Exception:
             pass
+
+    @staticmethod
+    def _loadStoredMemories(memory, limit=10):
+        """Read memory rows for display without triggering retrieval scoring logs."""
+
+        store = getattr(memory, "store", None)
+        if store is not None and hasattr(store, "queryMemories"):
+            try:
+                from modules.llm.memory.models.memoryQuery import MemoryQuery
+
+                return store.queryMemories(MemoryQuery(limit=limit))
+            except Exception:
+                pass
+        return memory.retrieveMemories(limit=limit)

@@ -179,8 +179,22 @@ class LLMManager:
             if provider is None or not provider.initialized:
                 continue
 
+            if not self._providerSupportsRequest(provider, methodName):
+                if self.logger:
+                    self.logger.info(f"Skipping LLM provider '{providerName}' for unsupported request: {methodName}")
+                if not lastResponse.error or lastResponse.error == "No LLM provider available.":
+                    lastResponse = LLMResponse(
+                        success=False,
+                        provider=providerName,
+                        error=f"Provider '{providerName}' does not support {methodName}.",
+                    )
+                continue
+
             if self.logger and providerName != self.activeProviderName:
-                self.logger.info(f"Routing LLM request to fallback provider: {providerName}")
+                if providerName == self.preferredProviderName:
+                    self.logger.info(f"Retrying preferred LLM provider: {providerName}")
+                else:
+                    self.logger.info(f"Routing LLM request to fallback provider: {providerName}")
 
             method = getattr(provider, methodName)
             if schema is None:
@@ -211,6 +225,20 @@ class LLMManager:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
 
         return lastResponse
+
+    @staticmethod
+    def _providerSupportsRequest(provider: LLMProvider, methodName: str) -> bool:
+        """Return whether a provider should receive this kind of request."""
+
+        if methodName != "generateStructuredResponse":
+            return True
+        try:
+            capabilities = provider.getCapabilities()
+        except Exception:
+            capabilities = getattr(provider, "capabilities", None)
+        if capabilities is None:
+            return True
+        return bool(getattr(capabilities, "supportsStructuredOutput", True))
 
     def getProviderCapabilities(self, providerName: str | None = None):
         """Return provider capability metadata."""
