@@ -121,7 +121,7 @@ class PushToTalkManager:
                 try:
                     speech = self.voiceManager.speakResponse(response)
                 except Exception as error:
-                    return self._fail(f"TTS failure: {error}", transcription=transcription, audioPath=audioPath, assistantResponse=response)
+                    speech = SpeechResult(success=False, errorMessage=f"TTS failure: {error}")
                 self._emit(
                     "tts.finished",
                     {
@@ -131,7 +131,15 @@ class PushToTalkManager:
                     },
                 )
                 if not speech.success:
-                    return self._fail(speech.errorMessage or "TTS failure.", transcription=transcription, audioPath=audioPath, assistantResponse=response, speech=speech)
+                    self._emit(
+                        "voice.speech.failed",
+                        {
+                            "errorMessage": speech.errorMessage or "TTS failure.",
+                            "source": "push_to_talk",
+                        },
+                    )
+                    if self.logger:
+                        self.logger.warning(f"Push-to-talk speech output failed after response generation: {speech.errorMessage}")
 
             result = PushToTalkResult(
                 success=True,

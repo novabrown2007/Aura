@@ -17,6 +17,12 @@ llm:
     # Valid value: an API key string, or CHANGE_ME to read GEMINI_API_KEY from .env.
     api_secret: CHANGE_ME
 
+# Hugging Face credentials used for local model downloads such as Faster-Whisper.
+huggingFace:
+  # Hugging Face access token.
+  # Valid value: an HF token string, or CHANGE_ME/change_me to read HF_TOKEN from .env.
+  apiToken: CHANGE_ME
+
 # Database login credentials
 database:
   host: localhost

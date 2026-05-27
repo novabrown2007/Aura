@@ -58,7 +58,12 @@ class TextToSpeech:
 
             modelPath = self._resolveModelPath(self.modelPath)
             if modelPath is None:
-                self.lastError = f"Voice model not found: {self.modelPath}"
+                searched = ", ".join(str(path) for path in self._modelPathCandidates(self.modelPath))
+                self.lastError = (
+                    f"Voice model not found: {self.modelPath}. "
+                    f"Searched: {searched}. Set voice.TTS.voiceModelPath to a local Piper .onnx file "
+                    "or disable voice.PTT.pushToTalkAutoSpeak until a voice model is installed."
+                )
                 self.initialized = False
                 if self.logger:
                     self.logger.error(self.lastError)
@@ -171,6 +176,15 @@ class TextToSpeech:
     def _resolveModelPath(self, value: str) -> Path | None:
         """Find a local Piper model path from a configurable input."""
 
+        for candidate in self._modelPathCandidates(value):
+            if candidate.exists() and candidate.is_file():
+                return candidate.resolve()
+
+        return None
+
+    def _modelPathCandidates(self, value: str) -> list[Path]:
+        """Return local Piper model locations to check for a configured value."""
+
         raw = Path(str(value or "").strip())
         candidates: list[Path] = []
 
@@ -189,11 +203,14 @@ class TextToSpeech:
             if not raw.suffix:
                 candidates.append(Path("voice_models") / raw.with_suffix(".onnx"))
 
+        seen = set()
+        uniqueCandidates: list[Path] = []
         for candidate in candidates:
-            if candidate.exists() and candidate.is_file():
-                return candidate.resolve()
-
-        return None
+            key = str(candidate)
+            if key not in seen:
+                seen.add(key)
+                uniqueCandidates.append(candidate)
+        return uniqueCandidates
 
     def _createOutputPath(self) -> Path:
         """Create a temp WAV path inside the configured output directory."""

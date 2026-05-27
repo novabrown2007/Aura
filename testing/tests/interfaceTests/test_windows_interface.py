@@ -38,11 +38,29 @@ class WindowsInterfaceTests(unittest.TestCase):
         self.assertIn("Kitchen Light", text)
         self.assertIn("on 80% color=blue", text)
 
+    def test_microphone_button_starts_push_to_talk_on_press(self):
+        app = AuraWindowsApp.__new__(AuraWindowsApp)
+        app.pushToTalkActive = False
+        app.appended = []
+        app.microphoneButton = FakeButton()
+        manager = FakePushToTalkManager()
+        app.context = SimpleNamespace(pushToTalkManager=manager)
+        app._appendTranscript = lambda speaker, message: app.appended.append((speaker, message))
+
+        result = AuraWindowsApp._onMicrophonePressed(app, None)
+
+        self.assertEqual(result, "break")
+        self.assertTrue(manager.started)
+        self.assertTrue(app.pushToTalkActive)
+        self.assertEqual(app.microphoneButton.options["text"], "Listening")
+        self.assertIn(("Aura", "Listening..."), app.appended)
+
     def test_enter_starts_push_to_talk_when_chat_input_is_empty(self):
         app = AuraWindowsApp.__new__(AuraWindowsApp)
         app.inputEntry = FakeEntry("")
         app.pushToTalkActive = False
         app.appended = []
+        app.microphoneButton = FakeButton()
         manager = FakePushToTalkManager()
         app.context = SimpleNamespace(pushToTalkManager=manager)
         app._appendTranscript = lambda speaker, message: app.appended.append((speaker, message))
@@ -68,6 +86,37 @@ class WindowsInterfaceTests(unittest.TestCase):
         self.assertTrue(app.submitted)
         self.assertFalse(app.context.pushToTalkManager.started)
 
+    def test_microphone_release_processes_active_push_to_talk(self):
+        app = AuraWindowsApp.__new__(AuraWindowsApp)
+        app.pushToTalkActive = True
+        app.microphoneButton = FakeButton()
+        app.workerStarted = False
+        app._setBusyState = lambda isBusy: setattr(app, "busy", isBusy)
+
+        original_thread = __import__("interface.windows.aura_windows_app", fromlist=["Thread"]).Thread
+
+        class FakeThread:
+            def __init__(self, target, daemon=False):
+                self.target = target
+                self.daemon = daemon
+
+            def start(self):
+                app.workerStarted = True
+
+        import interface.windows.aura_windows_app as windows_app
+
+        windows_app.Thread = FakeThread
+        try:
+            result = AuraWindowsApp._onMicrophoneReleased(app, None)
+        finally:
+            windows_app.Thread = original_thread
+
+        self.assertEqual(result, "break")
+        self.assertFalse(app.pushToTalkActive)
+        self.assertEqual(app.microphoneButton.options["text"], "Mic")
+        self.assertTrue(app.busy)
+        self.assertTrue(app.workerStarted)
+
     def test_push_to_talk_worker_queues_voice_response(self):
         app = AuraWindowsApp.__new__(AuraWindowsApp)
         app.pendingResponses = Queue()
@@ -79,6 +128,35 @@ class WindowsInterfaceTests(unittest.TestCase):
         self.assertEqual(resultType, "voice_response")
         self.assertEqual(payload["user"], "hello aura")
         self.assertEqual(payload["response"], "Hello Nova.")
+        self.assertEqual(payload["speechError"], "")
+
+    def test_voice_response_shows_nonfatal_speech_failure(self):
+        app = AuraWindowsApp.__new__(AuraWindowsApp)
+        app.pendingResponses = Queue()
+        app.pendingResponses.put(
+            (
+                "voice_response",
+                {
+                    "user": "hello aura",
+                    "response": "Hello Nova.",
+                    "speechError": "Voice model not found: en_US-lessac-medium",
+                },
+            )
+        )
+        app.isClosing = False
+        app.appended = []
+        app.root = SimpleNamespace(after=lambda delay, callback: None)
+        app.logger = None
+        app._refreshModelLabel = lambda: None
+        app._setBusyState = lambda isBusy: setattr(app, "busy", isBusy)
+        app._appendTranscript = lambda speaker, message: app.appended.append((speaker, message))
+
+        AuraWindowsApp._pollPendingResponses(app)
+
+        self.assertIn(("You", "hello aura"), app.appended)
+        self.assertIn(("Aura", "Hello Nova."), app.appended)
+        self.assertIn(("Voice", "Speech output failed: Voice model not found: en_US-lessac-medium"), app.appended)
+        self.assertFalse(app.busy)
 
 
 class FakeEntry:
@@ -89,6 +167,16 @@ class FakeEntry:
 
     def get(self):
         return self.value
+
+
+class FakeButton:
+    """Minimal Tk Button stand-in for configure assertions."""
+
+    def __init__(self):
+        self.options = {}
+
+    def configure(self, **kwargs):
+        self.options.update(kwargs)
 
 
 class FakePushToTalkManager:

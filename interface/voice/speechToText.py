@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 import wave
 from pathlib import Path
@@ -53,6 +54,7 @@ class SpeechToText:
                 return None
 
             try:
+                self._applyHuggingFaceToken()
                 self.model = WhisperModel(self.modelName, device=self.device, compute_type=self.computeType)
                 self.initialized = True
                 elapsed = time.perf_counter() - start
@@ -144,6 +146,26 @@ class SpeechToText:
             self.logger.info("Shutting down speech-to-text model cache.")
         self.model = None
         self.initialized = False
+
+    def _applyHuggingFaceToken(self):
+        """Expose the configured Hugging Face token to model download libraries."""
+
+        if os.getenv("HF_TOKEN"):
+            return
+        config = getattr(self.context, "config", None)
+        if config is None or not hasattr(config, "get"):
+            return
+
+        token = config.get("huggingFace.apiToken", "")
+        if not token:
+            token = config.get("huggingface.apiToken", "")
+        token = str(token or "").strip()
+        if not token or token.lower() == "change_me":
+            return
+
+        os.environ["HF_TOKEN"] = token
+        if self.logger:
+            self.logger.info("Configured Hugging Face token for local STT model downloads.")
 
     @staticmethod
     def _measureAudioDuration(audioPath: str) -> float:

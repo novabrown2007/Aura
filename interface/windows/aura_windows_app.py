@@ -253,6 +253,24 @@ class AuraWindowsApp:
         self.inputEntry.bind("<KeyPress-Return>", self._onChatEnterPressed)
         self.inputEntry.bind("<KeyRelease-Return>", self._onChatEnterReleased)
 
+        self.microphoneButton = Button(
+            input_inner,
+            text="Mic",
+            bg=NAV_INACTIVE,
+            fg=TEXT_PRIMARY,
+            activebackground=NAV_INACTIVE_ACTIVE,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI Semibold", 10),
+            padx=14,
+            pady=10,
+            cursor="hand2",
+        )
+        self.microphoneButton.bind("<ButtonPress-1>", self._onMicrophonePressed)
+        self.microphoneButton.bind("<ButtonRelease-1>", self._onMicrophoneReleased)
+        self.microphoneButton.pack(side=LEFT, padx=(12, 0))
+
         self.sendButton = Button(
             input_inner,
             text="Send",
@@ -268,7 +286,7 @@ class AuraWindowsApp:
             pady=10,
             cursor="hand2",
         )
-        self.sendButton.pack(side=LEFT, padx=(12, 0))
+        self.sendButton.pack(side=LEFT, padx=(8, 0))
 
     def _buildPlaceholderPage(self, page, title: str, message: str):
         """Build a placeholder page for not-yet-implemented sections."""
@@ -2980,12 +2998,38 @@ class AuraWindowsApp:
         self.root.after(50, self._pollPendingResponses)
         self.root.mainloop()
 
+    def _onSubmitFromKeyboard(self, _event):
+        """Submit typed input when Enter is pressed."""
+
+        self._onSubmit()
+        return "break"
+
     def _onChatEnterPressed(self, _event):
         """Submit typed text, or start push-to-talk when the input is empty."""
 
         if self.inputEntry.get().strip():
             self._onSubmit()
             return "break"
+
+        return self._onPushToTalkHoldStarted()
+
+    def _onChatEnterReleased(self, _event):
+        """Stop keyboard-triggered push-to-talk."""
+
+        return self._onPushToTalkHoldReleased()
+
+    def _onMicrophonePressed(self, _event):
+        """Start push-to-talk while the microphone button is held."""
+
+        return self._onPushToTalkHoldStarted()
+
+    def _onMicrophoneReleased(self, _event):
+        """Stop push-to-talk when the microphone button is released."""
+
+        return self._onPushToTalkHoldReleased()
+
+    def _onPushToTalkHoldStarted(self):
+        """Start a push-to-talk hold from keyboard or microphone button."""
 
         manager = getattr(self.context, "pushToTalkManager", None)
         if manager is None or not getattr(manager, "enabled", False):
@@ -2996,22 +3040,37 @@ class AuraWindowsApp:
 
         if manager.startCapture():
             self.pushToTalkActive = True
+            self._setMicrophoneButtonActive(True)
             self._appendTranscript("Aura", "Listening...")
         else:
             self._appendTranscript("Aura", f"Push-to-talk failed: {manager.lastResult.errorMessage}")
         return "break"
 
-    def _onChatEnterReleased(self, _event):
-        """Stop push-to-talk and process the recorded voice turn."""
+    def _onPushToTalkHoldReleased(self):
+        """Stop a push-to-talk hold and process the recorded voice turn."""
 
         if not self.pushToTalkActive:
             return "break"
 
         self.pushToTalkActive = False
+        self._setMicrophoneButtonActive(False)
         self._setBusyState(True)
         worker = Thread(target=self._processPushToTalkInWorker, daemon=True)
         worker.start()
         return "break"
+
+    def _setMicrophoneButtonActive(self, active: bool):
+        """Reflect push-to-talk hold state in the microphone button."""
+
+        if not hasattr(self, "microphoneButton"):
+            return
+        self.microphoneButton.configure(
+            bg=ACCENT if active else NAV_INACTIVE,
+            fg="#08111d" if active else TEXT_PRIMARY,
+            activebackground=ACCENT_ACTIVE if active else NAV_INACTIVE_ACTIVE,
+            activeforeground="#08111d" if active else TEXT_PRIMARY,
+            text="Listening" if active else "Mic",
+        )
 
     def _processPushToTalkInWorker(self):
         """Process the active push-to-talk turn away from the Tk thread."""
@@ -3023,12 +3082,14 @@ class AuraWindowsApp:
 
         result = manager.stopAndProcess()
         if result.success:
+            speech = getattr(result, "speech", None)
             self.pendingResponses.put(
                 (
                     "voice_response",
                     {
                         "user": result.transcribedText,
                         "response": result.assistantResponse,
+                        "speechError": getattr(speech, "errorMessage", "") if speech and not getattr(speech, "success", False) else "",
                     },
                 )
             )
@@ -3082,6 +3143,9 @@ class AuraWindowsApp:
                 elif result_type == "voice_response":
                     self._appendTranscript("You", payload.get("user", ""))
                     self._appendTranscript("Aura", payload.get("response", ""))
+                    speechError = payload.get("speechError", "")
+                    if speechError:
+                        self._appendTranscript("Voice", f"Speech output failed: {speechError}")
                     self._setBusyState(False)
                 else:
                     self._appendTranscript("Aura", f"Error: {payload}")
@@ -3119,9 +3183,11 @@ class AuraWindowsApp:
         self.isBusy = is_busy
         if is_busy:
             self.sendButton.configure(state=DISABLED, text="Thinking...")
+            self.microphoneButton.configure(state=DISABLED)
             self.inputEntry.configure(state=DISABLED)
         else:
             self.sendButton.configure(state=NORMAL, text="Send")
+            self.microphoneButton.configure(state=NORMAL)
             self.inputEntry.configure(state=NORMAL)
             self.inputEntry.focus_set()
 

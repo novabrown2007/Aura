@@ -14,6 +14,9 @@ DEFAULT_USER_CONFIG = {
             "api_secret": "CHANGE_ME",
         },
     },
+    "huggingFace": {
+        "apiToken": "CHANGE_ME",
+    },
     "database": {
         "host": "localhost",
         "port": 3306,
@@ -240,6 +243,10 @@ class ConfigLoader:
             "llm.gemini.apiKey": "GEMINI_API_KEY",
             "llm.providers.gemini.apiKey": "GEMINI_API_KEY",
             "llm.providers.gemini.api_secret": "GEMINI_API_KEY",
+            "huggingFace.apiToken": "HF_TOKEN",
+            "huggingFace.token": "HF_TOKEN",
+            "huggingface.apiToken": "HF_TOKEN",
+            "huggingface.token": "HF_TOKEN",
             "discord.webhook": "DISCORD_WEBHOOK_URL",
             "discord.webhook_url": "DISCORD_WEBHOOK_URL",
             "discord.webhookUrl": "DISCORD_WEBHOOK_URL",
@@ -399,7 +406,7 @@ class ConfigLoader:
             value = self._getRaw(CONFIG_ALIASES[key], None)
         if value is None:
             return default
-        if value == "CHANGE_ME":
+        if self._isPlaceholder(value):
             return self._getEnvFallback(key, default)
         return value
 
@@ -495,3 +502,9 @@ class ConfigLoader:
         if env_value in (None, ""):
             return default
         return env_value
+
+    @staticmethod
+    def _isPlaceholder(value) -> bool:
+        """Return true when a config value intentionally delegates to .env."""
+
+        return isinstance(value, str) and value.strip().lower() == "change_me"

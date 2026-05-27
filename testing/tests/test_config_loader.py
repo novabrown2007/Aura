@@ -89,6 +89,30 @@ class ConfigLoaderTests(unittest.TestCase):
             else:
                 os.environ["GEMINI_API_KEY"] = old_value
 
+    def test_hugging_face_token_uses_env_when_config_is_placeholder(self):
+        """Hugging Face tokens should resolve through HF_TOKEN when config delegates."""
+
+        old_value = os.environ.get("HF_TOKEN")
+        os.environ["HF_TOKEN"] = "hf_test_token"
+
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "config.yml"
+                config_path.write_text(
+                    "huggingFace:\n"
+                    "  apiToken: change_me\n",
+                    encoding="utf-8",
+                )
+
+                config = ConfigLoader(path=str(config_path))
+
+                self.assertEqual(config.get("huggingFace.apiToken"), "hf_test_token")
+        finally:
+            if old_value is None:
+                os.environ.pop("HF_TOKEN", None)
+            else:
+                os.environ["HF_TOKEN"] = old_value
+
     def test_env_file_is_loaded_without_overwriting_existing_environment(self):
         """Local .env values should load only when the shell has not set them."""
 
@@ -139,6 +163,7 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
             self.assertEqual(config.get("llm.history.persistAcrossRestarts"), True)
             self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
+            self.assertEqual(config.asDict()["huggingFace"]["apiToken"], "CHANGE_ME")
             self.assertEqual(config.get("threading.max_threads"), 10)
             self.assertEqual(config.get("voice.enabled"), True)
             self.assertEqual(config.get("voice.STT.enabled"), True)

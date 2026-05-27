@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import os
 import tempfile
 import types
 import unittest
@@ -218,6 +219,29 @@ class VoiceTests(unittest.TestCase):
             else:
                 sys.modules["faster_whisper"] = original_module
 
+    def test_speech_to_text_applies_configured_hugging_face_token(self):
+        original_module = sys.modules.get("faster_whisper")
+        old_token = os.environ.get("HF_TOKEN")
+        os.environ.pop("HF_TOKEN", None)
+        fake_module = types.SimpleNamespace(WhisperModel=FakeWhisperModel)
+        sys.modules["faster_whisper"] = fake_module
+
+        try:
+            self.context.config._data["huggingFace"] = {"apiToken": "hf_config_token"}
+            stt = SpeechToText(self.context)
+            stt.initialize()
+
+            self.assertEqual(os.environ.get("HF_TOKEN"), "hf_config_token")
+        finally:
+            if original_module is None:
+                sys.modules.pop("faster_whisper", None)
+            else:
+                sys.modules["faster_whisper"] = original_module
+            if old_token is None:
+                os.environ.pop("HF_TOKEN", None)
+            else:
+                os.environ["HF_TOKEN"] = old_token
+
     def test_voice_recorder_saves_mono_wav(self):
         recorder = VoiceRecorder(self.context, sampleRate=16000)
         recorder._sounddevice = SimpleNamespace(InputStream=FakeInputStream)
@@ -281,6 +305,24 @@ class VoiceTests(unittest.TestCase):
             else:
                 sys.modules["sounddevice"] = original_sounddevice
             voice_dir.cleanup()
+
+    def test_text_to_speech_reports_searched_model_paths(self):
+        original_piper = sys.modules.get("piper.voice")
+        sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
+
+        try:
+            tts = TextToSpeech(self.context, modelPath="missing-voice", outputDirectory="temp/voice")
+            result = tts.generateSpeech("Hello Aura.")
+
+            self.assertFalse(result.success)
+            self.assertIn("Voice model not found: missing-voice", result.errorMessage)
+            self.assertIn("missing-voice.onnx", result.errorMessage)
+            self.assertIn("voice.TTS.voiceModelPath", result.errorMessage)
+        finally:
+            if original_piper is None:
+                sys.modules.pop("piper.voice", None)
+            else:
+                sys.modules["piper.voice"] = original_piper
 
     def test_audio_player_plays_wave_files(self):
         original_sounddevice = sys.modules.get("sounddevice")
@@ -429,11 +471,15 @@ class VoiceTests(unittest.TestCase):
         self.assertTrue(manager.startPushToTalk())
         result = manager.stopPushToTalk()
 
-        self.assertFalse(result.success)
-        self.assertEqual(result.errorMessage, "Piper failed.")
+        self.assertTrue(result.success)
+        self.assertEqual(result.transcribedText, "hello aura")
+        self.assertEqual(result.assistantResponse, "Hello Nova.")
+        self.assertEqual(result.speech.errorMessage, "Piper failed.")
         emitted = [name for name, _ in self.context.eventManager.events]
         self.assertIn("tts.finished", emitted)
-        self.assertIn("voice.loop.failed", emitted)
+        self.assertIn("voice.speech.failed", emitted)
+        self.assertIn("voice.loop.completed", emitted)
+        self.assertNotIn("voice.loop.failed", emitted)
 
 
 if __name__ == "__main__":
