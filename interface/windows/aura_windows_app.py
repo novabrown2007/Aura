@@ -51,6 +51,7 @@ class AuraWindowsApp:
         self.renderedNotificationItems = []
         self.renderedReminderItems = []
         self.renderedCalendarItems = []
+        self.pushToTalkActive = False
 
         self.root = Tk()
         self.root.title("Aura")
@@ -249,7 +250,8 @@ class AuraWindowsApp:
             font=("Segoe UI", 11),
         )
         self.inputEntry.pack(side=LEFT, fill=X, expand=True, ipady=10)
-        self.inputEntry.bind("<Return>", self._onSubmitFromKeyboard)
+        self.inputEntry.bind("<KeyPress-Return>", self._onChatEnterPressed)
+        self.inputEntry.bind("<KeyRelease-Return>", self._onChatEnterReleased)
 
         self.sendButton = Button(
             input_inner,
@@ -2978,10 +2980,60 @@ class AuraWindowsApp:
         self.root.after(50, self._pollPendingResponses)
         self.root.mainloop()
 
-    def _onSubmitFromKeyboard(self, _event):
-        """Submit input when Enter is pressed."""
+    def _onChatEnterPressed(self, _event):
+        """Submit typed text, or start push-to-talk when the input is empty."""
 
-        self._onSubmit()
+        if self.inputEntry.get().strip():
+            self._onSubmit()
+            return "break"
+
+        manager = getattr(self.context, "pushToTalkManager", None)
+        if manager is None or not getattr(manager, "enabled", False):
+            return "break"
+
+        if self.pushToTalkActive:
+            return "break"
+
+        if manager.startCapture():
+            self.pushToTalkActive = True
+            self._appendTranscript("Aura", "Listening...")
+        else:
+            self._appendTranscript("Aura", f"Push-to-talk failed: {manager.lastResult.errorMessage}")
+        return "break"
+
+    def _onChatEnterReleased(self, _event):
+        """Stop push-to-talk and process the recorded voice turn."""
+
+        if not self.pushToTalkActive:
+            return "break"
+
+        self.pushToTalkActive = False
+        self._setBusyState(True)
+        worker = Thread(target=self._processPushToTalkInWorker, daemon=True)
+        worker.start()
+        return "break"
+
+    def _processPushToTalkInWorker(self):
+        """Process the active push-to-talk turn away from the Tk thread."""
+
+        manager = getattr(self.context, "pushToTalkManager", None)
+        if manager is None:
+            self.pendingResponses.put(("error", "Push-to-talk manager is unavailable."))
+            return
+
+        result = manager.stopAndProcess()
+        if result.success:
+            self.pendingResponses.put(
+                (
+                    "voice_response",
+                    {
+                        "user": result.transcribedText,
+                        "response": result.assistantResponse,
+                    },
+                )
+            )
+        else:
+            self.pendingResponses.put(("error", f"Push-to-talk failed: {result.errorMessage}"))
 
     def _onSubmit(self):
         """Dispatch a request to Aura in a background worker."""
@@ -3026,6 +3078,10 @@ class AuraWindowsApp:
                 self._refreshModelLabel()
                 if result_type == "response":
                     self._appendTranscript("Aura", payload)
+                    self._setBusyState(False)
+                elif result_type == "voice_response":
+                    self._appendTranscript("You", payload.get("user", ""))
+                    self._appendTranscript("Aura", payload.get("response", ""))
                     self._setBusyState(False)
                 else:
                     self._appendTranscript("Aura", f"Error: {payload}")
