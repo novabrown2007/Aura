@@ -26,6 +26,7 @@ class DeveloperUIState:
             "topMemory": "",
             "topScore": 0.0,
             "debugOutput": "",
+            "storedCount": 0,
             "items": [],
         }
         self.voice = {
@@ -87,6 +88,25 @@ class DeveloperUIState:
                         self.memory["topScore"] = float(line.split(":", 1)[1].strip())
                     except Exception:
                         self.memory["topScore"] = 0.0
+
+    def updateMemoryStorage(self, items: list[dict[str, Any]], storedCount: int | None = None):
+        """Store a compact snapshot of persisted structured memories."""
+
+        with self._lock:
+            cleanedItems = []
+            for item in items or []:
+                cleanedItems.append(
+                    {
+                        "category": str(item.get("category") or ""),
+                        "title": str(item.get("title") or ""),
+                        "content": str(item.get("content") or ""),
+                        "importance": float(item.get("importance") or 0.0),
+                        "source": str(item.get("source") or ""),
+                        "updatedAt": str(item.get("updatedAt") or ""),
+                    }
+                )
+            self.memory["items"] = cleanedItems
+            self.memory["storedCount"] = int(storedCount if storedCount is not None else len(cleanedItems))
 
     def snapshot(self) -> ConsoleStateSnapshot:
         """Return a stable snapshot for rendering."""
@@ -162,4 +182,3 @@ class DeveloperUIState:
             return int(line.split(":", 1)[1].strip().split()[0])
         except Exception:
             return 0
-

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -75,7 +76,23 @@ class DeveloperUITests(unittest.TestCase):
 
     def test_subscription_manager_refreshes_observability_and_memory_debug(self):
         state = DeveloperUIState(maxEvents=10)
-        self.context.memoryManager = type("MemoryStub", (), {"lastRetrievalDebug": "Retrieved: 2 memories\nInjected: 1 memories"})()
+        self.context.memoryManager = type(
+            "MemoryStub",
+            (),
+            {
+                "lastRetrievalDebug": "Retrieved: 2 memories\nInjected: 1 memories",
+                "retrieveMemories": lambda _self, **_kwargs: [
+                    SimpleNamespace(
+                        category="preferences",
+                        title="Relationship orientation",
+                        content="Nova's relationship orientation is polyamorous.",
+                        importance=0.85,
+                        source="profile.statement",
+                        updatedAt="2026-05-26T00:00:00+00:00",
+                    )
+                ],
+            },
+        )()
         self.context.observability = type(
             "ObservabilityStub",
             (),
@@ -104,6 +121,8 @@ class DeveloperUITests(unittest.TestCase):
         self.assertEqual(snapshot.providers["activeModel"], "gemini-2.5-flash")
         self.assertEqual(snapshot.memory["retrieved"], 2)
         self.assertEqual(snapshot.memory["injected"], 1)
+        self.assertEqual(snapshot.memory["storedCount"], 1)
+        self.assertEqual(snapshot.memory["items"][0]["title"], "Relationship orientation")
         self.assertIn("llm", snapshot.system["modules"])
 
     def test_system_panel_displays_active_llm_model(self):

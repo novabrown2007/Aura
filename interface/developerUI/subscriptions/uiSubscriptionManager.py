@@ -100,6 +100,21 @@ class UISubscriptionManager:
             debugOutput = getattr(memory, "lastRetrievalDebug", "") if memory is not None else ""
             if debugOutput:
                 self.state.updateMemoryDebug(debugOutput)
+            if memory is not None and hasattr(memory, "retrieveMemories"):
+                memories = memory.retrieveMemories(limit=10)
+                items = []
+                for item in memories:
+                    items.append(
+                        {
+                            "category": getattr(item, "category", ""),
+                            "title": getattr(item, "title", ""),
+                            "content": getattr(item, "content", ""),
+                            "importance": getattr(item, "importance", 0.0),
+                            "source": getattr(item, "source", ""),
+                            "updatedAt": getattr(item, "updatedAt", ""),
+                        }
+                    )
+                self.state.updateMemoryStorage(items, storedCount=len(items))
         except Exception:
             pass
 
@@ -109,4 +124,3 @@ class UISubscriptionManager:
                 self.state.updateBridge(bridge.snapshot())
         except Exception:
             pass
-
