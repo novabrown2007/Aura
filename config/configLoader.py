@@ -5,19 +5,46 @@ import yaml
 from pathlib import Path
 
 
-DEFAULT_CONFIG = {
+DEFAULT_USER_CONFIG = {
+    "llm": {
+        "ollama": {
+            "endpoint": "CHANGE_ME",
+        },
+        "gemini": {
+            "api_secret": "CHANGE_ME",
+        },
+    },
+    "database": {
+        "host": "localhost",
+        "port": 3306,
+        "name": "aura",
+        "user": "CHANGE_ME",
+        "password": "CHANGE_ME",
+    },
+    "voice": {
+        "wakeWord": {
+            "wakeWordPhrases": ["Aura", "Hey Aura", "Aura Wake"],
+        },
+    },
+    "homeAutomationBridge": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "ssl": False,
+    },
+}
+
+
+DEFAULT_DEV_CONFIG = {
     "llm": {
         "activeProvider": "gemini",
-        "fallbackProvider": "ollama",
+        "fallbackProvider": "none",
         "retryCount": 2,
         "timeout": 30,
         "ollama": {
             "model": "llama3.2:1b",
-            "endpoint": "CHANGE_ME",
         },
         "gemini": {
             "model": "gemini-2.5-flash",
-            "api_secret": "CHANGE_ME",
         },
         "history": {
             "enabled": True,
@@ -42,13 +69,6 @@ DEFAULT_CONFIG = {
             "contextWindow": 6,
         },
     },
-    "database": {
-        "host": "localhost",
-        "port": 3306,
-        "name": "aura",
-        "user": "CHANGE_ME",
-        "password": "CHANGE_ME",
-    },
     "threading": {
         "max_threads": 10,
     },
@@ -59,7 +79,7 @@ DEFAULT_CONFIG = {
         "computeType": "int8",
         "sampleRate": 16000,
         "voiceEnabled": True,
-        "voiceModelPath": "en_US-lessac-medium.onnx",
+        "voiceModelPath": "en_US-lessac-medium",
         "voiceOutputDirectory": "temp/voice",
         "voicePlaybackEnabled": True,
         "voiceSampleRate": 22050,
@@ -106,9 +126,6 @@ DEFAULT_CONFIG = {
         "traceEvents": True,
     },
     "homeAutomationBridge": {
-        "host": "127.0.0.1",
-        "port": 8080,
-        "ssl": False,
         "timeout": 5,
         "refreshSeconds": 5,
         "protocolPath": "/protocol/aura",
@@ -120,6 +137,21 @@ DEFAULT_CONFIG = {
         "heartbeatSeconds": 30,
     },
 }
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Return a recursive merge where override values win."""
+
+    merged = dict(base or {})
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+DEFAULT_CONFIG = _deep_merge(DEFAULT_DEV_CONFIG, DEFAULT_USER_CONFIG)
 
 
 class ConfigLoader:
@@ -134,7 +166,7 @@ class ConfigLoader:
         config.get("llm.history.limit")
     """
 
-    def __init__(self, context=None, path: str = "config.yml"):
+    def __init__(self, context=None, path: str | Path | None = None, devPath: str | Path | None = None):
         """
         Initialize the configuration loader.
 
@@ -142,8 +174,13 @@ class ConfigLoader:
             context (RuntimeContext | None):
                 Optional runtime context for logging.
 
-            path (str):
-                Path to the configuration file.
+            path (str | Path | None):
+                Path to the user-facing configuration file. When omitted,
+                Aura loads the package-local `config/config.yml`.
+
+            devPath (str | Path | None):
+                Path to backend/developer configuration. When omitted, Aura
+                loads the package-local `config/devConfig.yml`.
         """
 
         self.context = context
@@ -152,9 +189,13 @@ class ConfigLoader:
         if context and context.logger:
             self.logger = context.logger.getChild("Config")
 
-        self.path = Path(path)
+        config_dir = Path(__file__).resolve().parent
+        self.path = Path(path) if path is not None else config_dir / "config.yml"
+        self.devPath = Path(devPath) if devPath is not None else config_dir / "devConfig.yml"
         self.env_path = Path(".env")
         self.data = {}
+        self.userData = {}
+        self.devData = {}
         self.env_key_map = {
             "llm.endpoint": "OLLAMA_ENDPOINT",
             "llm.ollama.endpoint": "OLLAMA_ENDPOINT",
@@ -240,37 +281,48 @@ class ConfigLoader:
 
         self._loadEnvFile()
 
+        if not self.devPath.exists():
+            self._createDefaultConfig(self.devPath, DEFAULT_DEV_CONFIG, "developer")
+
         if not self.path.exists():
-            self._createDefaultConfig()
+            self._createDefaultConfig(self.path, DEFAULT_USER_CONFIG, "user")
 
-        with open(self.path, "r", encoding="utf-8") as file:
-            loaded = yaml.safe_load(file)
-
-        if not isinstance(loaded, dict):
-            raise ValueError(f"Config root must be a dictionary: {self.path}")
-
-        self.data = loaded
+        self.devData = self._loadYamlFile(self.devPath)
+        self.userData = self._loadYamlFile(self.path)
+        self.data = _deep_merge(self.devData, self.userData)
 
         # --------------------------------------------------
         # Logging
         # --------------------------------------------------
 
         if self.logger:
-            self.logger.info(f"Configuration loaded from {self.path}")
+            self.logger.info(f"Configuration loaded from {self.path} and {self.devPath}")
             keys = ", ".join(self.data.keys())
             self.logger.debug(f"Config sections loaded: {keys}")
 
-    def _createDefaultConfig(self):
+    def _createDefaultConfig(self, path: Path, defaults: dict, label: str):
         """
         Create a default configuration file when Aura starts without one.
         """
 
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "w", encoding="utf-8") as file:
-            yaml.safe_dump(DEFAULT_CONFIG, file, sort_keys=False)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as file:
+            yaml.safe_dump(defaults, file, sort_keys=False)
 
         if self.logger:
-            self.logger.warning(f"Config file missing. Created default config at {self.path}")
+            self.logger.warning(f"{label.title()} config file missing. Created default config at {path}")
+
+    def _loadYamlFile(self, path: Path) -> dict:
+        """Load one YAML config file and validate its root shape."""
+
+        with open(path, "r", encoding="utf-8") as file:
+            loaded = yaml.safe_load(file)
+
+        if loaded is None:
+            return {}
+        if not isinstance(loaded, dict):
+            raise ValueError(f"Config root must be a dictionary: {path}")
+        return loaded
 
     # --------------------------------------------------
     # Access

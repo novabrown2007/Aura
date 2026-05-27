@@ -1,0 +1,307 @@
+# Aura backend/developer configuration.
+#
+# This file is for operational tuning, runtime defaults, polling rates,
+# local model choices, and developer UI behavior. User-facing secrets and
+# credentials belong in config/config.yml.
+
+llm:
+  # Primary LLM provider Aura should use.
+  # Valid values: gemini, ollama.
+  activeProvider: gemini
+
+  # Provider to try if the active provider fails.
+  # Valid values: gemini, ollama, none.
+  fallbackProvider: none
+
+  # Number of model request retries before surfacing a failure.
+  # Valid value: integer >= 0.
+  retryCount: 2
+
+  # Model request timeout in seconds.
+  # Valid value: number > 0.
+  timeout: 30
+
+  ollama:
+    # Ollama model name to request from the local Ollama server.
+    # Valid value: any installed Ollama model name, such as llama3.2:1b.
+    model: llama3.2:1b
+
+  gemini:
+    # Gemini model name.
+    # Valid value: a Gemini model id supported by the configured SDK/API key.
+    model: gemini-2.5-flash
+
+  history:
+    # Whether Aura keeps short-term conversation history.
+    # Valid values: true, false.
+    enabled: true
+
+    # Maximum conversation turns retained in short-term history.
+    # Valid value: integer >= 0.
+    limit: 25
+
+    # Whether short-term history should survive process restarts.
+    # Valid values: true, false.
+    persistAcrossRestarts: false
+
+  memory:
+    # Whether LLM memory integration is enabled.
+    # Valid values: true, false.
+    enabled: true
+
+    # Frequency, in turns, for memory-related maintenance.
+    # Valid value: integer > 0.
+    frequency: 20
+
+    semantic:
+      # Whether semantic memory retrieval is enabled.
+      # Valid values: true, false.
+      enabled: true
+
+      # Maximum semantic memories to include per retrieval.
+      # Valid value: integer >= 0.
+      limit: 5
+
+      # Embedding/retrieval provider.
+      # Valid values today: local.
+      provider: local
+
+  logging:
+    # Whether LLM request/response logging is enabled.
+    # Valid values: true, false.
+    enabled: true
+
+    # Directory for LLM logs.
+    # Valid value: relative or absolute filesystem path.
+    path: logs/llm
+
+  intent:
+    # Minimum confidence required before an interpreted intent is trusted.
+    # Valid value: float from 0.0 to 1.0.
+    confidenceThreshold: 0.75
+
+    # Number of recent context turns considered by the intent pipeline.
+    # Valid value: integer >= 0.
+    contextWindow: 6
+
+threading:
+  # Maximum worker threads Aura may use for background tasks.
+  # Valid value: integer > 0.
+  max_threads: 10
+
+voice:
+  # Whether microphone STT capture is enabled.
+  # Valid values: true, false.
+  enabled: false
+
+  # Faster-Whisper model name for speech-to-text.
+  # Valid values: any Faster-Whisper model id, such as tiny.en, base.en, small.en, medium.en.
+  model: small.en
+
+  # Device used for Faster-Whisper inference.
+  # Valid values: cpu, cuda.
+  device: cpu
+
+  # Faster-Whisper compute type.
+  # Valid values commonly supported: int8, int8_float16, float16, float32.
+  computeType: int8
+
+  # Microphone input sample rate for STT capture.
+  # Valid value: integer Hz. Aura expects 16000 for local voice input.
+  sampleRate: 16000
+
+  # Whether Piper text-to-speech output is enabled.
+  # Valid values: true, false.
+  voiceEnabled: true
+
+  # Piper voice model path or model basename.
+  # Valid value: relative or absolute path to a Piper .onnx model, or a known local basename.
+  voiceModelPath: en_US-lessac-medium
+
+  # Directory used for temporary/generated TTS audio.
+  # Valid value: relative or absolute filesystem path.
+  voiceOutputDirectory: temp/voice
+
+  # Whether generated speech should play back through the local audio device.
+  # Valid values: true, false.
+  voicePlaybackEnabled: true
+
+  # Piper output sample rate.
+  # Valid value: integer Hz. The default Piper voice uses 22050.
+  voiceSampleRate: 22050
+
+  # Whether held push-to-talk activation is enabled for manual voice turns.
+  # Valid values: true, false.
+  pushToTalkEnabled: false
+
+  # Push-to-talk hotkey label for developer/manual flows.
+  # Valid value: key name string. The current dev console uses enter.
+  pushToTalkHotkey: enter
+
+  # Whether push-to-talk responses should be spoken automatically.
+  # Valid values: true, false.
+  pushToTalkAutoSpeak: true
+
+  # Directory used for temporary push-to-talk recordings.
+  # Valid value: relative or absolute filesystem path.
+  pushToTalkTempAudioDirectory: temp/push_to_talk
+
+  wakeWord:
+    # Whether passive local wake word detection is enabled.
+    # Valid values: true, false.
+    wakeWordEnabled: true
+
+    # Active/default wake phrase used in status displays and fallback matching.
+    # Valid value: one phrase string. It should also appear in wakeWordPhrases in config/config.yml.
+    wakeWordPhrase: Hey Aura
+
+    # Detection threshold for accepting a wake word prediction.
+    # Valid value: float from 0.0 to 1.0. Higher is stricter.
+    wakeWordSensitivity: 0.5
+
+    # Cooldown after an accepted wake word before listening resumes.
+    # Valid value: number of seconds >= 0.
+    wakeWordCooldownSeconds: 5
+
+    # Optional microphone device selector for sounddevice.
+    # Valid values: blank/null for default device, integer device index, or device name string.
+    wakeWordMicrophoneDevice:
+
+    # Optional explicit OpenWakeWord model path.
+    # Valid value: blank for phrase-based lookup, or path to a .onnx/.tflite wake word model.
+    wakeWordModelPath: ''
+
+    # OpenWakeWord inference backend.
+    # Valid values: onnx, tflite.
+    wakeWordInferenceFramework: onnx
+
+    # Whether wake word listening starts automatically during Aura startup.
+    # Valid values: true, false.
+    wakeWordAutoStart: true
+
+    # Whether to log per-frame wake word prediction details.
+    # Valid values: true, false.
+    wakeWordDebugLogging: false
+
+memory:
+  # Whether Aura's long-term memory system is enabled.
+  # Valid values: true, false.
+  enabled: true
+
+  # SQLite database path for persisted memories.
+  # Valid value: relative or absolute filesystem path.
+  databasePath: aura_memory.sqlite3
+
+  # Maximum memory results returned by default.
+  # Valid value: integer >= 0.
+  maxResults: 8
+
+  # Target character length for generated memory summaries.
+  # Valid value: integer > 0.
+  summaryLength: 280
+
+  # Minimum importance score for memory retention/selection.
+  # Valid value: float from 0.0 to 1.0.
+  importanceThreshold: 0.35
+
+  # Whether Aura should automatically summarize memory content.
+  # Valid values: true, false.
+  autoSummarization: true
+
+  # Whether retrieved memory should be injected into prompts.
+  # Valid values: true, false.
+  injectionEnabled: true
+
+  # Maximum number of memory items injected into a prompt.
+  # Valid value: integer >= 0.
+  maxInjectionCount: 5
+
+  # Maximum total injected memory characters.
+  # Valid value: integer >= 0.
+  maxInjectionCharacters: 900
+
+  # Weight assigned to recency during retrieval scoring.
+  # Valid value: float >= 0.0.
+  recencyWeight: 0.18
+
+  # Weight assigned to importance during retrieval scoring.
+  # Valid value: float >= 0.0.
+  importanceWeight: 0.24
+
+  # Whether duplicate memories should be filtered from retrieval results.
+  # Valid values: true, false.
+  duplicateFiltering: true
+
+  # Whether prompt memory context can be compressed.
+  # Valid values: true, false.
+  compressionEnabled: true
+
+  # Minimum retrieval relevance score.
+  # Valid value: float from 0.0 to 1.0.
+  minRelevance: 0.18
+
+  # Number of candidate memories considered before final ranking.
+  # Valid value: integer >= 0.
+  retrievalCandidateLimit: 24
+
+  # Whether retrieval debug details are retained for developer UI visibility.
+  # Valid values: true, false.
+  retrievalDebug: true
+
+developerUI:
+  # Whether the developer UI is enabled.
+  # Valid values: true, false.
+  enabled: true
+
+  # Developer UI refresh interval in milliseconds.
+  # Valid value: integer > 0.
+  refreshRate: 750
+
+  # Maximum event rows retained in the developer UI event log.
+  # Valid value: integer > 0.
+  maxEvents: 500
+
+  # Whether the developer UI should emit verbose logging.
+  # Valid values: true, false.
+  verboseLogging: false
+
+  # Whether event bus emissions should be traced into developer UI state.
+  # Valid values: true, false.
+  traceEvents: true
+
+homeAutomationBridge:
+  # HTTP timeout for bridge requests in seconds.
+  # Valid value: number > 0.
+  timeout: 5
+
+  # Bridge state refresh interval in seconds.
+  # Valid value: number > 0.
+  refreshSeconds: 5
+
+  # Aura protocol route on the bridge service.
+  # Valid value: URL path beginning with /.
+  protocolPath: /protocol/aura
+
+  # Bridge inbox route.
+  # Valid value: URL path beginning with /.
+  inboxPath: /protocol/inbox
+
+  # Bridge subscriptions route.
+  # Valid value: URL path beginning with /.
+  subscriptionsPath: /protocol/subscriptions
+
+  # Bridge heartbeat route.
+  # Valid value: URL path beginning with /.
+  heartbeatPath: /protocol/heartbeat
+
+  # Bridge session id to use.
+  # Valid values: auto, or an explicit session id string.
+  sessionId: auto
+
+  # Interface label sent to the bridge.
+  # Valid values commonly used: desktop, web, android.
+  interface: desktop
+
+  # Heartbeat interval in seconds.
+  # Valid value: number > 0.
+  heartbeatSeconds: 30

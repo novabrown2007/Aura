@@ -507,7 +507,7 @@ class DeveloperUITests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
         self.assertIn(f"cwd={projectRoot}", result.stdout)
-        self.assertIn(f"config={projectRoot / 'config.yml'}", result.stdout)
+        self.assertIn(f"config={projectRoot / 'config' / 'config.yml'}", result.stdout)
         self.assertIn(f"memory={projectRoot / 'aura_memory.sqlite3'}", result.stdout)
 
 

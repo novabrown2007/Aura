@@ -145,7 +145,7 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.get("voice.computeType"), "int8")
             self.assertEqual(config.get("voice.sampleRate"), 16000)
             self.assertEqual(config.get("voice.voiceEnabled"), True)
-            self.assertEqual(config.get("voice.voiceModelPath"), "en_US-lessac-medium.onnx")
+            self.assertEqual(config.get("voice.voiceModelPath"), "en_US-lessac-medium")
             self.assertEqual(config.get("voice.voiceOutputDirectory"), "temp/voice")
             self.assertEqual(config.get("voice.voicePlaybackEnabled"), True)
             self.assertEqual(config.get("voice.voiceSampleRate"), 22050)
@@ -196,6 +196,55 @@ class ConfigLoaderTests(unittest.TestCase):
             }
 
             self.assertFalse(duplicate_keys.intersection(config.asDict()))
+
+    def test_default_config_path_is_package_local(self):
+        """The runtime default config lives beside configLoader in the config package."""
+
+        config = ConfigLoader()
+
+        self.assertEqual(config.path, Path(__file__).resolve().parents[2] / "config" / "config.yml")
+        self.assertEqual(config.devPath, Path(__file__).resolve().parents[2] / "config" / "devConfig.yml")
+
+    def test_user_config_overrides_dev_config_after_merge(self):
+        """User-facing config should override developer defaults at the same path."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            user_path = Path(temp_dir) / "config.yml"
+            dev_path = Path(temp_dir) / "devConfig.yml"
+            user_path.write_text(
+                "llm:\n"
+                "  activeProvider: ollama\n"
+                "  gemini:\n"
+                "    api_secret: user-secret\n",
+                encoding="utf-8",
+            )
+            dev_path.write_text(
+                "llm:\n"
+                "  activeProvider: gemini\n"
+                "  gemini:\n"
+                "    model: gemini-2.5-flash\n",
+                encoding="utf-8",
+            )
+
+            config = ConfigLoader(path=user_path, devPath=dev_path)
+
+            self.assertEqual(config.get("llm.activeProvider"), "ollama")
+            self.assertEqual(config.get("llm.gemini.api_secret"), "user-secret")
+            self.assertEqual(config.get("llm.gemini.model"), "gemini-2.5-flash")
+
+    def test_missing_config_files_are_created_separately(self):
+        """User and developer config files should be generated independently."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            user_path = Path(temp_dir) / "config.yml"
+            dev_path = Path(temp_dir) / "devConfig.yml"
+
+            config = ConfigLoader(path=user_path, devPath=dev_path)
+
+            self.assertTrue(user_path.exists())
+            self.assertTrue(dev_path.exists())
+            self.assertIn("database", config.userData)
+            self.assertIn("developerUI", config.devData)
 
 
 if __name__ == "__main__":
