@@ -53,6 +53,7 @@ class StubMemory:
         """Initialize `StubMemory` with required dependencies and internal state."""
         self.learn_inputs = []
         self.memory = {"name": "Nova"}
+        self.structuredMemories = []
 
     def learnFromMessage(self, text):
         """Implement `learnFromMessage` as part of this component's public/internal behavior."""
@@ -61,6 +62,24 @@ class StubMemory:
     def getMemory(self):
         """Return `getMemory` data from the component's current state."""
         return self.memory
+
+    def createMemory(self, category, title, content, **kwargs):
+        """Store a lightweight structured memory for handler tests."""
+
+        memory = SimpleNamespace(category=category, title=title, content=content, **kwargs)
+        self.structuredMemories.append(memory)
+        self.memory[title] = content
+        return memory
+
+    def retrieveMemories(self, limit=20, **_kwargs):
+        """Return structured memories plus legacy dictionary values."""
+
+        memories = list(self.structuredMemories)
+        memories.extend(
+            SimpleNamespace(category="preferences", title=key, content=value)
+            for key, value in self.memory.items()
+        )
+        return memories[:limit]
 
 
 class StubProvider:
@@ -454,6 +473,90 @@ class LLMHandlerTests(unittest.TestCase):
         today = date.today()
         expectedAge = today.year - 2007 - ((today.month, today.day) < (3, 22))
         self.assertEqual(result, f"You are {expectedAge} years old.")
+
+    def test_birth_statement_is_stored_before_profile_question_matching(self):
+        """Birth statements should be saved, not answered as unrelated profile questions."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="Your name is Nova.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        statementReply = handler.generateResponse("I was born March 22nd 2007")
+        birthdayReply = handler.generateResponse("When was I born?")
+        ageReply = handler.generateResponse("how old am I?")
+
+        today = date.today()
+        expectedAge = today.year - 2007 - ((today.month, today.day) < (3, 22))
+        self.assertEqual(statementReply, "Got it. You were born on March 22nd, 2007.")
+        self.assertEqual(birthdayReply, "You were born on March 22nd, 2007.")
+        self.assertEqual(ageReply, f"You are {expectedAge} years old.")
+
+    def test_name_statement_updates_memory_instead_of_answering_question(self):
+        """A name statement containing 'my name' should not use the name-question branch."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="Your name is Nova.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        statementReply = handler.generateResponse("Hello, my name is Nova Brown")
+        nameReply = handler.generateResponse("What is my name?")
+
+        self.assertEqual(statementReply, "Got it. Your name is Nova Brown.")
+        self.assertEqual(nameReply, "Your name is Nova Brown.")
+
+    def test_time_question_uses_local_deterministic_system_time(self):
+        """Time questions should not fall through to fallback LLM guesses."""
+
+        context = make_llm_context()
+        context.system = SimpleNamespace(getTime=lambda: {"time": "20:12:34"})
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="26 05.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("What time is it?")
+
+        self.assertEqual(result, "It is 20:12.")
+
+    def test_age_statement_updates_memory_instead_of_using_provider(self):
+        """Age statements should be stored and acknowledged deterministically."""
+
+        context = make_llm_context()
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            generateResponse=lambda *args, **kwargs: LLMResponse(
+                provider="test",
+                success=True,
+                text="Nova Brown, my name is Nova. You're currently 19 years old.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("I'm 19 years old")
+
+        self.assertEqual(result, "Got it. You are 19 years old.")
+        self.assertTrue(
+            any(memory.content == "Nova is 19 years old." for memory in context.memoryManager.structuredMemories)
+        )
 
     def test_profile_combined_question_separates_sexuality_from_gender_identity(self):
         """Profile summaries should not conflate sexual orientation and gender identity."""

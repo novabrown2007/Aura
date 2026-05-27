@@ -80,20 +80,17 @@ class LLMHandler(AuraModule):
         """Generate a conversational response while preserving legacy API shape."""
 
         self._emit("message.received", {"text": userInput})
-        profileReply = self._tryAnswerProfileQuestion(userInput)
-        if profileReply is not None:
-            cleaned = self._cleanResponseText(profileReply)
-            self._logConversation(userInput, cleaned)
-            self._emit("response.generated", {"text": cleaned})
-            self._speakResponse(cleaned)
-            return cleaned
+        deterministicReply = self._tryAnswerDeterministicQuestion(userInput)
+        if deterministicReply is not None:
+            return self._finishResponse(userInput, deterministicReply)
+
         profileStatementReply = self._tryHandleProfileStatement(userInput)
         if profileStatementReply is not None:
-            cleaned = self._cleanResponseText(profileStatementReply)
-            self._logConversation(userInput, cleaned)
-            self._emit("response.generated", {"text": cleaned})
-            self._speakResponse(cleaned)
-            return cleaned
+            return self._finishResponse(userInput, profileStatementReply)
+
+        profileReply = self._tryAnswerProfileQuestion(userInput)
+        if profileReply is not None:
+            return self._finishResponse(userInput, profileReply)
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
             cleaned = self._offlineToolUnavailableMessage()
@@ -123,6 +120,15 @@ class LLMHandler(AuraModule):
         if toolResult is not None:
             cleaned = self._cleanResponseText(toolResult)
 
+        self._logConversation(userInput, cleaned)
+        self._emit("response.generated", {"text": cleaned})
+        self._speakResponse(cleaned)
+        return cleaned
+
+    def _finishResponse(self, userInput: str, responseText: str) -> str:
+        """Clean, log, emit, and optionally speak a deterministic response."""
+
+        cleaned = self._cleanResponseText(responseText)
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
         self._speakResponse(cleaned)
@@ -351,19 +357,25 @@ Rules:
         lowered = str(userInput or "").lower()
         asksAge = bool(re.search(r"\b(how old|age)\b", lowered))
         asksName = bool(re.search(r"\b(my name|what(?:'s| is) my name|tell me my name)\b", lowered))
+        asksBirthDate = bool(re.search(r"\b(when was i born|what(?:'s| is) my birthday|birthday)\b", lowered))
         asksSexuality = bool(re.search(r"\b(sexuality|sexual orientation)\b", lowered))
         asksGenderIdentity = bool(re.search(r"\b(gender|gendre)(?:\s+identity)?\b", lowered))
         asksRelationshipOrientation = bool(
             re.search(r"\b(romantic|relationship)\s+orientation\b", lowered)
             or re.search(r"\bpolyamory\b|\bpolyamorous\b", lowered)
         )
-        if not any((asksAge, asksName, asksSexuality, asksGenderIdentity, asksRelationshipOrientation)):
+        if not any((asksAge, asksName, asksBirthDate, asksSexuality, asksGenderIdentity, asksRelationshipOrientation)):
             return None
 
         memoryText = self._profileMemoryText()
         parts = []
         if asksName:
-            parts.append("your name is Nova")
+            parts.append(f"your name is {self._nameFromMemory(memoryText) or 'Nova'}")
+        if asksBirthDate:
+            birthDate = self._birthDateFromText(memoryText)
+            if birthDate is None:
+                return None
+            parts.append(f"you were born on {self._formatDateWithOrdinal(birthDate)}")
         if asksAge:
             age = self._ageFromMemory(memoryText)
             if age is None:
@@ -393,8 +405,42 @@ Rules:
 
         text = str(userInput or "").strip()
         lowered = text.lower()
-        if not re.search(r"\b(i am|i'm|my romantic orientation is|my relationship orientation is)\b", lowered):
+        if not re.search(
+            r"\b(my name is|i was born|i am born|my birthday is|i am|i'm|my romantic orientation is|my relationship orientation is)\b",
+            lowered,
+        ):
             return None
+
+        nameMatch = re.search(r"\bmy name is\s+([a-z][a-z\s.'-]{1,80})\b", text, flags=re.IGNORECASE)
+        if nameMatch:
+            name = self._cleanFactValue(nameMatch.group(1))
+            self._rememberProfileFact(
+                title="Name",
+                content=f"Nova's name is {name}.",
+                tags=["profile", "name"],
+                category="people",
+            )
+            return f"Got it. Your name is {name}."
+
+        birthDate = self._birthDateFromText(text)
+        if birthDate is not None and re.search(r"\b(i was born|i am born|my birthday is)\b", lowered):
+            formatted = self._formatDateWithOrdinal(birthDate)
+            self._rememberProfileFact(
+                title="Birthday",
+                content=f"Nova's birthday is {formatted}.",
+                tags=["profile", "birthday"],
+            )
+            return f"Got it. You were born on {formatted}."
+
+        ageMatch = re.search(r"\b(?:i am|i'm)\s+(\d{1,3})\s+years?\s+old\b", lowered)
+        if ageMatch:
+            age = int(ageMatch.group(1))
+            self._rememberProfileFact(
+                title="Age",
+                content=f"Nova is {age} years old.",
+                tags=["profile", "age"],
+            )
+            return f"Got it. You are {age} years old."
 
         relationshipOrientation = self._relationshipOrientationFromMemory(lowered)
         if relationshipOrientation:
@@ -426,6 +472,21 @@ Rules:
                 self.logger.debug(f"Profile memory extraction failed: {error}")
         return "\n".join(text for text in texts if text)
 
+    def _tryAnswerDeterministicQuestion(self, userInput: str) -> str | None:
+        """Answer local utility questions that should never require an LLM."""
+
+        lowered = str(userInput or "").lower().strip()
+        if re.search(r"\bwhat(?:'s| is) the time\b|\bwhat time is it\b|\bcurrent time\b", lowered):
+            system = getattr(self.context, "system", None)
+            if system is not None and hasattr(system, "getTime"):
+                result = system.getTime()
+                timeText = str(result.get("time") or "")
+                if timeText:
+                    hour, minute, *_ = timeText.split(":")
+                    return f"It is {hour}:{minute}."
+            return f"It is {datetime.now().strftime('%H:%M')}."
+        return None
+
     def _ageFromMemory(self, memoryText: str) -> int | None:
         """Calculate age from a remembered birth date, falling back to stated age."""
 
@@ -456,6 +517,26 @@ Rules:
             if first > 12:
                 return date(year, second, first)
             return date(year, first, second)
+        return None
+
+    @staticmethod
+    def _formatDateWithOrdinal(value: date) -> str:
+        """Format a date as a compact spoken birthday string."""
+
+        day = value.day
+        suffix = "th" if 10 <= day % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+        return f"{calendar.month_name[value.month]} {day}{suffix}, {value.year}"
+
+    @staticmethod
+    def _nameFromMemory(memoryText: str) -> str | None:
+        """Extract the user's remembered name."""
+
+        match = re.search(r"\bNova's name is\s+([^.\n]+)", str(memoryText or ""), flags=re.IGNORECASE)
+        if match:
+            return LLMHandler._cleanFactValue(match.group(1))
+        match = re.search(r"\bmy name is\s+([^.\n]+)", str(memoryText or ""), flags=re.IGNORECASE)
+        if match:
+            return LLMHandler._cleanFactValue(match.group(1))
         return None
 
     @staticmethod
@@ -511,7 +592,7 @@ Rules:
             return "monogamous"
         return None
 
-    def _rememberProfileFact(self, title: str, content: str, tags: list[str]):
+    def _rememberProfileFact(self, title: str, content: str, tags: list[str], category: str = "preferences"):
         """Store an explicit profile fact when the structured memory system is available."""
 
         memory = self.memory
@@ -522,7 +603,7 @@ Rules:
             if content.lower() in existing:
                 return
             memory.createMemory(
-                "preferences",
+                category,
                 title,
                 content,
                 tags=tags,
@@ -532,6 +613,12 @@ Rules:
         except Exception as error:
             if self.logger:
                 self.logger.debug(f"Profile memory write failed: {error}")
+
+    @staticmethod
+    def _cleanFactValue(value: str) -> str:
+        """Clean a short remembered fact value."""
+
+        return " ".join(str(value or "").strip(" .,\n\t").split())
 
     @staticmethod
     def _cleanResponseText(text: str) -> str:

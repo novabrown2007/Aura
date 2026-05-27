@@ -262,10 +262,22 @@ class MemoryManager(AuraModule):
     def learnFromMessage(self, text: str, sessionId: str = ""):
         """Extract obvious structured memories from a single user message."""
 
-        category = self.summarizer.categorizeText(text)
-        if not category:
-            return None
-        return self.createMemory(category, self._titleFromContent(text), text, tags=self.summarizer._extractTags(text), source="message.received", sessionId=sessionId)
+        memories = []
+        for fact in self.summarizer.extractAtomicFacts(text):
+            category = self.summarizer.categorizeText(fact)
+            if not category:
+                continue
+            memory = self.createMemory(
+                category,
+                self._titleFromContent(fact),
+                fact,
+                tags=self.summarizer._extractTags(fact),
+                source="message.received",
+                sessionId=sessionId,
+            )
+            if memory is not None:
+                memories.append(memory)
+        return memories or None
 
     def learnFromHistory(self, messages: list[tuple[str, str]]):
         """Compatibility API for the old LLM memory manager."""

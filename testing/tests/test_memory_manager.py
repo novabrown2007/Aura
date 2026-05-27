@@ -88,6 +88,52 @@ class MemoryManagerTests(unittest.TestCase):
         self.assertIn("preferences", categories)
         self.assertIn("projects", categories)
 
+    def test_single_profile_message_is_split_into_atomic_memories(self):
+        """One dense profile message should create separate structured facts."""
+
+        message = (
+            "My birthday is March 22nd, 2007, and I like writing dates in dd/mm/yyyy. "
+            "My favorite colour is purple. I'm 19 years old. "
+            "I am omnisexual, non-binaring questioning MTF, and polyamorous."
+        )
+
+        memories = self.memory.learnFromMessage(message, sessionId="profile")
+
+        contents = {memory.content for memory in memories}
+        self.assertIn("Nova's birthday is March 22nd, 2007.", contents)
+        self.assertIn("Nova prefers dates in dd/mm/yyyy.", contents)
+        self.assertIn("Nova's favorite color is purple.", contents)
+        self.assertIn("Nova is 19 years old.", contents)
+        self.assertIn("Nova's sexual orientation is omnisexual.", contents)
+        self.assertIn("Nova's gender identity is non-binary questioning MTF.", contents)
+        self.assertIn("Nova's relationship orientation is polyamorous.", contents)
+        self.assertGreaterEqual(len(memories), 7)
+
+    def test_conversation_summary_stores_atomic_profile_facts(self):
+        """Conversation summarization should not persist dense profile blobs as facts."""
+
+        self.memory.summarizeConversation(
+            [
+                (
+                    "user",
+                    "My birthday is March 22nd, 2007, and I like writing dates in dd/mm/yyyy. "
+                    "My favorite colour is purple. I'm 19 years old. "
+                    "I am omnisexual, non-binaring questioning MTF, and polyamorous.",
+                )
+            ],
+            sessionId="summary-profile",
+        )
+
+        stored = self.memory.retrieveMemories(MemoryQuery(categories=["preferences"], limit=20))
+        contents = {memory.content for memory in stored}
+        self.assertIn("Nova's birthday is March 22nd, 2007.", contents)
+        self.assertIn("Nova prefers dates in dd/mm/yyyy.", contents)
+        self.assertIn("Nova's gender identity is non-binary questioning MTF.", contents)
+        self.assertNotIn(
+            "My birthday is March 22nd, 2007, and I like writing dates in dd/mm/yyyy. My favorite colour is purple. I'm 19 years old. I am omnisexual, non-binaring questioning MTF, and polyamorous.",
+            contents,
+        )
+
     def test_safe_memory_filter_rejects_credentials(self):
         memory = self.memory.createMemory(
             "system_context",
