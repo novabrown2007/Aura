@@ -9,7 +9,9 @@ __pycache__/
 .env
 logs/
 *.log
+aura.sqlite3
+aura_memory.sqlite3
+*.sqlite3
 build/
 dist/
 *.spec
-*.sqlite3
