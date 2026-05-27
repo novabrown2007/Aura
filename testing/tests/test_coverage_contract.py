@@ -1,0 +1,207 @@
+"""Coverage contract tests for Aura source areas and runtime tools."""
+
+from __future__ import annotations
+
+import ast
+import py_compile
+from pathlib import Path
+import unittest
+
+
+class CoverageContractTests(unittest.TestCase):
+    """Guard against adding source features or tools without test ownership."""
+
+    root = Path(__file__).resolve().parents[2]
+    excludedParts = {".venv", "venv", "__pycache__", ".git", ".idea", "build", "dist", "logs"}
+    sourceRoots = {"bridge", "config", "core", "interface", "modules", "scripts"}
+    testedFeatureAreas = {
+        "bridge": ("testing/tests/test_bridge_protocol.py",),
+        "config": ("testing/tests/test_config_loader.py",),
+        "core/engine.py": ("testing/tests/test_runtime_smoke.py",),
+        "core/eventBus/event.py": ("testing/tests/test_events.py",),
+        "core/eventBus/autonomy": ("testing/tests/test_autonomous_tasks.py",),
+        "core/router": ("testing/tests/test_module_loader.py", "testing/tests/test_intent_pipeline.py"),
+        "core/runtime/datetimeUtils.py": ("testing/tests/test_datetime_utils.py",),
+        "core/runtime/logger.py": ("testing/tests/test_logger.py",),
+        "core/runtime/moduleLoader.py": ("testing/tests/test_module_loader.py",),
+        "core/runtime/observability": ("testing/tests/test_observability.py",),
+        "core/runtime/runtimeContext.py": ("testing/tests/test_runtime_smoke.py",),
+        "core/threading/events": ("testing/tests/test_events.py",),
+        "core/threading/scheduler": ("testing/tests/test_threading_scheduler.py",),
+        "core/threading/tasks": ("testing/tests/test_threading_scheduler.py",),
+        "core/threading/threadingManager.py": ("testing/tests/test_threading_scheduler.py",),
+        "core/tools": ("testing/tests/test_tool_system.py",),
+        "core/version.py": ("testing/tests/test_runtime_smoke.py",),
+        "interface/android": ("testing/tests/interfaceTests/test_android_interface.py",),
+        "interface/developerUI": ("testing/tests/test_developer_ui.py",),
+        "interface/inputProcessing": ("testing/tests/test_voice.py",),
+        "interface/model_status.py": ("testing/tests/interfaceTests/test_android_interface.py",),
+        "interface/voice": ("testing/tests/test_voice.py",),
+        "interface/web": ("testing/tests/interfaceTests/test_web_interface.py",),
+        "interface/windows": ("testing/tests/interfaceTests/test_windows_interface.py",),
+        "modules/automation_composer": ("testing/tests/test_automation_composer.py",),
+        "modules/base": ("testing/tests/test_module_loader.py",),
+        "modules/calendar": ("testing/tests/test_calendar.py",),
+        "modules/database": ("testing/tests/test_sqlite_database.py", "testing/tests/test_mysql_integration.py"),
+        "modules/home_automation": ("testing/tests/test_home_automation.py",),
+        "modules/llm/contextAwareness": ("testing/tests/test_context_awareness.py",),
+        "modules/llm/intent": ("testing/tests/test_intent_pipeline.py",),
+        "modules/llm/manager": ("testing/tests/test_llm_handler.py",),
+        "modules/llm/memory": ("testing/tests/test_memory_manager.py", "testing/tests/test_memory_retrieval.py"),
+        "modules/llm/models": ("testing/tests/test_llm_handler.py", "testing/tests/test_intent_pipeline.py"),
+        "modules/llm/prompts": ("testing/tests/test_prompt_builder.py",),
+        "modules/llm/providers": ("testing/tests/test_llm_handler.py",),
+        "modules/llm/testing": ("testing/tests/test_intent_pipeline.py",),
+        "modules/llm/utils": ("testing/tests/test_prompt_builder.py", "testing/tests/test_llm_handler.py"),
+        "modules/llm/conversationHistory.py": ("testing/tests/test_conversation_history.py",),
+        "modules/llm/llmHandler.py": ("testing/tests/test_llm_handler.py",),
+        "modules/llm/memoryManager.py": ("testing/tests/test_conversation_history.py",),
+        "modules/notifications": ("testing/tests/test_notifications.py",),
+        "modules/reminders": ("testing/tests/test_reminders.py",),
+        "modules/system": ("testing/tests/test_system.py",),
+        "scripts": (
+            "testing/tests/interfaceTests/test_android_interface.py",
+            "testing/tests/interfaceTests/test_web_interface.py",
+            "testing/tests/interfaceTests/test_windows_interface.py",
+            "testing/tests/test_developer_ui.py",
+            "testing/tests/test_voice.py",
+        ),
+        "main.py": ("testing/tests/test_system.py", "testing/tests/test_runtime_smoke.py"),
+        "runDeveloperUI.py": ("testing/tests/test_developer_ui.py",),
+        "run_tests.py": ("testing/tests/test_build_compile.py",),
+    }
+
+    toolCoverage = {
+        "automation.createDraft": "testing/tests/test_automation_composer.py",
+        "automation.listPlans": "testing/tests/test_automation_composer.py",
+        "automation.activate": "testing/tests/test_automation_composer.py",
+        "automation.pause": "testing/tests/test_automation_composer.py",
+        "automation.resume": "testing/tests/test_automation_composer.py",
+        "automation.runNow": "testing/tests/test_automation_composer.py",
+        "calendar.createEvent": "testing/tests/test_calendar.py",
+        "calendar.createTask": "testing/tests/test_calendar.py",
+        "calendar.createReminder": "testing/tests/test_calendar.py",
+        "homeAutomation.toggleLight": "testing/tests/test_home_automation.py",
+        "homeAutomation.getLightState": "testing/tests/test_home_automation.py",
+        "homeAutomation.setLightBrightness": "testing/tests/test_home_automation.py",
+        "lights.getState": "testing/tests/test_home_automation.py",
+        "lights.setBrightness": "testing/tests/test_home_automation.py",
+        "lights.setColor": "testing/tests/test_home_automation.py",
+        "lights.turnOn": "testing/tests/test_home_automation.py",
+        "lights.turnOff": "testing/tests/test_home_automation.py",
+        "homeAutomation.setLightColor": "testing/tests/test_home_automation.py",
+        "homeAutomation.startCameraStream": "testing/tests/test_home_automation.py",
+        "homeAutomation.stopCameraStream": "testing/tests/test_home_automation.py",
+        "homeAutomation.takeCameraSnapshot": "testing/tests/test_home_automation.py",
+        "reminders.createReminder": "testing/tests/test_reminders.py",
+        "system.getTime": "testing/tests/test_system.py",
+        "system.reload": "testing/tests/test_system.py",
+    }
+
+    def test_every_source_file_belongs_to_a_tested_feature_area(self):
+        """Every production Python file should be owned by a named test area."""
+
+        uncovered = []
+        featurePrefixes = tuple(sorted(self.testedFeatureAreas, key=len, reverse=True))
+        for path in self._productionPythonFiles():
+            rel = self._relative(path)
+            if rel.endswith("__init__.py"):
+                continue
+            if not any(rel == prefix or rel.startswith(f"{prefix}/") for prefix in featurePrefixes):
+                uncovered.append(rel)
+
+        self.assertEqual(uncovered, [])
+
+    def test_every_tested_feature_area_has_real_tests(self):
+        """Feature ownership entries should point to real unittest files."""
+
+        missing = []
+        empty = []
+        for feature, tests in self.testedFeatureAreas.items():
+            for testPath in tests:
+                path = self.root / testPath
+                if not path.exists():
+                    missing.append(f"{feature}: {testPath}")
+                    continue
+                if "def test_" not in path.read_text(encoding="utf-8", errors="ignore"):
+                    empty.append(f"{feature}: {testPath}")
+
+        self.assertEqual(missing, [])
+        self.assertEqual(empty, [])
+
+    def test_every_registered_runtime_tool_has_dedicated_test_coverage(self):
+        """Every Tool(...) registration should be named in its dedicated test file."""
+
+        registeredTools = self._registeredToolNames()
+        missingMappings = sorted(set(registeredTools) - set(self.toolCoverage))
+        staleMappings = sorted(set(self.toolCoverage) - set(registeredTools))
+        missingMentions = []
+
+        for toolName, testPath in self.toolCoverage.items():
+            path = self.root / testPath
+            text = path.read_text(encoding="utf-8", errors="ignore") if path.exists() else ""
+            if toolName not in text:
+                missingMentions.append(f"{toolName}: {testPath}")
+
+        self.assertEqual(missingMappings, [])
+        self.assertEqual(staleMappings, [])
+        self.assertEqual(missingMentions, [])
+
+    def test_every_production_python_file_compiles(self):
+        """Production source files should at least have syntax/import-time coverage."""
+
+        failures = []
+        for path in self._productionPythonFiles():
+            try:
+                py_compile.compile(str(path), doraise=True)
+            except Exception as error:
+                failures.append(f"{self._relative(path)}: {error}")
+
+        self.assertEqual(failures, [])
+
+    def _productionPythonFiles(self) -> list[Path]:
+        """Return non-test Python files owned by Aura source roots."""
+
+        files = []
+        for path in self.root.rglob("*.py"):
+            rel = path.relative_to(self.root)
+            if any(part in self.excludedParts for part in rel.parts):
+                continue
+            if rel.parts[0] == "testing":
+                continue
+            if rel.parts[0] in self.sourceRoots or rel.name in {"main.py", "runDeveloperUI.py", "run_tests.py"}:
+                files.append(path)
+        return sorted(files)
+
+    def _registeredToolNames(self) -> list[str]:
+        """Extract registered Tool names from production source files."""
+
+        names = []
+        for path in self._productionPythonFiles():
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or not self._isToolCall(node):
+                    continue
+                for keyword in node.keywords:
+                    if keyword.arg == "name" and isinstance(keyword.value, ast.Constant):
+                        names.append(str(keyword.value.value))
+        return sorted(names)
+
+    @staticmethod
+    def _isToolCall(node: ast.Call) -> bool:
+        """Return whether an AST call appears to instantiate core.tools.Tool."""
+
+        if isinstance(node.func, ast.Name):
+            return node.func.id == "Tool"
+        if isinstance(node.func, ast.Attribute):
+            return node.func.attr == "Tool"
+        return False
+
+    def _relative(self, path: Path) -> str:
+        """Return a stable slash-separated path relative to the repository root."""
+
+        return path.relative_to(self.root).as_posix()
+
+
+if __name__ == "__main__":
+    unittest.main()

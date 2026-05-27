@@ -55,6 +55,23 @@ class AutomationComposerTests(unittest.TestCase):
         self.database.close()
         self.temp_dir.cleanup()
 
+    def test_get_tools_exposes_complete_automation_tool_contract(self):
+        """Every automation tool exposed to the LLM should be explicitly covered."""
+
+        tool_names = {tool.name for tool in self.composer.getTools()}
+
+        self.assertEqual(
+            tool_names,
+            {
+                "automation.createDraft",
+                "automation.listPlans",
+                "automation.activate",
+                "automation.pause",
+                "automation.resume",
+                "automation.runNow",
+            },
+        )
+
     def test_create_draft_persists_reviewable_plan(self):
         """Drafts should store trigger, actions, conditions, and safety notes."""
 

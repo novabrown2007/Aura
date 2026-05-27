@@ -110,6 +110,11 @@ class _RecordingNotifications:
 class RemindersTests(unittest.TestCase):
     """Validate reminder CRUD and notification queueing behavior."""
 
+    def test_get_tools_exposes_complete_reminder_tool_contract(self):
+        """Every reminder tool exposed to the LLM should be explicitly covered."""
+
+        self.assertEqual({tool.name for tool in Reminders().getTools()}, {"reminders.createReminder"})
+
     def _create_reminders(self):
         """Build a reminder service with lightweight runtime doubles."""
 

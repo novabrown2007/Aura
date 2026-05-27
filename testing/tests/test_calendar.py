@@ -457,6 +457,20 @@ class _RecordingScheduler:
 class CalendarTests(unittest.TestCase):
     """Validate the core calendar backend without any interface layer."""
 
+    def test_get_tools_exposes_complete_calendar_tool_contract(self):
+        """Every calendar tool exposed to the LLM should be explicitly covered."""
+
+        tool_names = {tool.name for tool in Calendar().getTools()}
+
+        self.assertEqual(
+            tool_names,
+            {
+                "calendar.createEvent",
+                "calendar.createTask",
+                "calendar.createReminder",
+            },
+        )
+
     def _build_calendar(self):
         """Create a calendar backend with in-memory persistence stubs."""
 

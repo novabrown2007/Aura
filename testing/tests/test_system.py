@@ -61,6 +61,14 @@ class _RecordingLogger:
 class SystemModuleTests(unittest.TestCase):
     """Validate shutdown, restart, and reload lifecycle behaviors."""
 
+    def test_get_tools_exposes_complete_system_tool_contract(self):
+        """Every system tool exposed to the LLM should be explicitly covered."""
+
+        context = make_context(extra={"logger": _RecordingLogger(), "config": _RecordingConfig()})
+        tool_names = {tool.name for tool in System(context).getTools()}
+
+        self.assertEqual(tool_names, {"system.getTime", "system.reload"})
+
     def test_shutdown_sets_exit_without_restart(self):
         """Shutdown should stop the runtime without requesting a new cycle."""
 

@@ -136,13 +136,27 @@ class HomeAutomationConfigTests(unittest.TestCase):
         self.assertEqual(config.bridge.timeout_seconds, 7.5)
         self.assertEqual(config.refresh_interval_seconds, 9.0)
 
-    def test_get_tools_exposes_light_state_and_color_tools(self):
+    def test_get_tools_exposes_complete_home_automation_tool_contract(self):
         module = makeModule()
         tool_names = {tool.name for tool in module.getTools()}
 
-        self.assertIn("homeAutomation.getLightState", tool_names)
-        self.assertIn("lights.getState", tool_names)
-        self.assertIn("lights.setColor", tool_names)
+        self.assertEqual(
+            tool_names,
+            {
+                "homeAutomation.toggleLight",
+                "homeAutomation.getLightState",
+                "homeAutomation.setLightBrightness",
+                "lights.getState",
+                "lights.setBrightness",
+                "lights.setColor",
+                "lights.turnOn",
+                "lights.turnOff",
+                "homeAutomation.setLightColor",
+                "homeAutomation.startCameraStream",
+                "homeAutomation.stopCameraStream",
+                "homeAutomation.takeCameraSnapshot",
+            },
+        )
 
 
 class BridgeConnectionTests(unittest.TestCase):
