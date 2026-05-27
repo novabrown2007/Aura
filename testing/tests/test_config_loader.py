@@ -153,6 +153,50 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.asDict()["homeAutomationBridge"]["protocolPath"], "/protocol/aura")
             self.assertEqual(config.asDict()["homeAutomationBridge"]["sessionId"], "auto")
 
+    def test_default_config_does_not_duplicate_nested_runtime_sections(self):
+        """Nested runtime config should not be repeated as flat top-level keys."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yml"
+            config = ConfigLoader(path=str(config_path))
+
+            duplicate_keys = {
+                "pushToTalkEnabled",
+                "pushToTalkHotkey",
+                "pushToTalkAutoSpeak",
+                "pushToTalkTempAudioDirectory",
+                "wakeWordEnabled",
+                "wakeWordPhrase",
+                "wakeWordPhrases",
+                "wakeWordSensitivity",
+                "wakeWordCooldownSeconds",
+                "wakeWordMicrophoneDevice",
+                "wakeWordModelPath",
+                "wakeWordInferenceFramework",
+                "wakeWordAutoStart",
+                "wakeWordDebugLogging",
+                "memoryEnabled",
+                "memoryDatabasePath",
+                "memoryMaxResults",
+                "memorySummaryLength",
+                "memoryImportanceThreshold",
+                "memoryAutoSummarization",
+                "memoryInjectionEnabled",
+                "memoryMaxInjectionCount",
+                "memoryMaxInjectionCharacters",
+                "memoryRecencyWeight",
+                "memoryImportanceWeight",
+                "memoryDuplicateFiltering",
+                "memoryCompressionEnabled",
+                "developerUIEnabled",
+                "developerUIRefreshRate",
+                "developerUIMaxEvents",
+                "developerUIVerboseLogging",
+                "developerUITraceEvents",
+            }
+
+            self.assertFalse(duplicate_keys.intersection(config.asDict()))
+
 
 if __name__ == "__main__":
     unittest.main()

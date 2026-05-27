@@ -60,11 +60,17 @@ voice:
   pushToTalkHotkey: enter
   pushToTalkAutoSpeak: true
   pushToTalkTempAudioDirectory: temp/push_to_talk
-
-pushToTalkEnabled: false
-pushToTalkHotkey: enter
-pushToTalkAutoSpeak: true
-pushToTalkTempAudioDirectory: temp/push_to_talk
+  wakeWord:
+    wakeWordEnabled: true
+    wakeWordPhrase: Hey Aura
+    wakeWordPhrases: ["Aura", "Hey Aura", "Aura Wake"]
+    wakeWordSensitivity: 0.5
+    wakeWordCooldownSeconds: 5
+    wakeWordMicrophoneDevice:
+    wakeWordModelPath: ''
+    wakeWordInferenceFramework: onnx
+    wakeWordAutoStart: true
+    wakeWordDebugLogging: false
 
 memory:
   enabled: true
@@ -84,32 +90,12 @@ memory:
   retrievalCandidateLimit: 24
   retrievalDebug: true
 
-memoryEnabled: true
-memoryDatabasePath: aura_memory.sqlite3
-memoryMaxResults: 8
-memorySummaryLength: 280
-memoryImportanceThreshold: 0.35
-memoryAutoSummarization: true
-memoryInjectionEnabled: true
-memoryMaxInjectionCount: 5
-memoryMaxInjectionCharacters: 900
-memoryRecencyWeight: 0.18
-memoryImportanceWeight: 0.24
-memoryDuplicateFiltering: true
-memoryCompressionEnabled: true
-
 developerUI:
   enabled: true
   refreshRate: 750
   maxEvents: 500
   verboseLogging: false
   traceEvents: true
-
-developerUIEnabled: true
-developerUIRefreshRate: 750
-developerUIMaxEvents: 500
-developerUIVerboseLogging: false
-developerUITraceEvents: true
 
 homeAutomationBridge:
   host: 127.0.0.1

@@ -40,6 +40,18 @@ class DeveloperUIState:
             "transcription": "",
             "playback": "Idle",
             "lastTiming": {},
+            "wakeWord": {
+                "state": "Unknown",
+                "listening": False,
+                "phrases": [],
+                "confidence": 0.0,
+                "lastDetection": "",
+                "cooldown": False,
+                "cooldownRemainingSeconds": 0.0,
+                "microphone": "Unknown",
+                "predictionTimeMs": 0.0,
+                "activationCount": 0,
+            },
         }
         self.providers = {}
         self.bridge = {"connected": False, "messages": [], "subscriptions": []}
@@ -121,6 +133,14 @@ class DeveloperUIState:
             self.memory["databasePath"] = str(databasePath or "")
             self.memory["refreshError"] = str(refreshError or "")
 
+    def updateWakeWordState(self, wakeWordState: dict[str, Any]):
+        """Update the wake word portion of the voice panel."""
+
+        with self._lock:
+            wakeWord = dict(self.voice.get("wakeWord") or {})
+            wakeWord.update(dict(wakeWordState or {}))
+            self.voice["wakeWord"] = wakeWord
+
     def snapshot(self) -> ConsoleStateSnapshot:
         """Return a stable snapshot for rendering."""
 
@@ -174,6 +194,8 @@ class DeveloperUIState:
         elif name == "tts.finished":
             self.voice["tts"] = "Idle"
             self.voice["playback"] = "Finished" if payload.get("success", True) else "Failed"
+        elif name.startswith("wakeword."):
+            self._applyWakeWordEvent(name, payload, event.timestamp)
         elif name.startswith("memory.") or "memory" in name:
             debugOutput = payload.get("debugOutput") or payload.get("debug") or ""
             if debugOutput:
@@ -195,3 +217,30 @@ class DeveloperUIState:
             return int(line.split(":", 1)[1].strip().split()[0])
         except Exception:
             return 0
+
+    def _applyWakeWordEvent(self, name: str, payload: dict[str, Any], timestamp: str):
+        wakeWord = dict(self.voice.get("wakeWord") or {})
+        wakeWord["confidence"] = float(payload.get("confidence") or wakeWord.get("confidence") or 0.0)
+        wakeWord["predictionTimeMs"] = float(payload.get("predictionTimeMs") or wakeWord.get("predictionTimeMs") or 0.0)
+        wakeWord["activationCount"] = int(payload.get("activationCount") or wakeWord.get("activationCount") or 0)
+        if name == "wakeword.listening.started":
+            wakeWord.update({"state": "Listening", "listening": True, "microphone": "Open"})
+        elif name == "wakeword.listening.stopped":
+            wakeWord.update({"state": "Idle", "listening": False, "microphone": "Closed"})
+        elif name == "wakeword.detected":
+            wakeWord.update({"state": "Detected", "listening": False, "lastDetection": timestamp})
+        elif name == "wakeword.cooldown.started":
+            wakeWord.update(
+                {
+                    "state": "Cooldown",
+                    "listening": False,
+                    "cooldown": True,
+                    "cooldownRemainingSeconds": float(payload.get("cooldownSeconds") or 0.0),
+                    "microphone": "Paused",
+                }
+            )
+        elif name == "wakeword.cooldown.finished":
+            wakeWord.update({"state": "Idle", "cooldown": False, "cooldownRemainingSeconds": 0.0})
+        elif name == "wakeword.error":
+            wakeWord.update({"state": "Error", "listening": False, "microphone": "Unavailable"})
+        self.voice["wakeWord"] = wakeWord
