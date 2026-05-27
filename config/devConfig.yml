@@ -61,7 +61,7 @@ threading:
 voice:
   STT:
     # Whether microphone STT capture is enabled.
-    enabled: false
+    enabled: true
     # Faster-Whisper model name for speech-to-text.
     model: small.en
     # Device used for Faster-Whisper inference.

@@ -83,7 +83,7 @@ DEFAULT_DEV_CONFIG = {
     },
     "voice": {
         "STT": {
-            "enabled": False,
+            "enabled": True,
             "model": "small.en",
             "device": "cpu",
             "computeType": "int8",
@@ -97,13 +97,13 @@ DEFAULT_DEV_CONFIG = {
             "voiceSampleRate": 22050,
         },
         "PTT": {
-            "pushToTalkEnabled": False,
+            "pushToTalkEnabled": True,
             "pushToTalkHotkey": "enter",
             "pushToTalkAutoSpeak": True,
             "pushToTalkTempAudioDirectory": "temp/push_to_talk",
         },
         "wakeWord": {
-            "wakeWordEnabled": True,
+            "wakeWordEnabled": False,
             "wakeWordPhrases": ["Aura", "Hey Aura", "Aura Wake"],
             "wakeWordSensitivity": 0.5,
             "wakeWordCooldownSeconds": 5,

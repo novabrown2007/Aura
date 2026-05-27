@@ -49,6 +49,9 @@ class PushToTalkManager:
         if self.voiceManager is None:
             self._fail("Voice manager is unavailable.", emitEvent=False)
             return False
+        if not getattr(self.voiceManager, "inputEnabled", False):
+            self._fail("Push-to-talk requires voice.STT.enabled to be true.")
+            return False
         self._applyRecorderTempDirectory()
         self._emit("voice.capture.started", {"hotkey": self.hotkey})
         if self.logger:

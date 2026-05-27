@@ -393,6 +393,14 @@ class VoiceTests(unittest.TestCase):
         self.assertIn("voice.capture.started", emitted)
         self.assertIn("voice.loop.failed", emitted)
 
+    def test_push_to_talk_requires_stt_input_enabled(self):
+        manager = VoiceManager(self.context)
+        manager.inputEnabled = False
+
+        self.assertFalse(manager.startPushToTalk())
+
+        self.assertIn("voice.STT.enabled", manager.pushToTalkManager.lastResult.errorMessage)
+
     def test_push_to_talk_handles_transcription_failure(self):
         manager = VoiceManager(self.context)
         manager.recorder = FakePushRecorder()
