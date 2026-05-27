@@ -21,7 +21,8 @@ SUITES = {
     "short_memory": "testing.tests.test_conversation_history",
     "long_memory": "testing.tests.test_memory_manager",
     "calendar": "testing.tests.test_calendar",
-    "interfaces": "testing.tests.interfaceTests",
+    "interfaces": ("testing.tests.interfaceTests", "testing.tests.test_developer_ui"),
+    "developer_ui": "testing.tests.test_developer_ui",
     "home_automation": "testing.tests.test_home_automation",
     "module_loader": "testing.tests.test_module_loader",
     "tools": "testing.tests.test_tool_system",
@@ -65,13 +66,24 @@ def main():
     if args.suite == "all":
         suite = unittest.TestSuite()
         for module_name in SUITES.values():
-            suite.addTests(loader.loadTestsFromName(module_name))
+            for target in _suiteTargets(module_name):
+                suite.addTests(loader.loadTestsFromName(target))
     else:
-        suite = loader.loadTestsFromName(SUITES[args.suite])
+        suite = unittest.TestSuite()
+        for target in _suiteTargets(SUITES[args.suite]):
+            suite.addTests(loader.loadTestsFromName(target))
 
     runner = unittest.TextTestRunner(verbosity=args.verbosity)
     result = runner.run(suite)
     return 0 if result.wasSuccessful() else 1
+
+
+def _suiteTargets(value):
+    """Return one or more unittest load targets for a configured suite."""
+
+    if isinstance(value, (tuple, list)):
+        return tuple(value)
+    return (value,)
 
 
 if __name__ == "__main__":
