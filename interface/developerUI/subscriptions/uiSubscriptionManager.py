@@ -19,6 +19,12 @@ class UISubscriptionManager:
         "tts.finished",
         "voice.loop.completed",
         "voice.loop.failed",
+        "wakeword.listening.started",
+        "wakeword.listening.stopped",
+        "wakeword.detected",
+        "wakeword.cooldown.started",
+        "wakeword.cooldown.finished",
+        "wakeword.error",
         "session.created",
         "session.ended",
         "conversation.started",
@@ -146,6 +152,33 @@ class UISubscriptionManager:
                 self.state.updateBridge(bridge.snapshot())
         except Exception:
             pass
+
+        try:
+            wakeWord = getattr(self.context, "wakeWordManager", None)
+            if wakeWord is not None and hasattr(wakeWord, "snapshot"):
+                snapshot = wakeWord.snapshot()
+                session = snapshot.get("session", {}) or {}
+                detector = snapshot.get("detector", {}) or {}
+                listener = snapshot.get("listener", {}) or {}
+                audio = (listener.get("audio", {}) or {})
+                lastResult = (detector.get("lastResult", {}) or {})
+                self.state.updateWakeWordState(
+                    {
+                        "state": str(snapshot.get("state") or "Unknown").title(),
+                        "listening": bool(snapshot.get("listening")),
+                        "phrases": list(snapshot.get("validPhrases") or []),
+                        "confidence": float(snapshot.get("confidence") or 0.0),
+                        "lastDetection": str(session.get("lastActivationAt") or ""),
+                        "cooldown": bool(session.get("inCooldown")),
+                        "cooldownRemainingSeconds": float(session.get("cooldownRemainingSeconds") or 0.0),
+                        "microphone": "Open" if audio.get("active") else "Closed",
+                        "predictionTimeMs": float(lastResult.get("predictionTimeMs") or 0.0),
+                        "activationCount": int(session.get("activationCount") or 0),
+                    }
+                )
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Developer UI wake word refresh failed: {error}")
 
     @staticmethod
     def _loadStoredMemories(memory, limit=10):

@@ -18,6 +18,7 @@ from core.threading.scheduler.scheduler import Scheduler
 from core.eventBus.autonomy import AutonomousTaskManager
 from modules.llm.contextAwareness import ContextAwarenessManager
 from core.runtime.observability import ObservabilityManager
+from core.voice.wakeWord import WakeWordManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -56,6 +57,9 @@ def startup(context):
     if context.scheduler:
         context.scheduler.start()
 
+    if getattr(context, "wakeWordManager", None):
+        context.wakeWordManager.initialize()
+
 
 # --------------------------------------------------
 # Shutdown
@@ -81,6 +85,9 @@ def shutdown(context):
 
     if context.memoryManager and hasattr(context.memoryManager, "shutdown"):
         context.memoryManager.shutdown()
+
+    if getattr(context, "wakeWordManager", None):
+        context.wakeWordManager.shutdown()
 
     if context.voiceManager:
         context.voiceManager.shutdown()
@@ -142,6 +149,7 @@ def buildRuntimeContext():
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
     context.voiceManager = VoiceManager(context)
+    context.wakeWordManager = WakeWordManager(context)
 
     # Router
     context.interpreter = Interpreter(context)
