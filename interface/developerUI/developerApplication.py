@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from interface.developerUI.developerUI import DeveloperUI
 
 
@@ -19,6 +22,9 @@ class DeveloperApplication:
     @classmethod
     def fromRuntime(cls):
         """Build a full Aura runtime for standalone developer UI launch."""
+
+        projectRoot = Path(__file__).resolve().parents[2]
+        os.chdir(projectRoot)
 
         from main import buildRuntimeContext, startup
 

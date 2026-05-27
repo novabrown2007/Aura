@@ -27,6 +27,9 @@ class DeveloperUIState:
             "topScore": 0.0,
             "debugOutput": "",
             "storedCount": 0,
+            "managerAvailable": False,
+            "databasePath": "",
+            "refreshError": "",
             "items": [],
         }
         self.voice = {
@@ -89,7 +92,14 @@ class DeveloperUIState:
                     except Exception:
                         self.memory["topScore"] = 0.0
 
-    def updateMemoryStorage(self, items: list[dict[str, Any]], storedCount: int | None = None):
+    def updateMemoryStorage(
+        self,
+        items: list[dict[str, Any]],
+        storedCount: int | None = None,
+        managerAvailable: bool = True,
+        databasePath: str = "",
+        refreshError: str = "",
+    ):
         """Store a compact snapshot of persisted structured memories."""
 
         with self._lock:
@@ -107,6 +117,9 @@ class DeveloperUIState:
                 )
             self.memory["items"] = cleanedItems
             self.memory["storedCount"] = int(storedCount if storedCount is not None else len(cleanedItems))
+            self.memory["managerAvailable"] = bool(managerAvailable)
+            self.memory["databasePath"] = str(databasePath or "")
+            self.memory["refreshError"] = str(refreshError or "")
 
     def snapshot(self) -> ConsoleStateSnapshot:
         """Return a stable snapshot for rendering."""

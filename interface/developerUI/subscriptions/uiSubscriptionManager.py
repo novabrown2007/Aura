@@ -97,26 +97,48 @@ class UISubscriptionManager:
 
         try:
             memory = getattr(self.context, "memoryManager", None)
-            debugOutput = getattr(memory, "lastRetrievalDebug", "") if memory is not None else ""
-            if debugOutput:
-                self.state.updateMemoryDebug(debugOutput)
-            if memory is not None and hasattr(memory, "retrieveMemories"):
-                memories = memory.retrieveMemories(limit=10)
-                items = []
-                for item in memories:
-                    items.append(
-                        {
-                            "category": getattr(item, "category", ""),
-                            "title": getattr(item, "title", ""),
-                            "content": getattr(item, "content", ""),
-                            "importance": getattr(item, "importance", 0.0),
-                            "source": getattr(item, "source", ""),
-                            "updatedAt": getattr(item, "updatedAt", ""),
-                        }
+            if memory is None:
+                self.state.updateMemoryStorage([], storedCount=0, managerAvailable=False)
+            else:
+                debugOutput = getattr(memory, "lastRetrievalDebug", "") if memory is not None else ""
+                if debugOutput:
+                    self.state.updateMemoryDebug(debugOutput)
+                databasePath = ""
+                store = getattr(memory, "store", None)
+                if store is not None:
+                    databasePath = str(getattr(store, "databasePath", "") or "")
+                if hasattr(memory, "retrieveMemories"):
+                    memories = memory.retrieveMemories(limit=10)
+                    items = []
+                    for item in memories:
+                        items.append(
+                            {
+                                "category": getattr(item, "category", ""),
+                                "title": getattr(item, "title", ""),
+                                "content": getattr(item, "content", ""),
+                                "importance": getattr(item, "importance", 0.0),
+                                "source": getattr(item, "source", ""),
+                                "updatedAt": getattr(item, "updatedAt", ""),
+                            }
+                        )
+                    self.state.updateMemoryStorage(
+                        items,
+                        storedCount=len(items),
+                        managerAvailable=True,
+                        databasePath=databasePath,
                     )
-                self.state.updateMemoryStorage(items, storedCount=len(items))
-        except Exception:
-            pass
+                else:
+                    self.state.updateMemoryStorage(
+                        [],
+                        storedCount=0,
+                        managerAvailable=True,
+                        databasePath=databasePath,
+                        refreshError="Memory manager does not expose retrieveMemories().",
+                    )
+        except Exception as error:
+            self.state.updateMemoryStorage([], storedCount=0, managerAvailable=False, refreshError=str(error))
+            if self.logger:
+                self.logger.warning(f"Developer UI memory refresh failed: {error}")
 
         try:
             bridge = getattr(self.context, "bridgeStateCache", None)

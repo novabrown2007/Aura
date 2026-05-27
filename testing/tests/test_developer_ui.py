@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -195,6 +196,47 @@ class DeveloperUITests(unittest.TestCase):
                 self.assertNotIn("/.venv/python.exe", sdkHome, configPath.name)
                 self.assertNotIn("\\.venv\\python.exe", sdkHome, configPath.name)
                 self.assertIn(".venv/Scripts/python.exe", sdkHome.replace("\\", "/"), configPath.name)
+
+    def test_developer_application_runtime_launch_uses_project_root_working_directory(self):
+        """Standalone developer UI startup should resolve config and memory paths from repo root."""
+
+        projectRoot = Path(__file__).resolve().parents[2]
+        developerUiDir = projectRoot / "interface" / "developerUI"
+        script = "\n".join(
+            [
+                "from pathlib import Path",
+                "from interface.developerUI.developerApplication import DeveloperApplication",
+                "def fake_init(self, context, ownsRuntime=False):",
+                "    print('cwd=' + str(Path.cwd()))",
+                "    print('config=' + str(context.config.path.resolve()))",
+                "    print('memory=' + str(context.memoryManager.store.databasePath.resolve()))",
+                "    context.scheduler.stop()",
+                "    context.memoryManager.shutdown()",
+                "    context.llmManager.shutdown()",
+                "    context.database.close()",
+                "    context.logger.close()",
+                "    raise SystemExit(0)",
+                "DeveloperApplication.__init__ = fake_init",
+                "DeveloperApplication.fromRuntime()",
+            ]
+        )
+
+        env = dict(os.environ)
+        env.setdefault("GEMINI_API_KEY", "test-key")
+        env["PYTHONPATH"] = str(projectRoot)
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=developerUiDir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn(f"cwd={projectRoot}", result.stdout)
+        self.assertIn(f"config={projectRoot / 'config.yml'}", result.stdout)
+        self.assertIn(f"memory={projectRoot / 'aura_memory.sqlite3'}", result.stdout)
 
 
 if __name__ == "__main__":
