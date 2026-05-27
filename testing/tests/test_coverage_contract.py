@@ -7,6 +7,8 @@ import py_compile
 from pathlib import Path
 import unittest
 
+import run_tests
+
 
 class CoverageContractTests(unittest.TestCase):
     """Guard against adding source features or tools without test ownership."""
@@ -159,6 +161,15 @@ class CoverageContractTests(unittest.TestCase):
 
         self.assertEqual(failures, [])
 
+    def test_run_tests_all_matches_unittest_discovery(self):
+        """The full-suite runner should execute the same tests as unittest discovery."""
+
+        loader = unittest.TestLoader()
+        discovered = loader.discover("testing/tests")
+        configured = run_tests.buildSuite("all")
+
+        self.assertEqual(self._testIds(configured), self._testIds(discovered))
+
     def _productionPythonFiles(self) -> list[Path]:
         """Return non-test Python files owned by Aura source roots."""
 
@@ -201,6 +212,18 @@ class CoverageContractTests(unittest.TestCase):
         """Return a stable slash-separated path relative to the repository root."""
 
         return path.relative_to(self.root).as_posix()
+
+    @classmethod
+    def _testIds(cls, suite: unittest.TestSuite) -> list[str]:
+        """Flatten a unittest suite into sorted test IDs."""
+
+        ids = []
+        for item in suite:
+            if isinstance(item, unittest.TestSuite):
+                ids.extend(cls._testIds(item))
+            else:
+                ids.append(item.id())
+        return sorted(ids)
 
 
 if __name__ == "__main__":

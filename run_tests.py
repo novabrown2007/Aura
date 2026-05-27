@@ -13,13 +13,18 @@ SUITES = {
     "sqlite": "testing.tests.test_sqlite_database",
     "datetime_utils": "testing.tests.test_datetime_utils",
     "autonomous_tasks": "testing.tests.test_autonomous_tasks",
+    "automation_composer": "testing.tests.test_automation_composer",
+    "threading_scheduler": "testing.tests.test_threading_scheduler",
     "context_awareness": "testing.tests.test_context_awareness",
     "observability": "testing.tests.test_observability",
     "events": "testing.tests.test_events",
+    "bridge_protocol": "testing.tests.test_bridge_protocol",
+    "coverage_contract": "testing.tests.test_coverage_contract",
     "notifications": "testing.tests.test_notifications",
     "system": "testing.tests.test_system",
     "short_memory": "testing.tests.test_conversation_history",
     "long_memory": "testing.tests.test_memory_manager",
+    "memory_retrieval": "testing.tests.test_memory_retrieval",
     "calendar": "testing.tests.test_calendar",
     "interfaces": ("testing.tests.interfaceTests", "testing.tests.test_developer_ui"),
     "developer_ui": "testing.tests.test_developer_ui",
@@ -61,21 +66,24 @@ def parse_args():
 def main():
     """Run the primary entrypoint logic for this script/module."""
     args = parse_args()
-    loader = unittest.TestLoader()
-
-    if args.suite == "all":
-        suite = unittest.TestSuite()
-        for module_name in SUITES.values():
-            for target in _suiteTargets(module_name):
-                suite.addTests(loader.loadTestsFromName(target))
-    else:
-        suite = unittest.TestSuite()
-        for target in _suiteTargets(SUITES[args.suite]):
-            suite.addTests(loader.loadTestsFromName(target))
+    suite = buildSuite(args.suite)
 
     runner = unittest.TextTestRunner(verbosity=args.verbosity)
     result = runner.run(suite)
     return 0 if result.wasSuccessful() else 1
+
+
+def buildSuite(suiteName: str):
+    """Build a unittest suite using discovery for all tests or a named target."""
+
+    loader = unittest.TestLoader()
+    if suiteName == "all":
+        return loader.discover("testing/tests")
+
+    suite = unittest.TestSuite()
+    for target in _suiteTargets(SUITES[suiteName]):
+        suite.addTests(loader.loadTestsFromName(target))
+    return suite
 
 
 def _suiteTargets(value):
