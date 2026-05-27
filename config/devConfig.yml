@@ -86,7 +86,7 @@ voice:
   PTT:
     # Whether held push-to-talk activation is enabled for manual voice turns.
     # Valid values: true, false.
-    pushToTalkEnabled: false
+    pushToTalkEnabled: true
     # Push-to-talk hotkey label for developer/manual flows.
     # Valid value: key name string. The current dev console uses enter.
     pushToTalkHotkey: enter
@@ -97,7 +97,7 @@ voice:
   wakeWord:
     # Whether passive local wake word detection is enabled.
     # Valid values: true, false.
-    wakeWordEnabled: true
+    wakeWordEnabled: false
     # Active/default wake phrase used in status displays and fallback matching.
     # Valid value: one phrase string. It should also appear in wakeWordPhrases in config/config.yml.
     wakeWordPhrases: ["Aura", "Hey Aura"]
