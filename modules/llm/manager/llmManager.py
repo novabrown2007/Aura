@@ -37,7 +37,7 @@ class LLMManager:
         self.providers: dict[str, LLMProvider] = {}
         self.activeProviderName = "gemini"
         self.preferredProviderName = "gemini"
-        self.fallbackProviderName = "ollama"
+        self.fallbackProviderName = ""
         self.offlineMode = False
         self.offlineReason = ""
         self.offlineUntil = 0.0
@@ -59,7 +59,9 @@ class LLMManager:
         self.activeProviderName = self._getConfigValue(config, "llm.activeProvider", None)
         self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
         self.preferredProviderName = self.activeProviderName
-        self.fallbackProviderName = self._getConfigValue(config, "llm.fallbackProvider", "ollama")
+        self.fallbackProviderName = self._normalizeProviderName(
+            self._getConfigValue(config, "llm.fallbackProvider", "")
+        )
 
         self.providers = self._createDefaultProviders()
 
@@ -69,9 +71,15 @@ class LLMManager:
         self.offlineMode = not bool(self.providers.get("gemini") and self.providers["gemini"].initialized)
         if self.offlineMode:
             self.offlineReason = "Gemini provider unavailable at startup."
-            self.activeProviderName = self.fallbackProviderName
+            if self._hasFallbackProvider():
+                self.activeProviderName = self.fallbackProviderName
+            else:
+                self.activeProviderName = self.preferredProviderName
             if self.logger:
-                self.logger.info("Gemini provider unavailable. Using local Ollama in offline mode.")
+                if self._hasFallbackProvider():
+                    self.logger.info(f"Gemini provider unavailable. Using {self.fallbackProviderName} in offline mode.")
+                else:
+                    self.logger.info("Gemini provider unavailable. No conversational fallback provider configured.")
 
         if self.context is not None:
             self.context.llmManager = self
@@ -256,11 +264,14 @@ class LLMManager:
 
         if self.offlineMode:
             if self._fallbackCooldownExpired():
-                return [self.preferredProviderName, self.fallbackProviderName]
-            return [self.fallbackProviderName]
+                providerOrder = [self.preferredProviderName]
+                if self._hasFallbackProvider():
+                    providerOrder.append(self.fallbackProviderName)
+                return providerOrder
+            return [self.fallbackProviderName] if self._hasFallbackProvider() else []
 
         providerOrder = [self.activeProviderName]
-        if self.fallbackProviderName not in providerOrder:
+        if self._hasFallbackProvider() and self.fallbackProviderName not in providerOrder:
             providerOrder.append(self.fallbackProviderName)
         return providerOrder
 
@@ -296,9 +307,15 @@ class LLMManager:
         self.offlineMode = True
         self.offlineReason = str(error or "Primary provider unavailable.")
         self.offlineUntil = time.time() + self._fallbackRetryDelay(error)
-        self.activeProviderName = self.fallbackProviderName
+        if self._hasFallbackProvider():
+            self.activeProviderName = self.fallbackProviderName
+        else:
+            self.activeProviderName = self.preferredProviderName
         if self.logger:
-            self.logger.warning(f"Gemini became unavailable. Falling back to local Ollama: {error}")
+            if self._hasFallbackProvider():
+                self.logger.warning(f"Gemini became unavailable. Falling back to {self.fallbackProviderName}: {error}")
+            else:
+                self.logger.warning(f"Gemini became unavailable. No conversational fallback configured: {error}")
 
     def _restorePreferredProvider(self):
         """Mark the preferred provider as active after a successful retry."""
@@ -315,6 +332,11 @@ class LLMManager:
         """Return whether it is time to retry the preferred provider."""
 
         return time.time() >= float(self.offlineUntil or 0.0)
+
+    def _hasFallbackProvider(self) -> bool:
+        """Return whether routing may use a configured fallback provider."""
+
+        return bool(self.fallbackProviderName and self.fallbackProviderName in self.providers)
 
     @staticmethod
     def _fallbackRetryDelay(error: str | None) -> float:
@@ -383,3 +405,12 @@ class LLMManager:
         if config is None:
             return default
         return config.get(key, default)
+
+    @staticmethod
+    def _normalizeProviderName(providerName) -> str:
+        """Normalize disabled provider config values to an empty provider name."""
+
+        name = str(providerName or "").strip().lower()
+        if name in {"", "none", "disabled", "off", "false", "null"}:
+            return ""
+        return name

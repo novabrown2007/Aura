@@ -99,6 +99,13 @@ class LLMHandler(AuraModule):
             self._speakResponse(cleaned)
             return cleaned
 
+        if self._isOfflineMode() and not self._canAttemptStructuredOutput() and not self._hasConversationFallback():
+            cleaned = self._providerFailureMessage(self._offlineReason())
+            self._logConversation(userInput, cleaned)
+            self._emit("response.generated", {"text": cleaned})
+            self._speakResponse(cleaned)
+            return cleaned
+
         systemPrompt = self._buildSystemPrompt(userInput)
         conversationHistory = self._getConversationHistory()
         if self._shouldUseIntentPipeline(userInput):
@@ -279,6 +286,24 @@ Rules:
             return bool(self.manager.canUseStructuredOutput())
         return not self._isOfflineMode()
 
+    def _hasConversationFallback(self) -> bool:
+        """Return whether offline mode has a configured provider for normal chat."""
+
+        fallbackName = str(getattr(self.manager, "fallbackProviderName", "") or "").strip()
+        if not fallbackName:
+            return False
+        providers = getattr(self.manager, "providers", {}) or {}
+        provider = providers.get(fallbackName)
+        return bool(provider is not None and getattr(provider, "initialized", False))
+
+    def _offlineReason(self) -> str:
+        """Return the current offline/fallback reason for user-facing errors."""
+
+        if hasattr(self.manager, "getStatus"):
+            status = self.manager.getStatus()
+            return status.get("offlineReason") or "Gemini is temporarily unavailable."
+        return str(getattr(self.manager, "offlineReason", "") or "Gemini is temporarily unavailable.")
+
     def _getConversationHistory(self) -> list:
         """Return recent history when enabled."""
 
@@ -373,14 +398,12 @@ Rules:
             parts.append(f"your name is {self._nameFromMemory(memoryText) or 'Nova'}")
         if asksBirthDate:
             birthDate = self._birthDateFromText(memoryText)
-            if birthDate is None:
-                return None
-            parts.append(f"you were born on {self._formatDateWithOrdinal(birthDate)}")
+            if birthDate is not None:
+                parts.append(f"you were born on {self._formatDateWithOrdinal(birthDate)}")
         if asksAge:
             age = self._ageFromMemory(memoryText)
-            if age is None:
-                return None
-            parts.append(f"you are {age} years old")
+            if age is not None:
+                parts.append(f"you are {age} years old")
         if asksSexuality:
             sexuality = self._sexualityFromMemory(memoryText)
             if sexuality:
@@ -395,10 +418,48 @@ Rules:
                 parts.append(f"your relationship orientation is {relationshipOrientation}")
 
         if not parts:
-            return None
+            return self._unknownProfileReply(
+                asksAge=asksAge,
+                asksName=asksName,
+                asksBirthDate=asksBirthDate,
+                asksSexuality=asksSexuality,
+                asksGenderIdentity=asksGenderIdentity,
+                asksRelationshipOrientation=asksRelationshipOrientation,
+            )
         if len(parts) == 1:
             return parts[0][0].upper() + parts[0][1:] + "."
         return "You asked for profile info: " + "; ".join(parts) + "."
+
+    @staticmethod
+    def _unknownProfileReply(
+        asksAge: bool = False,
+        asksName: bool = False,
+        asksBirthDate: bool = False,
+        asksSexuality: bool = False,
+        asksGenderIdentity: bool = False,
+        asksRelationshipOrientation: bool = False,
+    ) -> str:
+        """Return a deterministic response when a requested profile fact is absent."""
+
+        labels = []
+        if asksName:
+            labels.append("name")
+        if asksAge:
+            labels.append("age")
+        if asksBirthDate:
+            labels.append("birthday")
+        if asksSexuality:
+            labels.append("sexual orientation")
+        if asksGenderIdentity:
+            labels.append("gender identity")
+        if asksRelationshipOrientation:
+            labels.append("relationship orientation")
+
+        if not labels:
+            return "I don't have that profile detail saved yet."
+        if len(labels) == 1:
+            return f"I don't have your {labels[0]} saved yet."
+        return "I don't have those profile details saved yet: " + ", ".join(labels) + "."
 
     def _tryHandleProfileStatement(self, userInput: str) -> str | None:
         """Persist explicit profile statements without asking a provider to infer them."""

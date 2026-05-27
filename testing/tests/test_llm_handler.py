@@ -309,6 +309,38 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertEqual(manager.activeProviderName, "ollama")
         self.assertIn("quota", manager.offlineReason)
 
+    def test_manager_can_fail_closed_without_conversational_fallback(self):
+        """A disabled fallback should not route normal chat to Ollama."""
+
+        context = make_llm_context()
+        manager = LLMManager(context)
+        gemini = StubProvider(
+            "gemini",
+            LLMResponse(provider="gemini", success=False, error="429 RESOURCE_EXHAUSTED quota exceeded"),
+        )
+        ollama = StubProvider(
+            "ollama",
+            LLMResponse(provider="ollama", success=True, text="Hallucinated fallback answer"),
+        )
+        manager.providers["gemini"] = gemini
+        manager.providers["ollama"] = ollama
+        manager.activeProviderName = "gemini"
+        manager.preferredProviderName = "gemini"
+        manager.fallbackProviderName = ""
+        manager.offlineMode = False
+
+        first = manager.generateResponse("system", "Tell me something useful.")
+        second = manager.generateResponse("system", "Tell me something else.")
+
+        self.assertFalse(first.success)
+        self.assertEqual(first.provider, "gemini")
+        self.assertFalse(second.success)
+        self.assertEqual(second.error, "No LLM provider available.")
+        self.assertEqual(gemini.plainCalls, 1)
+        self.assertEqual(ollama.plainCalls, 0)
+        self.assertTrue(manager.offlineMode)
+        self.assertEqual(manager.activeProviderName, "gemini")
+
     def test_manager_does_not_send_structured_requests_to_untrusted_fallback(self):
         """Quota failures should not create extra structured requests to Ollama."""
 
@@ -533,7 +565,7 @@ class LLMHandlerTests(unittest.TestCase):
 
         context = make_llm_context()
         context.llmManager = SimpleNamespace(
-            offlineMode=True,
+            offlineMode=False,
             generateResponse=lambda *args, **kwargs: LLMResponse(
                 provider="test",
                 success=True,
@@ -557,7 +589,7 @@ class LLMHandlerTests(unittest.TestCase):
 
         context = make_llm_context()
         context.llmManager = SimpleNamespace(
-            offlineMode=True,
+            offlineMode=False,
             generateResponse=lambda *args, **kwargs: LLMResponse(
                 provider="test",
                 success=True,
@@ -720,7 +752,7 @@ class LLMHandlerTests(unittest.TestCase):
 
         context = make_llm_context()
         context.llmManager = SimpleNamespace(
-            offlineMode=True,
+            offlineMode=False,
             generateResponse=lambda *args, **kwargs: LLMResponse(
                 provider="test",
                 success=True,
@@ -732,6 +764,110 @@ class LLMHandlerTests(unittest.TestCase):
         result = handler.generateResponse("Tell me something useful.")
 
         self.assertEqual(result, "Hello Nova.")
+
+    def test_offline_without_fallback_does_not_call_ollama_for_conversation(self):
+        """When no fallback is configured, Aura should fail closed instead of asking Ollama."""
+
+        context = make_llm_context()
+        calls = []
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            fallbackProviderName="",
+            providers={},
+            canUseStructuredOutput=lambda: False,
+            getStatus=lambda: {
+                "activeModel": "gemini-2.5-flash",
+                "offlineReason": "429 RESOURCE_EXHAUSTED quota exceeded",
+            },
+            generateResponse=lambda *args, **kwargs: calls.append(args) or LLMResponse(
+                provider="ollama",
+                success=True,
+                text="Bad fallback answer.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Tell me something useful.")
+
+        self.assertIn("I can't reach an available language provider", result)
+        self.assertIn("429 RESOURCE_EXHAUSTED", result)
+        self.assertEqual(calls, [])
+
+    def test_online_provider_prompt_receives_injected_memory_context(self):
+        """All normal provider calls should receive Aura's memory-injected prompt."""
+
+        context = make_llm_context()
+        capturedPrompts = []
+
+        def injectPrompt(prompt, userInput, conversationHistory=None):
+            return f"{prompt}\n\nRelevant Context:\n- Nova is 19 years old.", {"injected": 1}
+
+        context.memoryManager = SimpleNamespace(injectPrompt=injectPrompt)
+        context.llmManager = SimpleNamespace(
+            offlineMode=False,
+            generateResponse=lambda systemPrompt, *_args, **_kwargs: capturedPrompts.append(systemPrompt)
+            or LLMResponse(provider="gemini", success=True, text="Memory-aware response."),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Tell me something useful.")
+
+        self.assertEqual(result, "Memory-aware response.")
+        self.assertEqual(len(capturedPrompts), 1)
+        self.assertIn("Relevant Context:", capturedPrompts[0])
+        self.assertIn("Nova is 19 years old.", capturedPrompts[0])
+
+    def test_offline_fallback_prompt_receives_injected_memory_context(self):
+        """Configured fallback providers should receive the same memory context boundary."""
+
+        context = make_llm_context()
+        capturedPrompts = []
+
+        def injectPrompt(prompt, userInput, conversationHistory=None):
+            return f"{prompt}\n\nRelevant Context:\n- Nova's name is Nova.", {"injected": 1}
+
+        context.memoryManager = SimpleNamespace(injectPrompt=injectPrompt)
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            fallbackProviderName="ollama",
+            providers={"ollama": SimpleNamespace(initialized=True)},
+            canUseStructuredOutput=lambda: False,
+            generateResponse=lambda systemPrompt, *_args, **_kwargs: capturedPrompts.append(systemPrompt)
+            or LLMResponse(provider="ollama", success=True, text="Memory-aware fallback response."),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("Tell me something useful.")
+
+        self.assertEqual(result, "Memory-aware fallback response.")
+        self.assertEqual(len(capturedPrompts), 1)
+        self.assertIn("running in offline mode", capturedPrompts[0])
+        self.assertIn("Relevant Context:", capturedPrompts[0])
+        self.assertIn("Nova's name is Nova.", capturedPrompts[0])
+
+    def test_unknown_profile_question_does_not_fall_through_to_fallback(self):
+        """Missing profile facts should be reported locally instead of guessed by fallback."""
+
+        context = make_llm_context()
+        calls = []
+        context.memoryManager.memory = {}
+        context.llmManager = SimpleNamespace(
+            offlineMode=True,
+            fallbackProviderName="ollama",
+            providers={"ollama": SimpleNamespace(initialized=True)},
+            canUseStructuredOutput=lambda: False,
+            generateResponse=lambda *args, **kwargs: calls.append(args) or LLMResponse(
+                provider="ollama",
+                success=True,
+                text="You are 11.",
+            ),
+        )
+        handler = LLMHandler(context)
+
+        result = handler.generateResponse("And how old am I?")
+
+        self.assertEqual(result, "I don't have your age saved yet.")
+        self.assertEqual(calls, [])
 
     def test_offline_tool_request_reports_tool_path_unavailable(self):
         """Offline fallback should not let Ollama claim Aura cannot control devices."""

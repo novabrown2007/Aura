@@ -1,6 +1,8 @@
 llm:
+  # gemini | ollama
   activeProvider: gemini
-  fallbackProvider: ollama
+  # gemini | ollama | none
+  fallbackProvider: none
   retryCount: 2
   timeout: 30
 
