@@ -77,24 +77,14 @@ Voice input is local-first and uses Faster-Whisper with a cached
 `small.en` model on CPU by default. Voice output uses Piper with a cached
 local ONNX voice and Windows `winsound` playback.
 
-Configuration is available under `voice` in `config.yml`:
+User-facing voice configuration is available under `voice` in
+`config/config.yml`. Backend defaults for capture models, sample rates, and
+other operational tuning live in `config/devConfig.yml`:
 
 ```yaml
 voice:
-  enabled: false
-  model: small.en
-  device: cpu
-  computeType: int8
-  sampleRate: 16000
-  voiceEnabled: true
-  voiceModelPath: en_US-lessac-medium.onnx
-  voiceOutputDirectory: temp/voice
-  voicePlaybackEnabled: true
-  voiceSampleRate: 22050
-  pushToTalkEnabled: false
-  pushToTalkHotkey: enter
-  pushToTalkAutoSpeak: true
-  pushToTalkTempAudioDirectory: temp/push_to_talk
+  wakeWord:
+    wakeWordPhrases: ["Aura", "Hey Aura", "Aura Wake"]
 ```
 
 Example usage:
@@ -178,7 +168,9 @@ Supported backend operations include:
 - bridge notification list/queue
 - local start bridge and start hub acknowledgements
 
-Configuration can be supplied through `config.yml` under `homeAutomationBridge`:
+Connection configuration can be supplied through `config/config.yml` under
+`homeAutomationBridge`. Protocol paths, refresh intervals, and other backend
+defaults live in `config/devConfig.yml`:
 
 ```yaml
 homeAutomationBridge:
@@ -516,9 +508,10 @@ The generated executable is written to:
 dist/AuraWindows.exe
 ```
 
-Run the executable from the project root, or copy `config.yml`, `.env`, and any
-local SQLite database file next to the executable before distributing it. If
-`config.yml` is missing, Aura creates a default config on first startup.
+Run the executable from the project root, or copy `config/config.yml`,
+`config/devConfig.yml`, `.env`, and any local SQLite database file next to the
+executable before distributing it. If either config file is missing, Aura creates
+a default copy on first startup.
 
 If the app needs the icon embedded, add:
 
@@ -562,9 +555,10 @@ The generated executable is written to:
 dist/AuraWeb.exe
 ```
 
-Run the executable from the project root, or copy `config.yml`, `.env`, and any
-local SQLite database file next to the executable before distributing it. If
-`config.yml` is missing, Aura creates a default config on first startup.
+Run the executable from the project root, or copy `config/config.yml`,
+`config/devConfig.yml`, `.env`, and any local SQLite database file next to the
+executable before distributing it. If either config file is missing, Aura creates
+a default copy on first startup.
 
 ### Android `.apk`
 
@@ -631,10 +625,16 @@ are written there for that run.
 
 ## Configuration
 
-Primary runtime config file:
+Primary user-facing runtime config file:
 
 ```text
-config.yml
+config/config.yml
+```
+
+Backend/developer runtime defaults:
+
+```text
+config/devConfig.yml
 ```
 
 ## Testing

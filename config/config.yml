@@ -1,0 +1,59 @@
+# Aura user configuration.
+#
+# This file is for values a normal user or deployer is expected to edit:
+# API keys, database credentials, wake phrases, and local service addresses.
+# Backend tuning and developer/runtime defaults live in config/devConfig.yml.
+
+llm:
+  # Ollama local model server settings.
+  ollama:
+    # URL for the Ollama generate API.
+    # Valid value: an HTTP/HTTPS URL, or CHANGE_ME to read OLLAMA_ENDPOINT from .env.
+    endpoint: CHANGE_ME
+
+  # Gemini cloud model credentials.
+  gemini:
+    # Gemini API key.
+    # Valid value: an API key string, or CHANGE_ME to read GEMINI_API_KEY from .env.
+    api_secret: CHANGE_ME
+
+database:
+  # Database host name or IP address.
+  # Valid value: hostname, IPv4/IPv6 address, or localhost.
+  host: localhost
+
+  # Database port.
+  # Valid value: integer TCP port. MySQL default is 3306.
+  port: 3306
+
+  # Database/schema name Aura should use.
+  # Valid value: database name string.
+  name: aura
+
+  # Database username.
+  # Valid value: username string, or CHANGE_ME to use environment/config fallbacks where supported.
+  user: CHANGE_ME
+
+  # Database password.
+  # Valid value: password string, or CHANGE_ME to use environment/config fallbacks where supported.
+  password: CHANGE_ME
+
+voice:
+  wakeWord:
+    # User-facing wake words Aura should accept.
+    # Valid value: YAML list of phrases. Human-readable phrases are normalized for model lookup.
+    # Examples: ["Aura"], ["Hey Aura"], ["Aura", "Hey Aura", "Aura Wake"]
+    wakeWordPhrases: ["Aura", "Hey Aura", "Aura Wake"]
+
+homeAutomationBridge:
+  # Bridge host name or IP address for the home automation bridge service.
+  # Valid value: hostname, IPv4/IPv6 address, or localhost.
+  host: 127.0.0.1
+
+  # Bridge TCP port.
+  # Valid value: integer TCP port.
+  port: 8080
+
+  # Whether to connect to the bridge using HTTPS.
+  # Valid values: true, false.
+  ssl: false
