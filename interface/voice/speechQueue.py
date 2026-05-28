@@ -17,13 +17,14 @@ class SpeechQueue:
         self._queue: Queue[str] = Queue()
         self._lock = Lock()
         self._processing = False
+        self._cancelRequested = False
         self.lastResults: list[Any] = []
 
     def enqueue(self, text: str):
         """Add text to the queue and process it immediately when idle."""
 
         cleaned = str(text or "").strip()
-        if not cleaned:
+        if not cleaned or self._cancelRequested:
             return []
 
         self._queue.put(cleaned)
@@ -46,6 +47,8 @@ class SpeechQueue:
                     text = self._queue.get_nowait()
                 except Empty:
                     break
+                if self._cancelRequested:
+                    break
 
                 if self.textToSpeech is None:
                     if self.logger:
@@ -59,6 +62,7 @@ class SpeechQueue:
         finally:
             with self._lock:
                 self._processing = False
+                self._cancelRequested = False
             self.lastResults = results
 
         return results
@@ -73,3 +77,12 @@ class SpeechQueue:
                 break
         if self.logger:
             self.logger.info("Speech queue cleared.")
+
+    def cancel(self):
+        """Cancel queued speech and active playback cooperatively."""
+
+        with self._lock:
+            self._cancelRequested = True
+        self.clearQueue()
+        if self.textToSpeech is not None and hasattr(self.textToSpeech, "cancel"):
+            self.textToSpeech.cancel()

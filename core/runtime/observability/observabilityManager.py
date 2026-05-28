@@ -53,6 +53,7 @@ class ObservabilityManager:
             "modules": self.getModuleHealth(),
             "traces": self.getTraces(),
             "scheduler": self.getSchedulerState(),
+            "interruptions": self.getInterruptionState(),
         }
 
     def getThreads(self):
@@ -260,6 +261,21 @@ class ObservabilityManager:
             "tick_interval": getattr(scheduler, "tick_interval", None),
             "schedules": schedules,
         }
+
+    def getInterruptionState(self):
+        """Return global interruption and cancellation diagnostics."""
+
+        manager = getattr(self.context, "interruptionManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            snapshot = manager.snapshot()
+            snapshot["available"] = True
+            return snapshot
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Interruption snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
 
     def _now(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")

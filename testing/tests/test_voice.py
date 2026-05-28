@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import numpy as np
 
+from core.interruption import InterruptionManager
 from interface.voice import AudioPlayer, PushToTalkManager, SpeechQueue, SpeechToText, TextToSpeech, VoiceManager, VoiceRecorder
 from interface.voice.models import SpeechResult, TranscriptionResult
 from testing.tests.support.fakes import make_context
@@ -526,6 +527,28 @@ class VoiceTests(unittest.TestCase):
         self.assertIn("voice.speech.failed", emitted)
         self.assertIn("voice.loop.completed", emitted)
         self.assertNotIn("voice.loop.failed", emitted)
+
+    def test_push_to_talk_interruption_command_skips_normal_pipeline(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="Stop.", success=True, language="en")
+        )
+        self.context.interruptionManager = InterruptionManager(self.context).initialize(self.context)
+        manager.routeTextToAura = lambda _text: self.fail("Interruption command should not route to Aura text pipeline.")
+        manager.speakResponse = lambda _text: self.fail("Interruption command should not trigger TTS response.")
+
+        self.assertTrue(manager.startPushToTalk())
+        result = manager.stopPushToTalk()
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.transcribedText, "Stop.")
+        self.assertEqual(result.assistantResponse, "")
+        emitted = [name for name, _ in self.context.eventManager.events]
+        self.assertIn("interruption.requested", emitted)
+        self.assertIn("interruption.completed", emitted)
+        self.assertNotIn("conversation.message.received", emitted)
+        self.assertNotIn("tts.started", emitted)
 
 
 if __name__ == "__main__":
