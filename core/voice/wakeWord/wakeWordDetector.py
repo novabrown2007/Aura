@@ -33,18 +33,20 @@ class WakeWordDetector:
         if self.initialized and self.model is not None:
             return self.model
         try:
-            from openwakeword.model import Model
-
             modelNames = self._wakeWordModels()
             missingCustomModels = self._missingCustomModelPhrases()
             if missingCustomModels:
                 self.modelReadinessWarning = (
                     "OpenWakeWord needs local custom model files for configured wake phrases: "
                     f"{', '.join(missingCustomModels)}. Add .onnx/.tflite models to "
-                    "core/voice/wakeWord/models or set voice.wakeWord.wakeWordModelPath."
+                    "core/voice/wakeWord/models or set voice.alwaysActive.wakeWordModelPath."
                 )
                 if self.logger:
                     self.logger.warning(self.modelReadinessWarning)
+                raise RuntimeError(self.modelReadinessWarning)
+
+            from openwakeword.model import Model
+
             kwargs = {"inference_framework": self.config.wakeWordInferenceFramework}
             if modelNames:
                 kwargs["wakeword_models"] = modelNames

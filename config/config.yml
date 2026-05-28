@@ -41,7 +41,7 @@ voice:
     # Valid values: true, false.
     enabled: true
     # User-facing wake words Aura should accept.
-    activationPhrases: [ "Aura", "Hey Aura"]
+    activationPhrases: ["Aura", "Hey Aura"]
 
 # Connection credentials for the Home Automation Bridge
 homeAutomationBridge:

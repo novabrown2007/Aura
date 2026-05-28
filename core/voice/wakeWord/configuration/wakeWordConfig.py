@@ -39,11 +39,50 @@ class WakeWordConfig:
                 return default
             return result
 
-        def nested_or_flat(name: str, default: Any = None):
-            return value(name, value(f"voice.wakeWord.{name}", value(f"wakeWord.{name}", default)))
+        def first_value(keys: list[str], default: Any = None):
+            for key in keys:
+                result = value(key, None)
+                if result not in (None, ""):
+                    return result
+            return default
 
-        configuredPhrases = _string_list(nested_or_flat("wakeWordPhrases", []))
-        activePhrase = str(nested_or_flat("wakeWordPhrase", "")).strip()
+        def nested_or_flat(name: str, default: Any = None):
+            return first_value(
+                [
+                    f"voice.alwaysActive.{name}",
+                    f"voice.wakeWord.{name}",
+                    f"wakeWord.{name}",
+                    name,
+                ],
+                default,
+            )
+
+        configuredPhrases = _string_list(
+            first_value(
+                [
+                    "voice.alwaysActive.activationPhrases",
+                    "voice.alwaysActive.wakeWordPhrases",
+                    "voice.wakeWord.activationPhrases",
+                    "voice.wakeWord.wakeWordPhrases",
+                    "activationPhrases",
+                    "wakeWordPhrases",
+                ],
+                [],
+            )
+        )
+        activePhrase = str(
+            first_value(
+                [
+                    "voice.alwaysActive.activationPhrase",
+                    "voice.alwaysActive.wakeWordPhrase",
+                    "voice.wakeWord.activationPhrase",
+                    "voice.wakeWord.wakeWordPhrase",
+                    "activationPhrase",
+                    "wakeWordPhrase",
+                ],
+                "",
+            )
+        ).strip()
         if not activePhrase and configuredPhrases:
             activePhrase = configuredPhrases[0]
         if not activePhrase:
@@ -54,7 +93,21 @@ class WakeWordConfig:
             configuredPhrases.insert(0, activePhrase)
 
         return cls(
-            wakeWordEnabled=_bool(nested_or_flat("enabled", True), True),
+            wakeWordEnabled=_bool(
+                first_value(
+                    [
+                        "voice.alwaysActive.enabled",
+                        "voice.alwaysActive.wakeWordEnabled",
+                        "voice.wakeWord.enabled",
+                        "voice.wakeWord.wakeWordEnabled",
+                        "alwaysActive.enabled",
+                        "wakeWordEnabled",
+                        "enabled",
+                    ],
+                    True,
+                ),
+                True,
+            ),
             wakeWordPhrase=activePhrase,
             wakeWordPhrases=configuredPhrases,
             wakeWordSensitivity=_float(nested_or_flat("wakeWordSensitivity", 0.5), 0.5),

@@ -158,25 +158,27 @@ class VoiceTests(unittest.TestCase):
     def setUp(self):
         self.context = make_context()
         self.context.config._data["voice"] = {
-            "enabled": True,
-            "model": "small.en",
-            "device": "cpu",
-            "computeType": "int8",
-            "sampleRate": 16000,
-            "voiceEnabled": True,
-            "voiceModelPath": "en_US-lessac-medium.onnx",
-            "voiceOutputDirectory": "temp/voice",
-            "voicePlaybackEnabled": True,
-            "voiceSampleRate": 22050,
-            "enabled": True,
-            "pushToTalkHotkey": "enter",
-            "pushToTalkAutoSpeak": True,
-            "pushToTalkTempAudioDirectory": "temp/push_to_talk",
+            "STT": {
+                "enabled": True,
+                "model": "small.en",
+                "device": "cpu",
+                "computeType": "int8",
+                "sampleRate": 16000,
+            },
+            "TTS": {
+                "voiceEnabled": True,
+                "voiceModelPath": "en_US-lessac-medium.onnx",
+                "voiceOutputDirectory": "temp/voice",
+                "voicePlaybackEnabled": True,
+                "voiceSampleRate": 22050,
+            },
+            "pushToTalk": {
+                "enabled": True,
+                "pushToTalkHotkey": "enter",
+                "pushToTalkAutoSpeak": True,
+                "pushToTalkTempAudioDirectory": "temp/push_to_talk",
+            },
         }
-        self.context.config._data["enabled"] = True
-        self.context.config._data["pushToTalkHotkey"] = "enter"
-        self.context.config._data["pushToTalkAutoSpeak"] = True
-        self.context.config._data["pushToTalkTempAudioDirectory"] = "temp/push_to_talk"
         self.context.eventManager = RecordingEventManager()
 
     def _create_wav_file(self, frames=1600, sample_rate=16000):
@@ -388,7 +390,7 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(manager.lastAssistantResponse, "routed:turn on the lights")
 
     def test_voice_manager_returns_clean_failure_when_disabled(self):
-        self.context.config._data["voice"]["enabled"] = False
+        self.context.config._data["voice"]["STT"]["enabled"] = False
         manager = VoiceManager(self.context)
 
         result = manager.processVoiceInput(recordSeconds=0)

@@ -20,7 +20,7 @@ class VoiceManager:
         self.context = context
         self.logger = context.logger.getChild("Voice") if context and getattr(context, "logger", None) else None
 
-        self.inputEnabled = self._getBoolConfig("voice.enabled", False)
+        self.inputEnabled = self._getBoolConfig("voice.STT.enabled", self._getBoolConfig("voice.enabled", False))
         self.inputModelName = self._getConfigValue("voice.model", "small.en")
         self.inputDevice = self._getConfigValue("voice.device", "cpu")
         self.inputComputeType = self._getConfigValue("voice.computeType", "int8")
@@ -31,7 +31,10 @@ class VoiceManager:
         self.outputDirectory = self._getConfigValue("voice.voiceOutputDirectory", self._getConfigValue("voiceOutputDirectory", "temp/voice"))
         self.playbackEnabled = self._getBoolConfig("voice.voicePlaybackEnabled", self._getBoolConfig("voicePlaybackEnabled", True))
         self.outputSampleRate = int(self._getConfigValue("voice.voiceSampleRate", self._getConfigValue("voiceSampleRate", 22050)))
-        self.pushToTalkEnabled = self._getBoolConfig("enabled", self._getBoolConfig("voice.enabled", False))
+        self.pushToTalkEnabled = self._getBoolConfig(
+            "voice.pushToTalk.enabled",
+            self._getBoolConfig("voice.pushToTalkEnabled", self._getBoolConfig("voice.PTT.pushToTalkEnabled", False)),
+        )
         self.pushToTalkTempAudioDirectory = self._getConfigValue(
             "pushToTalkTempAudioDirectory",
             self._getConfigValue("voice.pushToTalkTempAudioDirectory", "temp/push_to_talk"),

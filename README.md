@@ -83,8 +83,11 @@ other operational tuning live in `config/devConfig.yml`:
 
 ```yaml
 voice:
-  wakeWord:
-    wakeWordPhrases: ["Aura", "Hey Aura", "Aura Wake"]
+  pushToTalk:
+    enabled: true
+  alwaysActive:
+    enabled: true
+    activationPhrases: ["Aura", "Hey Aura"]
 ```
 
 Example usage:
@@ -102,14 +105,31 @@ Development push-to-talk loop:
 python scripts/run_push_to_talk.py
 ```
 
-Set `voice.enabled` and `voice.pushToTalkEnabled` to `true`, then press Enter
+Set `voice.pushToTalk.enabled` to `true`, then press Enter
 to start microphone capture and Enter again to stop. Aura transcribes with
 Faster-Whisper, sends the text through the existing conversation pipeline,
 speaks the response with Piper when `pushToTalkAutoSpeak` is enabled, and
 returns to idle.
 
-The voice layer is intentionally push-to-talk only. It does not implement wake
-words, streaming transcription, always-listening microphones, or realtime VAD.
+Always-active wake-word activation can be enabled with
+`voice.alwaysActive.enabled`. Wake words use OpenWakeWord locally. Custom
+activation phrases such as `Hey Aura` require a matching local OpenWakeWord
+`.onnx` or `.tflite` model file, for example:
+
+```text
+core/voice/wakeWord/models/hey_aura.onnx
+```
+
+or an explicit backend path in `config/devConfig.yml`:
+
+```yaml
+voice:
+  alwaysActive:
+    wakeWordModelPath: path/to/hey_aura.onnx
+```
+
+The voice layer does not implement streaming transcription, interruption,
+barge-in, speaker identification, or realtime VAD.
 
 ## Interfaces
 

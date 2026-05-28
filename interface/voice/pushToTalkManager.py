@@ -28,13 +28,27 @@ class PushToTalkManager:
         self.context = context
         self.voiceManager = voiceManager or getattr(context, "voiceManager", None)
         self.logger = context.logger.getChild("Voice.PushToTalk") if context and getattr(context, "logger", None) else None
-        self.enabled = self._getBoolConfig("enabled", self._getBoolConfig("voice.enabled", False))
-        self.hotkey = str(self._getConfigValue("pushToTalkHotkey", self._getConfigValue("voice.pushToTalkHotkey", "enter")))
-        self.autoSpeak = self._getBoolConfig("pushToTalkAutoSpeak", self._getBoolConfig("voice.pushToTalkAutoSpeak", True))
+        self.enabled = self._getBoolConfig(
+            "voice.pushToTalk.enabled",
+            self._getBoolConfig("voice.pushToTalkEnabled", self._getBoolConfig("voice.PTT.pushToTalkEnabled", False)),
+        )
+        self.hotkey = str(
+            self._getConfigValue(
+                "voice.pushToTalk.pushToTalkHotkey",
+                self._getConfigValue("voice.pushToTalkHotkey", self._getConfigValue("pushToTalkHotkey", "enter")),
+            )
+        )
+        self.autoSpeak = self._getBoolConfig(
+            "voice.pushToTalk.pushToTalkAutoSpeak",
+            self._getBoolConfig("voice.pushToTalkAutoSpeak", self._getBoolConfig("pushToTalkAutoSpeak", True)),
+        )
         self.tempAudioDirectory = str(
             self._getConfigValue(
-                "pushToTalkTempAudioDirectory",
-                self._getConfigValue("voice.pushToTalkTempAudioDirectory", "temp/push_to_talk"),
+                "voice.pushToTalk.pushToTalkTempAudioDirectory",
+                self._getConfigValue(
+                    "voice.pushToTalkTempAudioDirectory",
+                    self._getConfigValue("pushToTalkTempAudioDirectory", "temp/push_to_talk"),
+                ),
             )
         )
         self.active = False

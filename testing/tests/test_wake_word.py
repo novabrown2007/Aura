@@ -41,7 +41,7 @@ class FakeOpenWakeWordModel:
         FakeOpenWakeWordModel.initCount += 1
 
     def predict(self, frame):
-        return {"hey_aura": 0.91, "noise": 0.02}
+        return {"hey_jarvis": 0.91, "noise": 0.02}
 
 
 class FakePushToTalk:
@@ -69,9 +69,9 @@ class WakeWordTests(unittest.TestCase):
         self.context = make_context()
         self.context.eventManager = RecordingEventManager()
         self.context.config._data["voice"] = {
-            "wakeWord": {
-                "wakeWordEnabled": True,
-                "wakeWordPhrases": ["Aura", "Hey Aura", "Aura Wake"],
+            "alwaysActive": {
+                "enabled": True,
+                "activationPhrases": ["Aura", "Hey Aura", "Aura Wake"],
                 "wakeWordSensitivity": 0.5,
                 "wakeWordCooldownSeconds": 0,
                 "wakeWordAutoStart": False,
@@ -90,7 +90,10 @@ class WakeWordTests(unittest.TestCase):
 
         try:
             FakeOpenWakeWordModel.initCount = 0
-            detector = WakeWordDetector(self.context, WakeWordConfig.fromContext(self.context))
+            config = WakeWordConfig.fromContext(self.context)
+            config.wakeWordPhrase = "hey_jarvis"
+            config.wakeWordPhrases = ["hey_jarvis"]
+            detector = WakeWordDetector(self.context, config)
             frame = np.zeros((1280,), dtype=np.int16)
 
             first = detector.initialize()
@@ -100,8 +103,8 @@ class WakeWordTests(unittest.TestCase):
             self.assertIs(first, second)
             self.assertEqual(FakeOpenWakeWordModel.initCount, 1)
             self.assertTrue(result.detected)
-            self.assertEqual(result.phrase, "hey_aura")
-            self.assertEqual(result.modelName, "hey_aura")
+            self.assertEqual(result.phrase, "hey_jarvis")
+            self.assertEqual(result.modelName, "hey_jarvis")
             self.assertGreaterEqual(result.confidence, 0.9)
             self.assertGreaterEqual(result.predictionTimeMs, 0.0)
         finally:
@@ -115,8 +118,8 @@ class WakeWordTests(unittest.TestCase):
                 sys.modules["openwakeword.model"] = original_model
 
     def test_config_supports_valid_wake_word_phrase_list(self):
-        self.context.config._data["voice"]["wakeWord"]["wakeWordPhrase"] = "Hey Aura"
-        self.context.config._data["voice"]["wakeWord"]["wakeWordPhrases"] = ["Aura", "Hey Aura", "Aura Wake"]
+        self.context.config._data["voice"]["alwaysActive"]["activationPhrase"] = "Hey Aura"
+        self.context.config._data["voice"]["alwaysActive"]["activationPhrases"] = ["Aura", "Hey Aura", "Aura Wake"]
 
         config = WakeWordConfig.fromContext(self.context)
 
@@ -125,6 +128,20 @@ class WakeWordTests(unittest.TestCase):
         self.assertTrue(config.isValidWakeWord("Hey Aura"))
         self.assertTrue(config.isValidWakeWord("Aura Wake"))
         self.assertFalse(config.isValidWakeWord("alexa"))
+
+    def test_config_supports_user_facing_always_active_names(self):
+        self.context.config._data["voice"] = {
+            "alwaysActive": {
+                "enabled": True,
+                "activationPhrases": ["Aura", "Hey Aura"],
+            }
+        }
+
+        config = WakeWordConfig.fromContext(self.context)
+
+        self.assertTrue(config.wakeWordEnabled)
+        self.assertEqual(config.wakeWordPhrase, "Aura")
+        self.assertEqual(config.validWakeWordPhrases(), ["Aura", "Hey Aura"])
 
     def test_detector_ignores_predictions_outside_valid_phrase_list(self):
         config = WakeWordConfig.fromContext(self.context)
@@ -195,6 +212,16 @@ class WakeWordTests(unittest.TestCase):
 
         self.assertEqual(detector._missingCustomModelPhrases(), ["Aura", "Hey Aura"])
 
+    def test_detector_fails_fast_when_custom_wake_models_are_missing(self):
+        config = WakeWordConfig.fromContext(self.context)
+        config.wakeWordPhrases = ["Aura", "Hey Aura"]
+        detector = WakeWordDetector(self.context, config)
+
+        with self.assertRaises(RuntimeError) as error:
+            detector.initialize()
+
+        self.assertIn("OpenWakeWord needs local custom model files", str(error.exception))
+
     def test_session_blocks_duplicate_activation_during_active_turn(self):
         push = FakePushToTalk()
         self.context.pushToTalkManager = push
@@ -219,7 +246,7 @@ class WakeWordTests(unittest.TestCase):
         state.recordEvent(ConsoleEvent(WakeWordEvents.DETECTED, {"confidence": 0.93, "activationCount": 1}))
         state.recordEvent(ConsoleEvent(WakeWordEvents.COOLDOWN_STARTED, {"cooldownSeconds": 5}))
 
-        wakeWord = state.snapshot().voice["wakeWord"]
+        wakeWord = state.snapshot().voice["alwaysActive"]
         self.assertEqual(wakeWord["state"], "Cooldown")
         self.assertFalse(wakeWord["listening"])
         self.assertTrue(wakeWord["cooldown"])

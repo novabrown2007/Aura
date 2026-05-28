@@ -33,7 +33,7 @@ class CoverageContractTests(unittest.TestCase):
         "core/threading/tasks": ("testing/tests/test_threading_scheduler.py",),
         "core/threading/threadingManager.py": ("testing/tests/test_threading_scheduler.py",),
         "core/tools": ("testing/tests/test_tool_system.py",),
-        "core/voice/alwaysActive": ("testing/tests/test_wake_word.py",),
+        "core/voice/wakeWord": ("testing/tests/test_wake_word.py",),
         "core/version.py": ("testing/tests/test_runtime_smoke.py",),
         "interface/android": ("testing/tests/interfaceTests/test_android_interface.py",),
         "interface/developerUI": ("testing/tests/test_developer_ui.py",),
