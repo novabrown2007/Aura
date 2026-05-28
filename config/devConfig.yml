@@ -4,6 +4,14 @@
 # local model choices, and developer UI behavior. User-facing secrets and
 # credentials belong in config/config.yml.
 
+logging:
+  logPath: ./logs/
+  llmLogPath: ./logs/llm/
+  loggingEnabled: true
+  consoleLoggingEnabled: true
+  fileLoggingEnabled: true
+  debugLoggingEnabled: true
+
 llm:
   # Primary LLM provider Aura should use.
   activeProvider: gemini
@@ -46,7 +54,7 @@ llm:
     # Whether LLM request/response logging is enabled.
     enabled: true
     # Directory for LLM logs.
-    path: logs/llm
+    path: ./logs/llm/
 
   intent:
     # Minimum confidence required before an interpreted intent is trusted.

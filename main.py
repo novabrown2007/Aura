@@ -8,7 +8,6 @@ and managing the application lifecycle.
 
 from core.runtime.runtimeContext import RuntimeContext
 from core.runtime.datetimeUtils import DateTimeUtils
-from core.runtime.logger import AuraLogger
 from core.runtime.moduleLoader import ModuleLoader
 
 from core.threading.threadingManager import ThreadingManager
@@ -39,6 +38,7 @@ from modules.llm.memory import MemoryManager
 from core.engine import Engine
 
 from config.configLoader import ConfigLoader
+from modules.logger.logger import Logger
 
 
 # --------------------------------------------------
@@ -107,14 +107,14 @@ def buildRuntimeContext():
 
     context = RuntimeContext()
 
-    # Logger
-    context.logger = AuraLogger()
-
     # Shared Utilities
     context.dtUtil = DateTimeUtils
 
     # Config
     context.config = ConfigLoader(context)
+    context.logger = Logger("Aura", config=context.config)
+    context.config.logger = context.logger.getChild("Config")
+    context.config.logger.info("Configuration loaded.")
     context.homeAutomationConfig = buildHomeAutomationConfig(context)
 
     # Threading

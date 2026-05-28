@@ -18,8 +18,8 @@ import time
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
 from modules.llm.providers.base.llmProvider import LLMProvider
-from modules.llm.utils.llmLogger import LLMLogger
 from modules.llm.utils.promptBuilder import PromptBuilder
+from modules.logger.llmLogger import LLMLogger
 
 
 class LLMManager:
