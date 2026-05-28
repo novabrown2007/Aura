@@ -276,9 +276,9 @@ Aura keeps separate prompt profiles for each cognition task:
 Prompt construction is centralized in `modules.llm.utils.PromptBuilder`, with
 profile bodies under `modules/llm/prompts`.
 
-LLM offline mode is auto-detected from Gemini availability. If Gemini cannot be
-reached, Aura uses the local Ollama provider instead of reading an
-`offlineMode` setting from config.
+LLM routing defaults to the local Ollama provider with Gemini configured as the
+fallback provider. Offline mode is auto-detected from preferred-provider
+availability instead of reading an `offlineMode` setting from config.
 
 ## Autonomous Tasks
 
@@ -771,7 +771,7 @@ Optional live LLM connectivity test:
 ```powershell
 $env:RUN_LIVE_LLM_TEST="true"
 $env:OLLAMA_ENDPOINT="http://localhost:11434/api/generate"
-$env:OLLAMA_MODEL="llama3.2:1b"
+$env:OLLAMA_MODEL="gemma4:e4b"
 python run_tests.py --suite llm
 ```
 

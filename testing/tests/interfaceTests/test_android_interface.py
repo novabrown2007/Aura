@@ -51,30 +51,30 @@ class AndroidInterfaceTests(unittest.TestCase):
         context = SimpleNamespace(
             llmManager=SimpleNamespace(
                 activeProviderName="ollama",
-                providers={"ollama": SimpleNamespace(model="llama3.2:1b")},
+                providers={"ollama": SimpleNamespace(model="gemma4:e4b")},
             )
         )
 
-        self.assertEqual(format_current_model_label(context), "Currently Running: llama3.2:1b")
+        self.assertEqual(format_current_model_label(context), "Currently Running: gemma4:e4b")
 
     def test_model_label_shows_offline_fallback_state(self):
         context = SimpleNamespace(
             llmManager=SimpleNamespace(
                 getStatus=lambda: {
-                    "activeModel": "llama3.2:1b",
+                    "activeModel": "gemma4:e4b",
                     "activeProvider": "ollama",
                     "offlineMode": True,
                 }
             )
         )
 
-        self.assertEqual(format_current_model_label(context), "Currently Running: llama3.2:1b (offline fallback)")
+        self.assertEqual(format_current_model_label(context), "Currently Running: gemma4:e4b (offline fallback)")
 
     def test_model_label_shows_quota_fallback_state(self):
         context = SimpleNamespace(
             llmManager=SimpleNamespace(
                 getStatus=lambda: {
-                    "activeModel": "llama3.2:1b",
+                    "activeModel": "gemma4:e4b",
                     "activeProvider": "ollama",
                     "offlineMode": True,
                     "offlineReason": "429 RESOURCE_EXHAUSTED quota exceeded",
@@ -82,7 +82,7 @@ class AndroidInterfaceTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(format_current_model_label(context), "Currently Running: llama3.2:1b (Gemini quota fallback)")
+        self.assertEqual(format_current_model_label(context), "Currently Running: gemma4:e4b (Gemini quota fallback)")
 
 
 if __name__ == "__main__":

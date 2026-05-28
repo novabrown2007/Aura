@@ -60,7 +60,7 @@ class ObservabilityTests(unittest.TestCase):
             activeProviderName="ollama",
             fallbackProviderName="gemini",
             providers={
-                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
+                "ollama": SimpleNamespace(initialized=True, model="gemma4:e4b"),
                 "gemini": SimpleNamespace(initialized=False, model="gemini-2.5-flash"),
             },
         )
@@ -75,7 +75,7 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(snapshot["memory"]["keys"], ["user_name"])
         self.assertEqual(snapshot["tools"][0]["name"], "system.getTime")
         self.assertEqual(snapshot["providers"]["activeProvider"], "ollama")
-        self.assertEqual(snapshot["providers"]["activeModel"], "llama3.2:1b")
+        self.assertEqual(snapshot["providers"]["activeModel"], "gemma4:e4b")
         self.assertTrue(snapshot["providers"]["providers"]["ollama"]["active"])
         self.assertEqual(snapshot["providers"]["providers"]["gemini"]["model"], "gemini-2.5-flash")
         self.assertTrue(snapshot["modules"]["system"]["loaded"])
@@ -87,7 +87,7 @@ class ObservabilityTests(unittest.TestCase):
             getStatus=lambda: {
                 "offlineMode": True,
                 "activeProvider": "ollama",
-                "activeModel": "llama3.2:1b",
+                "activeModel": "gemma4:e4b",
                 "preferredProvider": "gemini",
                 "preferredModel": "gemini-2.5-flash",
                 "fallbackProvider": "ollama",
@@ -95,7 +95,7 @@ class ObservabilityTests(unittest.TestCase):
                 "canUseStructuredOutput": False,
             },
             providers={
-                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
+                "ollama": SimpleNamespace(initialized=True, model="gemma4:e4b"),
                 "gemini": SimpleNamespace(initialized=True, model="gemini-2.5-flash"),
             },
         )

@@ -20,9 +20,9 @@ interruptions:
 
 llm:
   # Primary LLM provider Aura should use.
-  activeProvider: gemini
+  activeProvider: ollama
   # Provider to try if the active provider fails.
-  fallbackProvider: none
+  fallbackProvider: gemini
   # Number of model request retries before surfacing a failure.
   retryCount: 2
   # Model request timeout in seconds.
@@ -30,7 +30,7 @@ llm:
 
   ollama:
     # Ollama model name to request from the local Ollama server.
-    model: llama3.2:1b
+    model: gemma4:e4b
   gemini:
     # Gemini model name.
     model: gemini-2.5-flash
