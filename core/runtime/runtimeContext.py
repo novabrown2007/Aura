@@ -15,7 +15,7 @@ class RuntimeContext:
 
     Example:
         context = RuntimeContext()
-        context.logger = AuraLogger()
+        context.logger = Logger("Aura")
         context.database = MySQLDatabase()
 
         weather_module = WeatherModule(context)

@@ -51,6 +51,14 @@ DEFAULT_USER_CONFIG = {
 
 
 DEFAULT_DEV_CONFIG = {
+    "logging": {
+        "logPath": "./logs/",
+        "llmLogPath": "./logs/llm/",
+        "loggingEnabled": True,
+        "consoleLoggingEnabled": True,
+        "fileLoggingEnabled": True,
+        "debugLoggingEnabled": True,
+    },
     "llm": {
         "activeProvider": "gemini",
         "fallbackProvider": "none",
@@ -78,7 +86,7 @@ DEFAULT_DEV_CONFIG = {
         },
         "logging": {
             "enabled": True,
-            "path": "logs/llm",
+            "path": "./logs/llm/",
         },
         "intent": {
             "confidenceThreshold": 0.75,
