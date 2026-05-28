@@ -128,6 +128,19 @@ class WakeWordDetector:
                 self.logger.error(f"Wake word prediction failed: {error}")
             return result
 
+    def reset(self):
+        """Reset detector buffers so completed activations do not retrigger."""
+
+        try:
+            if self.model is not None and hasattr(self.model, "reset"):
+                self.model.reset()
+            self.lastResult = WakeWordResult(phrase=self.config.wakeWordPhrase)
+            self.lastError = ""
+        except Exception as error:
+            self.lastError = str(error)
+            if self.logger:
+                self.logger.warning(f"Wake word detector reset failed: {error}")
+
     def snapshot(self) -> dict:
         """Return detector diagnostics for developer UI and logs."""
 

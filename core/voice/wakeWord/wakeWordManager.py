@@ -90,7 +90,6 @@ class WakeWordManager:
                 return False
         try:
             started = self.listener.start()
-            self.listener.resume()
             self.state = "listening" if started else "idle"
             if started:
                 self._emit(
@@ -164,18 +163,18 @@ class WakeWordManager:
 
     def _runActivatedVoiceLoop(self, result: WakeWordResult):
         started = perf_counter()
-        self.session.startCooldown()
-        self._emit(
-            WakeWordEvents.COOLDOWN_STARTED,
-            {
-                "phrase": result.phrase,
-                "cooldownSeconds": self.config.wakeWordCooldownSeconds,
-                "confidence": result.confidence,
-            },
-        )
         try:
             self._activateExistingVoicePipeline()
         finally:
+            self.session.startCooldown()
+            self._emit(
+                WakeWordEvents.COOLDOWN_STARTED,
+                {
+                    "phrase": result.phrase,
+                    "cooldownSeconds": self.config.wakeWordCooldownSeconds,
+                    "confidence": result.confidence,
+                },
+            )
             remaining = self.session.cooldownRemainingSeconds()
             if remaining > 0:
                 sleep(remaining)
@@ -183,6 +182,10 @@ class WakeWordManager:
             self._emit(WakeWordEvents.COOLDOWN_FINISHED, {"phrase": result.phrase})
             self.state = "idle"
             if self.config.wakeWordEnabled:
+                self._resetDetectorBeforeResume()
+                resumeDelay = max(0.0, float(getattr(self.config, "wakeWordResumeDelaySeconds", 0.0)))
+                if resumeDelay > 0:
+                    sleep(resumeDelay)
                 self.startListening()
             self.lastDetectionLatencyMs = (perf_counter() - started) * 1000.0
 
@@ -230,6 +233,18 @@ class WakeWordManager:
     def _activationFrequency(self) -> float:
         activationCount = max(1, self.session.activationCount)
         return float(activationCount)
+
+    def _resetDetectorBeforeResume(self):
+        """Clear detector/audio buffers before returning to passive listening."""
+
+        try:
+            if hasattr(self.detector, "reset"):
+                self.detector.reset()
+            if getattr(self.listener, "audioStream", None) is not None:
+                self.listener.audioStream._clearQueue()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Wake word reset before resume failed: {error}")
 
     def _emitError(self, message: str):
         self.state = "error" if not self.listener.running else self.state

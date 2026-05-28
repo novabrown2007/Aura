@@ -51,11 +51,10 @@ class FakePiperVoice:
         return instance
 
     def synthesize_wav(self, text, audio_file):
-        with wave.open(audio_file, "wb") as handle:
-            handle.setnchannels(1)
-            handle.setsampwidth(2)
-            handle.setframerate(22050)
-            handle.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
+        audio_file.setnchannels(1)
+        audio_file.setsampwidth(2)
+        audio_file.setframerate(22050)
+        audio_file.writeframes(np.ones((2205,), dtype=np.int16).tobytes())
 
 
 class FakeSoundDeviceModule:

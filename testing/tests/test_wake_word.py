@@ -64,6 +64,19 @@ class FakePushToTalk:
         return types.SimpleNamespace(success=True, errorMessage="")
 
 
+class ResettableFakeDetector:
+    """Detector stub that records reset calls."""
+
+    def __init__(self):
+        self.resetCount = 0
+
+    def initialize(self):
+        return True
+
+    def reset(self):
+        self.resetCount += 1
+
+
 class WakeWordTests(unittest.TestCase):
     """Validate wake word detection and event-driven activation behavior."""
 
@@ -195,10 +208,13 @@ class WakeWordTests(unittest.TestCase):
         self.context.pushToTalkManager = push
         config = WakeWordConfig.fromContext(self.context)
         config.wakeWordCaptureSeconds = 0.1
+        config.wakeWordResumeDelaySeconds = 0
         manager = WakeWordManager(self.context, config)
         manager.initialized = True
         manager.listener.start = lambda: True
         manager.listener.resume = lambda: None
+        detector = ResettableFakeDetector()
+        manager.detector = detector
 
         manager.handleWakeWordDetected(
             WakeWordResult(detected=True, phrase="hey_aura", confidence=0.92, modelName="hey_aura")
@@ -214,6 +230,7 @@ class WakeWordTests(unittest.TestCase):
         self.assertTrue(push.stopped)
         self.assertEqual(push.source, "always_active")
         self.assertFalse(push.enabled)
+        self.assertGreaterEqual(detector.resetCount, 1)
 
     def test_detector_reports_missing_custom_wake_word_models(self):
         config = WakeWordConfig.fromContext(self.context)
@@ -267,6 +284,7 @@ class WakeWordTests(unittest.TestCase):
         self.context.pushToTalkManager = push
         config = WakeWordConfig.fromContext(self.context)
         config.wakeWordCaptureSeconds = 0.25
+        config.wakeWordResumeDelaySeconds = 0
         manager = WakeWordManager(self.context, config)
         manager.initialized = True
         manager.listener.start = lambda: True

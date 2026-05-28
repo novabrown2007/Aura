@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import time
+import wave
 from pathlib import Path
 from threading import Lock
 
@@ -131,7 +132,7 @@ class TextToSpeech:
         start = time.perf_counter()
         try:
             outputPath = self._createOutputPath()
-            with open(outputPath, "wb") as audioFile:
+            with wave.open(str(outputPath), "wb") as audioFile:
                 model.synthesize_wav(cleaned, audioFile)
 
             generationTime = time.perf_counter() - start

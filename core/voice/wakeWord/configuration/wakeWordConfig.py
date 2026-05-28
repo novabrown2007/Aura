@@ -24,6 +24,7 @@ class WakeWordConfig:
     wakeWordFrameDurationMs: int = 80
     wakeWordSampleRate: int = 16000
     wakeWordCaptureSeconds: float = 5.0
+    wakeWordResumeDelaySeconds: float = 1.5
     wakeWordAllowPretrainedFallback: bool = True
     wakeWordFallbackModel: str = "hey_jarvis"
     wakeWordAutoDownloadModels: bool = True
@@ -124,6 +125,7 @@ class WakeWordConfig:
             wakeWordFrameDurationMs=int(_float(nested_or_flat("wakeWordFrameDurationMs", 80), 80)),
             wakeWordSampleRate=int(_float(nested_or_flat("wakeWordSampleRate", 16000), 16000)),
             wakeWordCaptureSeconds=_float(nested_or_flat("wakeWordCaptureSeconds", 5.0), 5.0),
+            wakeWordResumeDelaySeconds=_float(nested_or_flat("wakeWordResumeDelaySeconds", 1.5), 1.5),
             wakeWordAllowPretrainedFallback=_bool(nested_or_flat("wakeWordAllowPretrainedFallback", True), True),
             wakeWordFallbackModel=str(nested_or_flat("wakeWordFallbackModel", "hey_jarvis")),
             wakeWordAutoDownloadModels=_bool(nested_or_flat("wakeWordAutoDownloadModels", True), True),

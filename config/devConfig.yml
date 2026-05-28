@@ -121,6 +121,8 @@ voice:
     # Whether to log per-frame wake word prediction details.
     wakeWordDebugLogging: false
     wakeWordDebugLoggingLocation: logs/wake_word
+    # Delay before resuming wake listening after a completed voice turn.
+    wakeWordResumeDelaySeconds: 1.5
     # If configured Aura-specific phrases do not have local models yet, fall
     # back to a built-in OpenWakeWord model so always-active listening starts.
     wakeWordAllowPretrainedFallback: true
