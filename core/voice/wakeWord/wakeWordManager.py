@@ -200,7 +200,7 @@ class WakeWordManager:
         originalEnabled = getattr(pushToTalk, "enabled", True)
         try:
             pushToTalk.enabled = True
-            if not pushToTalk.startCapture():
+            if not pushToTalk.startCapture(source="always_active"):
                 self._emitError(getattr(pushToTalk.lastResult, "errorMessage", "") or "Wake word voice capture could not start.")
                 return
             sleep(max(0.1, float(self.config.wakeWordCaptureSeconds)))

@@ -35,13 +35,18 @@ voice:
     # Whether held push-to-talk activation is enabled.
     # Valid values: true, false.
     enabled: true
+    # Whether responses to push-to-talk and always-active prompts are spoken.
+    # Valid values: true, false.
+    pushToTalkAutoSpeak: true
 
   alwaysActive:
     # Whether passive local wake-word activation is enabled.
     # Valid values: true, false.
     enabled: true
     # User-facing wake words Aura should accept.
-    activationPhrases: ["Aura", "Hey Aura"]
+    # "Hey Jarvis" uses OpenWakeWord's built-in fallback model. "Hey Aura"
+    # requires a custom trained model before it can be enabled reliably.
+    activationPhrases: ["Hey Jarvis"]
 
 # Connection credentials for the Home Automation Bridge
 homeAutomationBridge:

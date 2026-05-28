@@ -30,7 +30,6 @@ class IntentRouter:
                         f"Intent '{intent_name}' handled by {module.__class__.__name__}"
                     )
                 response = module.handle(intent)
-                self._speakResponse(response)
                 return response
 
         if self.logger:
@@ -39,19 +38,3 @@ class IntentRouter:
             )
         llm = self.context.require("llm")
         return llm.generateResponse(intent.raw)
-
-    def _speakResponse(self, response):
-        """Send module-generated text through shared voice playback when available."""
-
-        if not isinstance(response, str):
-            return
-
-        voice = getattr(self.context, "voiceManager", None)
-        if voice is None or not getattr(voice, "outputEnabled", False):
-            return
-
-        try:
-            voice.speakResponse(response)
-        except Exception as error:
-            if self.logger:
-                self.logger.warning(f"Voice playback failed for routed intent: {error}")

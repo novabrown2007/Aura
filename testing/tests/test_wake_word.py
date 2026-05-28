@@ -51,10 +51,12 @@ class FakePushToTalk:
         self.enabled = False
         self.started = False
         self.stopped = False
+        self.source = ""
         self.lastResult = types.SimpleNamespace(errorMessage="")
 
-    def startCapture(self):
+    def startCapture(self, source="push_to_talk"):
         self.started = True
+        self.source = source
         return True
 
     def stopAndProcess(self):
@@ -210,6 +212,7 @@ class WakeWordTests(unittest.TestCase):
         self.assertIn(WakeWordEvents.COOLDOWN_FINISHED, emitted)
         self.assertTrue(push.started)
         self.assertTrue(push.stopped)
+        self.assertEqual(push.source, "always_active")
         self.assertFalse(push.enabled)
 
     def test_detector_reports_missing_custom_wake_word_models(self):

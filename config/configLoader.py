@@ -27,6 +27,7 @@ DEFAULT_USER_CONFIG = {
     "voice": {
         "pushToTalk": {
             "enabled": True,
+            "pushToTalkAutoSpeak": True,
         },
         "alwaysActive": {
             "enabled": True,
@@ -183,8 +184,11 @@ CONFIG_ALIASES = {
     "voice.pushToTalkEnabled": "voice.pushToTalk.enabled",
     "voice.PTT.pushToTalkEnabled": "voice.pushToTalk.enabled",
     "voice.pushToTalkHotkey": "voice.pushToTalk.pushToTalkHotkey",
+    "voice.PTT.pushToTalkHotkey": "voice.pushToTalk.pushToTalkHotkey",
     "voice.pushToTalkAutoSpeak": "voice.pushToTalk.pushToTalkAutoSpeak",
+    "voice.PTT.pushToTalkAutoSpeak": "voice.pushToTalk.pushToTalkAutoSpeak",
     "voice.pushToTalkTempAudioDirectory": "voice.pushToTalk.pushToTalkTempAudioDirectory",
+    "voice.PTT.pushToTalkTempAudioDirectory": "voice.pushToTalk.pushToTalkTempAudioDirectory",
     "voice.alwaysActive.wakeWordEnabled": "voice.alwaysActive.enabled",
     "voice.alwaysActive.wakeWordPhrases": "voice.alwaysActive.activationPhrases",
     "voice.wakeWord.wakeWordEnabled": "voice.alwaysActive.enabled",

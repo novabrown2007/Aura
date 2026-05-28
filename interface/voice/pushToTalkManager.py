@@ -19,6 +19,7 @@ class PushToTalkResult:
     transcription: TranscriptionResult | None = None
     speech: SpeechResult | None = None
     errorMessage: str = ""
+    source: str = "push_to_talk"
 
 
 class PushToTalkManager:
@@ -35,24 +36,34 @@ class PushToTalkManager:
         self.hotkey = str(
             self._getConfigValue(
                 "voice.pushToTalk.pushToTalkHotkey",
-                self._getConfigValue("voice.pushToTalkHotkey", self._getConfigValue("pushToTalkHotkey", "enter")),
+                self._getConfigValue(
+                    "voice.PTT.pushToTalkHotkey",
+                    self._getConfigValue("voice.pushToTalkHotkey", self._getConfigValue("pushToTalkHotkey", "enter")),
+                ),
             )
         )
         self.autoSpeak = self._getBoolConfig(
             "voice.pushToTalk.pushToTalkAutoSpeak",
-            self._getBoolConfig("voice.pushToTalkAutoSpeak", self._getBoolConfig("pushToTalkAutoSpeak", True)),
+            self._getBoolConfig(
+                "voice.PTT.pushToTalkAutoSpeak",
+                self._getBoolConfig("voice.pushToTalkAutoSpeak", self._getBoolConfig("pushToTalkAutoSpeak", True)),
+            ),
         )
         self.tempAudioDirectory = str(
             self._getConfigValue(
                 "voice.pushToTalk.pushToTalkTempAudioDirectory",
                 self._getConfigValue(
-                    "voice.pushToTalkTempAudioDirectory",
-                    self._getConfigValue("pushToTalkTempAudioDirectory", "temp/push_to_talk"),
+                    "voice.PTT.pushToTalkTempAudioDirectory",
+                    self._getConfigValue(
+                        "voice.pushToTalkTempAudioDirectory",
+                        self._getConfigValue("pushToTalkTempAudioDirectory", "temp/push_to_talk"),
+                    ),
                 ),
             )
         )
         self.active = False
         self.lastResult = PushToTalkResult()
+        self.captureSource = "push_to_talk"
 
         if self.logger:
             self.logger.info(
@@ -61,9 +72,10 @@ class PushToTalkManager:
                 f"tempAudioDirectory={self.tempAudioDirectory})."
             )
 
-    def startCapture(self) -> bool:
+    def startCapture(self, source: str = "push_to_talk") -> bool:
         """Start microphone capture for a push-to-talk turn."""
 
+        self.captureSource = self._normalizeSource(source)
         if not self.enabled:
             self._fail("Push-to-talk is disabled.", emitEvent=False)
             return False
@@ -74,9 +86,9 @@ class PushToTalkManager:
             self._fail("Push-to-talk requires voice.STT.enabled to be true.")
             return False
         self._applyRecorderTempDirectory()
-        self._emit("voice.capture.started", {"hotkey": self.hotkey})
+        self._emit("voice.capture.started", {"hotkey": self.hotkey, "source": self.captureSource})
         if self.logger:
-            self.logger.info("Push-to-talk capture starting.")
+            self.logger.info(f"Voice capture starting from source={self.captureSource}.")
 
         try:
             started = self.voiceManager.startVoiceCapture()
@@ -100,13 +112,14 @@ class PushToTalkManager:
             return self._fail("Push-to-talk capture is not active.")
 
         try:
+            source = self.captureSource
             audioPath = self.voiceManager.stopVoiceCapture()
             self.active = False
-            self._emit("voice.capture.finished", {"audioPath": audioPath})
+            self._emit("voice.capture.finished", {"audioPath": audioPath, "source": source})
             if not audioPath:
                 return self._fail(getattr(self.voiceManager.recorder, "lastError", "") or "Empty recording.")
 
-            self._emit("voice.transcription.started", {"audioPath": audioPath})
+            self._emit("voice.transcription.started", {"audioPath": audioPath, "source": source})
             transcription = self.voiceManager.speechToText.transcribeDetailed(audioPath)
             self.voiceManager.lastTranscription = transcription
             self._emit(
@@ -116,15 +129,16 @@ class PushToTalkManager:
                     "text": transcription.text,
                     "errorMessage": transcription.errorMessage,
                     "audioDuration": transcription.audioDuration,
+                    "source": source,
                 },
             )
             if not transcription.success or not transcription.text.strip():
                 return self._fail(transcription.errorMessage or "Transcription failed.", transcription=transcription, audioPath=audioPath)
 
             text = transcription.text.strip()
-            self._emit("conversation.message.received", {"text": text, "source": "push_to_talk"})
+            self._emit("conversation.message.received", {"text": text, "source": source})
             if self.logger:
-                self.logger.info(f"Push-to-talk transcription: {text}")
+                self.logger.info(f"Voice transcription from {source}: {text}")
 
             try:
                 response = self.voiceManager.routeTextToAura(text)
@@ -135,32 +149,20 @@ class PushToTalkManager:
             if not response:
                 return self._fail("Aura text pipeline returned an empty response.", transcription=transcription, audioPath=audioPath)
 
-            self._emit("response.generated", {"text": response, "source": "push_to_talk"})
+            self._emit("response.generated", {"text": response, "source": source})
             speech = None
             if self.autoSpeak:
-                self._emit("tts.started", {"text": response})
-                try:
-                    speech = self.voiceManager.speakResponse(response)
-                except Exception as error:
-                    speech = SpeechResult(success=False, errorMessage=f"TTS failure: {error}")
-                self._emit(
-                    "tts.finished",
-                    {
-                        "success": speech.success,
-                        "audioPath": speech.audioPath,
-                        "errorMessage": speech.errorMessage,
-                    },
-                )
+                speech = self._speakAssistantResponse(response, source)
                 if not speech.success:
                     self._emit(
                         "voice.speech.failed",
                         {
                             "errorMessage": speech.errorMessage or "TTS failure.",
-                            "source": "push_to_talk",
+                            "source": source,
                         },
                     )
                     if self.logger:
-                        self.logger.warning(f"Push-to-talk speech output failed after response generation: {speech.errorMessage}")
+                        self.logger.warning(f"Voice speech output failed after response generation: {speech.errorMessage}")
 
             result = PushToTalkResult(
                 success=True,
@@ -169,6 +171,7 @@ class PushToTalkManager:
                 assistantResponse=response,
                 transcription=transcription,
                 speech=speech,
+                source=source,
             )
             self.lastResult = result
             self._emit("voice.loop.completed", result.__dict__)
@@ -177,6 +180,7 @@ class PushToTalkManager:
             return result
         finally:
             self.active = False
+            self.captureSource = "push_to_talk"
             self.voiceManager._cleanupAudio()
 
     def runDevConsoleLoop(self, inputFn=input, outputFn=print) -> PushToTalkResult:
@@ -214,6 +218,7 @@ class PushToTalkManager:
             transcription=transcription,
             speech=speech,
             errorMessage=str(message or "Push-to-talk loop failed."),
+            source=self.captureSource,
         )
         self.lastResult = result
         if self.logger:
@@ -226,6 +231,25 @@ class PushToTalkManager:
         recorder = getattr(self.voiceManager, "recorder", None)
         if recorder is not None and self.tempAudioDirectory:
             recorder.tempDirectory = self.tempAudioDirectory
+
+    def _speakAssistantResponse(self, response: str, source: str) -> SpeechResult:
+        """Speak a voice-origin assistant response through TextToSpeech."""
+
+        self._emit("tts.started", {"text": response, "source": source})
+        try:
+            speech = self.voiceManager.speakResponse(response)
+        except Exception as error:
+            speech = SpeechResult(success=False, errorMessage=f"TTS failure: {error}")
+        self._emit(
+            "tts.finished",
+            {
+                "success": speech.success,
+                "audioPath": speech.audioPath,
+                "errorMessage": speech.errorMessage,
+                "source": source,
+            },
+        )
+        return speech
 
     def _emit(self, eventName: str, data: dict):
         eventManager = getattr(self.context, "eventManager", None)
@@ -251,3 +275,8 @@ class PushToTalkManager:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def _normalizeSource(source: str) -> str:
+        normalized = str(source or "").strip().lower().replace("-", "_").replace(" ", "_")
+        return normalized or "push_to_talk"

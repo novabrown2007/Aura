@@ -414,6 +414,7 @@ class VoiceTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertEqual(routed, ["hello aura"])
+        self.assertEqual(result.source, "push_to_talk")
         self.assertEqual(spoken, ["Hello Nova."])
         emitted = [name for name, _ in self.context.eventManager.events]
         self.assertIn("voice.capture.started", emitted)
@@ -425,6 +426,29 @@ class VoiceTests(unittest.TestCase):
         self.assertIn("tts.started", emitted)
         self.assertIn("tts.finished", emitted)
         self.assertIn("voice.loop.completed", emitted)
+        ttsStarted = [data for name, data in self.context.eventManager.events if name == "tts.started"]
+        self.assertEqual(ttsStarted[-1]["source"], "push_to_talk")
+
+    def test_always_active_voice_loop_routes_response_through_tts(self):
+        manager = VoiceManager(self.context)
+        manager.recorder = FakePushRecorder()
+        manager.speechToText = FakePushSpeechToText(
+            TranscriptionResult(text="what time is it", success=True, language="en")
+        )
+        spoken = []
+        manager.routeTextToAura = lambda text: "It is noon."
+        manager.speakResponse = lambda text: (spoken.append(text), SpeechResult(success=True, audioPath="tts.wav"))[1]
+
+        self.assertTrue(manager.pushToTalkManager.startCapture(source="always_active"))
+        result = manager.pushToTalkManager.stopAndProcess()
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.source, "always_active")
+        self.assertEqual(spoken, ["It is noon."])
+        ttsStarted = [data for name, data in self.context.eventManager.events if name == "tts.started"]
+        ttsFinished = [data for name, data in self.context.eventManager.events if name == "tts.finished"]
+        self.assertEqual(ttsStarted[-1]["source"], "always_active")
+        self.assertEqual(ttsFinished[-1]["source"], "always_active")
 
     def test_push_to_talk_handles_missing_microphone(self):
         manager = VoiceManager(self.context)

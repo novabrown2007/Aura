@@ -95,14 +95,12 @@ class LLMHandler(AuraModule):
             cleaned = self._offlineToolUnavailableMessage()
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
-            self._speakResponse(cleaned)
             return cleaned
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and not self._hasConversationFallback():
             cleaned = self._providerFailureMessage(self._offlineReason())
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
-            self._speakResponse(cleaned)
             return cleaned
 
         systemPrompt = self._buildSystemPrompt(userInput)
@@ -111,7 +109,6 @@ class LLMHandler(AuraModule):
             cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
-            self._speakResponse(cleaned)
             return cleaned
 
         response = self.manager.generateResponse(systemPrompt, userInput, conversationHistory)
@@ -128,7 +125,6 @@ class LLMHandler(AuraModule):
 
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
-        self._speakResponse(cleaned)
         return cleaned
 
     def _finishResponse(self, userInput: str, responseText: str) -> str:
@@ -137,7 +133,6 @@ class LLMHandler(AuraModule):
         cleaned = self._cleanResponseText(responseText)
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
-        self._speakResponse(cleaned)
         return cleaned
 
     def _supportsIntentPipeline(self) -> bool:
@@ -698,23 +693,6 @@ Rules:
         cleaned = str(text or "").strip()
         cleaned = re.sub(r"^(?:Aura|Assistant)\s*:\s*", "", cleaned, flags=re.IGNORECASE).strip()
         return cleaned
-
-    def _speakResponse(self, text: str):
-        """Send assistant text through the shared voice output interface when available."""
-
-        text = str(text or "").strip()
-        if not text:
-            return
-
-        voice = getattr(self.context, "voiceManager", None)
-        if voice is None or not getattr(voice, "outputEnabled", False):
-            return
-
-        try:
-            voice.speakResponse(text)
-        except Exception as error:
-            if self.logger:
-                self.logger.warning(f"Voice playback failed: {error}")
 
     def _emit(self, eventName: str, data: dict):
         """Emit conversation events without coupling LLM code to memory internals."""
