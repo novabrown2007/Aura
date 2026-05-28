@@ -125,6 +125,9 @@ DEFAULT_DEV_CONFIG = {
             "wakeWordAutoStart": True,
             "wakeWordDebugLogging": False,
             "wakeWordDebugLoggingLocation": "logs/wake_word",
+            "wakeWordAllowPretrainedFallback": True,
+            "wakeWordFallbackModel": "hey_jarvis",
+            "wakeWordAutoDownloadModels": True,
         },
     },
     "memory": {

@@ -128,6 +128,13 @@ voice:
     wakeWordModelPath: path/to/hey_aura.onnx
 ```
 
+If no configured Aura-specific model is available, Aura now falls back to the
+built-in OpenWakeWord model configured by `wakeWordFallbackModel`
+(`hey_jarvis` by default) so always-active listening still starts. Disable that
+behavior with `wakeWordAllowPretrainedFallback: false` when you want startup to
+fail until a custom wake model is installed. Missing OpenWakeWord assets are
+downloaded automatically when `wakeWordAutoDownloadModels` is enabled.
+
 The voice layer does not implement streaming transcription, interruption,
 barge-in, speaker identification, or realtime VAD.
 

@@ -155,12 +155,19 @@ class WakeWordTests(unittest.TestCase):
         self.assertEqual(modelName, "hey_aura")
         self.assertAlmostEqual(confidence, 0.41)
 
-    def test_detector_uses_normalized_model_names_for_human_readable_phrases(self):
+    def test_detector_does_not_load_missing_human_readable_phrase_models(self):
         config = WakeWordConfig.fromContext(self.context)
         config.wakeWordPhrases = ["Aura", "Hey Aura", "Aura Wake"]
         detector = WakeWordDetector(self.context, config)
 
-        self.assertEqual(detector._wakeWordModels(), ["aura", "hey_aura", "aura_wake"])
+        self.assertEqual(detector._wakeWordModels(), [])
+
+    def test_detector_uses_builtin_openwakeword_model_names(self):
+        config = WakeWordConfig.fromContext(self.context)
+        config.wakeWordPhrases = ["hey_jarvis"]
+        detector = WakeWordDetector(self.context, config)
+
+        self.assertEqual(detector._wakeWordModels(), ["hey_jarvis"])
 
     def test_wake_word_phrase_defaults_to_first_configured_phrase(self):
         config = WakeWordConfig.fromContext(self.context)
@@ -212,9 +219,39 @@ class WakeWordTests(unittest.TestCase):
 
         self.assertEqual(detector._missingCustomModelPhrases(), ["Aura", "Hey Aura"])
 
-    def test_detector_fails_fast_when_custom_wake_models_are_missing(self):
+    def test_detector_falls_back_to_pretrained_model_when_custom_models_are_missing(self):
         config = WakeWordConfig.fromContext(self.context)
         config.wakeWordPhrases = ["Aura", "Hey Aura"]
+        detector = WakeWordDetector(self.context, config)
+
+        original_package = sys.modules.get("openwakeword")
+        original_model = sys.modules.get("openwakeword.model")
+        package = types.ModuleType("openwakeword")
+        model_module = types.ModuleType("openwakeword.model")
+        model_module.Model = FakeOpenWakeWordModel
+        sys.modules["openwakeword"] = package
+        sys.modules["openwakeword.model"] = model_module
+
+        try:
+            detector.initialize()
+
+            self.assertTrue(detector.fallbackActive)
+            self.assertEqual(detector.activeWakePhrases, ["hey_jarvis"])
+            self.assertIn("Falling back", detector.modelReadinessWarning)
+        finally:
+            if original_package is None:
+                sys.modules.pop("openwakeword", None)
+            else:
+                sys.modules["openwakeword"] = original_package
+            if original_model is None:
+                sys.modules.pop("openwakeword.model", None)
+            else:
+                sys.modules["openwakeword.model"] = original_model
+
+    def test_detector_can_fail_fast_when_pretrained_fallback_is_disabled(self):
+        config = WakeWordConfig.fromContext(self.context)
+        config.wakeWordPhrases = ["Aura", "Hey Aura"]
+        config.wakeWordAllowPretrainedFallback = False
         detector = WakeWordDetector(self.context, config)
 
         with self.assertRaises(RuntimeError) as error:

@@ -119,6 +119,11 @@ voice:
     # Whether to log per-frame wake word prediction details.
     wakeWordDebugLogging: false
     wakeWordDebugLoggingLocation: logs/wake_word
+    # If configured Aura-specific phrases do not have local models yet, fall
+    # back to a built-in OpenWakeWord model so always-active listening starts.
+    wakeWordAllowPretrainedFallback: true
+    wakeWordFallbackModel: hey_jarvis
+    wakeWordAutoDownloadModels: true
 
 memory:
   # Whether Aura's long-term memory system is enabled.

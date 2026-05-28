@@ -68,6 +68,11 @@ class WakeWordManager:
                     f"(phrase={self.config.wakeWordPhrase}, autoStart={self.config.wakeWordAutoStart}, "
                     f"captureSeconds={self.config.wakeWordCaptureSeconds})."
                 )
+                if getattr(self.detector, "fallbackActive", False):
+                    self.logger.warning(
+                        "Wake word custom model fallback is active. "
+                        f"Listening for '{self.detector.activeWakePhrases[0]}' until an Aura wake model is installed."
+                    )
             if self.config.wakeWordAutoStart:
                 self.startListening()
             return True
@@ -148,6 +153,7 @@ class WakeWordManager:
             "listening": self.listener.listening,
             "phrase": self.config.wakeWordPhrase,
             "validPhrases": self.config.validWakeWordPhrases(),
+            "effectivePhrases": list(getattr(self.detector, "activeWakePhrases", None) or self.config.validWakeWordPhrases()),
             "confidence": self.lastConfidence,
             "lastDetectionLatencyMs": self.lastDetectionLatencyMs,
             "activationFrequency": self.lastActivationFrequency,

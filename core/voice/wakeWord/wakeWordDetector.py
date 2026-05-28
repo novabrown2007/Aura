@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
+from urllib.request import urlretrieve
 
 from .configuration import WakeWordConfig
 from .models import WakeWordResult
@@ -24,6 +25,8 @@ class WakeWordDetector:
         self.activeWakePhrases = self.config.validWakeWordPhrases()
         self.lastError = ""
         self.modelReadinessWarning = ""
+        self.fallbackActive = False
+        self.fallbackReason = ""
         self.predictionCount = 0
         self.totalPredictionTimeMs = 0.0
 
@@ -33,18 +36,38 @@ class WakeWordDetector:
         if self.initialized and self.model is not None:
             return self.model
         try:
-            modelNames = self._wakeWordModels()
             missingCustomModels = self._missingCustomModelPhrases()
+            modelNames = self._wakeWordModels()
             if missingCustomModels:
-                self.modelReadinessWarning = (
+                detail = (
                     "OpenWakeWord needs local custom model files for configured wake phrases: "
                     f"{', '.join(missingCustomModels)}. Add .onnx/.tflite models to "
                     "core/voice/wakeWord/models or set voice.alwaysActive.wakeWordModelPath."
                 )
-                if self.logger:
-                    self.logger.warning(self.modelReadinessWarning)
-                raise RuntimeError(self.modelReadinessWarning)
+                if modelNames:
+                    self.modelReadinessWarning = f"{detail} Continuing with available configured wake model(s)."
+                    if self.logger:
+                        self.logger.warning(self.modelReadinessWarning)
+                elif self.config.wakeWordAllowPretrainedFallback:
+                    fallbackModel = self._pretrainedFallbackModel()
+                    modelNames = [fallbackModel]
+                    self.activeWakePhrases = [fallbackModel]
+                    self.fallbackActive = True
+                    self.fallbackReason = detail
+                    self.modelReadinessWarning = (
+                        f"{detail} Falling back to built-in OpenWakeWord model '{fallbackModel}' so "
+                        "always-active listening can start."
+                    )
+                    if self.logger:
+                        self.logger.warning(self.modelReadinessWarning)
+                else:
+                    self.modelReadinessWarning = detail
+                    if self.logger:
+                        self.logger.warning(self.modelReadinessWarning)
+                    raise RuntimeError(self.modelReadinessWarning)
 
+            import openwakeword
+            self._ensureOpenWakeWordAssets(openwakeword, modelNames)
             from openwakeword.model import Model
 
             kwargs = {"inference_framework": self.config.wakeWordInferenceFramework}
@@ -54,7 +77,8 @@ class WakeWordDetector:
             self.initialized = True
             self.lastError = ""
             if self.logger:
-                self.logger.info(f"OpenWakeWord model initialized for phrase '{self.config.wakeWordPhrase}'.")
+                phrase = self.activeWakePhrases[0] if self.fallbackActive and self.activeWakePhrases else self.config.wakeWordPhrase
+                self.logger.info(f"OpenWakeWord model initialized for phrase '{phrase}'.")
             return self.model
         except Exception as error:
             detail = str(error)
@@ -117,6 +141,9 @@ class WakeWordDetector:
             "averagePredictionTimeMs": avgMs,
             "lastError": self.lastError,
             "modelReadinessWarning": self.modelReadinessWarning,
+            "fallbackActive": self.fallbackActive,
+            "fallbackModel": self.config.wakeWordFallbackModel,
+            "fallbackReason": self.fallbackReason,
             "missingCustomModelPhrases": self._missingCustomModelPhrases(),
             "lastResult": self.lastResult.asDict(),
         }
@@ -137,9 +164,14 @@ class WakeWordDetector:
                 models.append(str(phrasePath))
                 continue
 
+            normalizedPhrase = _normalizePhrase(phrase)
+            if normalizedPhrase in _OPENWAKEWORD_PRETRAINED_MODELS:
+                models.append(normalizedPhrase)
+                continue
+
             modelDirectory = Path(__file__).resolve().parent / "models"
             localModel = None
-            modelNames = [phrase, _normalizePhrase(phrase)]
+            modelNames = [phrase, normalizedPhrase]
             for suffix in (".onnx", ".tflite"):
                 for modelName in modelNames:
                     localPath = modelDirectory / f"{modelName}{suffix}"
@@ -148,7 +180,8 @@ class WakeWordDetector:
                         break
                 if localModel:
                     break
-            models.append(localModel or _normalizePhrase(phrase))
+            if localModel:
+                models.append(localModel)
 
         return models
 
@@ -161,6 +194,110 @@ class WakeWordDetector:
             if self._localModelPathForPhrase(phrase) is None:
                 missing.append(str(phrase))
         return missing
+
+    def _pretrainedFallbackModel(self) -> str:
+        """Return a valid built-in fallback model name."""
+
+        fallbackModel = _normalizePhrase(self.config.wakeWordFallbackModel or "hey_jarvis")
+        if fallbackModel in _OPENWAKEWORD_PRETRAINED_MODELS:
+            return fallbackModel
+        if self.logger:
+            self.logger.warning(
+                f"Invalid wakeWordFallbackModel '{self.config.wakeWordFallbackModel}'. "
+                "Using built-in fallback 'hey_jarvis'."
+            )
+        return "hey_jarvis"
+
+    def _ensureOpenWakeWordAssets(self, openwakewordModule: Any, modelNames: list[str]):
+        """Download missing OpenWakeWord assets needed by the selected models."""
+
+        if not self.config.wakeWordAutoDownloadModels:
+            return
+
+        requiredAssets = []
+        framework = str(self.config.wakeWordInferenceFramework or "onnx").strip().lower()
+
+        for modelName in modelNames:
+            if Path(str(modelName)).expanduser().exists():
+                continue
+            modelAsset = self._assetForPretrainedModel(openwakewordModule, str(modelName), framework)
+            if modelAsset is not None:
+                requiredAssets.append(modelAsset)
+
+        for assetName in ("melspectrogram", "embedding"):
+            featureAsset = self._assetForFeatureModel(openwakewordModule, assetName, framework)
+            if featureAsset is not None:
+                requiredAssets.append(featureAsset)
+
+        for path, url in self._deduplicateAssets(requiredAssets):
+            if path.exists():
+                continue
+            self._downloadAsset(path, url)
+
+    def _assetForPretrainedModel(self, openwakewordModule: Any, modelName: str, framework: str) -> tuple[Path, str] | None:
+        """Return the expected path and download URL for a pretrained model."""
+
+        models = getattr(openwakewordModule, "MODELS", {}) or {}
+        normalized = _normalizePhrase(modelName)
+        metadata = models.get(normalized)
+        if not metadata:
+            return None
+        return self._assetFromMetadata(metadata, framework)
+
+    def _assetForFeatureModel(self, openwakewordModule: Any, assetName: str, framework: str) -> tuple[Path, str] | None:
+        """Return the expected path and download URL for a feature model."""
+
+        features = getattr(openwakewordModule, "FEATURE_MODELS", {}) or {}
+        metadata = features.get(assetName)
+        if not metadata:
+            return None
+        return self._assetFromMetadata(metadata, framework)
+
+    @staticmethod
+    def _assetFromMetadata(metadata: dict, framework: str) -> tuple[Path, str] | None:
+        """Convert OpenWakeWord metadata to the configured framework asset."""
+
+        modelPath = str(metadata.get("model_path") or "")
+        downloadUrl = str(metadata.get("download_url") or "")
+        if not modelPath or not downloadUrl:
+            return None
+        if framework == "onnx":
+            modelPath = modelPath.replace(".tflite", ".onnx")
+            downloadUrl = downloadUrl.replace(".tflite", ".onnx")
+        elif framework == "tflite":
+            modelPath = modelPath.replace(".onnx", ".tflite")
+            downloadUrl = downloadUrl.replace(".onnx", ".tflite")
+        return Path(modelPath), downloadUrl
+
+    @staticmethod
+    def _deduplicateAssets(assets: list[tuple[Path, str]]) -> list[tuple[Path, str]]:
+        """Deduplicate assets while preserving order."""
+
+        seen = set()
+        deduplicated = []
+        for path, url in assets:
+            key = str(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduplicated.append((path, url))
+        return deduplicated
+
+    def _downloadAsset(self, path: Path, url: str):
+        """Download one missing OpenWakeWord model asset."""
+
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if self.logger:
+                self.logger.info(f"Downloading OpenWakeWord asset: {path.name}")
+            urlretrieve(url, path)
+        except Exception as error:
+            try:
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
+            raise RuntimeError(f"OpenWakeWord asset download failed for {path.name}: {error}") from error
 
     @staticmethod
     def _localModelPathForPhrase(phrase: str) -> Path | None:

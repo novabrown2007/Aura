@@ -167,7 +167,7 @@ class UISubscriptionManager:
                     {
                         "state": str(snapshot.get("state") or "Unknown").title(),
                         "listening": bool(snapshot.get("listening")),
-                        "phrases": list(snapshot.get("validPhrases") or []),
+                        "phrases": list(snapshot.get("effectivePhrases") or snapshot.get("validPhrases") or []),
                         "confidence": float(snapshot.get("confidence") or 0.0),
                         "lastDetection": str(session.get("lastActivationAt") or ""),
                         "cooldown": bool(session.get("inCooldown")),
