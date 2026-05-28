@@ -64,6 +64,12 @@ class BridgeConfig:
         scheme = "https" if self.use_ssl else "http"
         return f"{scheme}://{self.host}:{self.port}"
 
+    @property
+    def ssl(self) -> bool:
+        """Backward-compatible alias for use_ssl."""
+
+        return self.use_ssl
+
 
 @dataclass(slots=True)
 class HomeAutomationConfig:
