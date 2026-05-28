@@ -41,6 +41,13 @@ class WakeWordManager:
         if self.context is not None:
             self.context.wakeWordManager = self
 
+        if self.logger:
+            self.logger.info(
+                "Wake word manager created "
+                f"(enabled={self.config.wakeWordEnabled}, phrase={self.config.wakeWordPhrase}, "
+                f"autoStart={self.config.wakeWordAutoStart}, modelPath={self.config.wakeWordModelPath or 'default'})."
+            )
+
     def initialize(self) -> bool:
         """Initialize wake word components and optionally begin passive listening."""
 
@@ -56,7 +63,11 @@ class WakeWordManager:
             self.initialized = True
             self.state = "idle"
             if self.logger:
-                self.logger.info("Wake word manager initialized.")
+                self.logger.info(
+                    "Wake word manager initialized "
+                    f"(phrase={self.config.wakeWordPhrase}, autoStart={self.config.wakeWordAutoStart}, "
+                    f"captureSeconds={self.config.wakeWordCaptureSeconds})."
+                )
             if self.config.wakeWordAutoStart:
                 self.startListening()
             return True

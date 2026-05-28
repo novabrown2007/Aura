@@ -62,8 +62,7 @@ class ConversationHistory(AuraModule):
         if not self.persistAcrossRestarts:
             self.clear()
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("conversationHistory module started.")
 
     def getIntents(self):
         """Return intents handled by conversation history."""

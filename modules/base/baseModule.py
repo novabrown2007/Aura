@@ -58,6 +58,13 @@ class AuraModule:
 
         self.context = context
 
+    def _logStartup(self, message: str | None = None):
+        """Emit one startup log line when the module has a logger."""
+
+        logger = getattr(self, "logger", None)
+        if logger:
+            logger.info(message or f"{self.metadata.name} module started.")
+
     def shutdown(self):
         """Release module resources."""
 
@@ -106,11 +113,14 @@ class ServiceModule(AuraModule):
         """Create and register the wrapped service."""
 
         super().initialize(context)
+        if getattr(self, "logger", None) is None and getattr(context, "logger", None):
+            self.logger = context.logger.getChild(self.metadata.name)
         self.service = self.service_factory(context)
         setattr(context, self.context_attribute, self.service)
         self._registerContextModule(context, self.metadata.name, self)
         if self.context_attribute != self.metadata.name:
             self._registerContextModule(context, self.context_attribute, self.service)
+        self._logStartup(f"{self.metadata.name} service started as {self.context_attribute}.")
 
     def shutdown(self):
         """Shutdown the wrapped service if it exposes a shutdown method."""

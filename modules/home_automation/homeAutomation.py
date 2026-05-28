@@ -49,6 +49,10 @@ class HomeAutomation(AuraModule):
         self.config = self.config or getattr(context, "homeAutomationConfig", None) or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
         self.bridge = getattr(context, "bridgeClient", None) or getattr(context, "auraBridgeClient", None) or BridgeConnection(self.config.bridge)
+        self._logStartup(
+            "homeAutomation module started "
+            f"(bridge_host={self.config.bridge.host}, bridge_port={self.config.bridge.port}, ssl={self.config.bridge.ssl})."
+        )
         return None
 
     def shutdown(self):

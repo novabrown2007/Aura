@@ -40,7 +40,7 @@ class TaskManager:
         self._lock = threading.RLock()
 
         if self.logger:
-            self.logger.info(f"Initialized.")
+            self.logger.info("Task manager initialized.")
 
     # --------------------------------------------------
     # Task Submission

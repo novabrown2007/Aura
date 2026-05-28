@@ -99,8 +99,7 @@ class MemoryManager(AuraModule):
         self.eventHandler = MemoryEventHandler(context, self)
         self.eventHandler.subscribe()
         context.memoryManager = self
-        if self.logger:
-            self.logger.info("Structured memory manager initialized")
+        self._logStartup("memoryManager module started.")
 
     def getIntents(self):
         """Return intents handled directly by memory manager."""

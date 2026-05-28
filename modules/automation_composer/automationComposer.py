@@ -45,8 +45,7 @@ class AutomationComposer(AuraModule):
         if autonomous is not None:
             autonomous.registerHandler(self.AUTOMATION_TASK_TYPE, self._handleAutomationTask)
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("automationComposer module started.")
 
     def getIntents(self):
         """Return intents handled by the deterministic tool layer."""

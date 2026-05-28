@@ -68,8 +68,7 @@ class LLMHandler(AuraModule):
         self.tools = getattr(context, "toolOrchestrator", None) or ToolOrchestrator(context)
         self.intentPipeline = IntentPipeline(context, self.manager)
 
-        if self.logger:
-            self.logger.info("Initialized provider-neutral LLM handler.")
+        self._logStartup("llm module started.")
 
     def getIntents(self):
         """Return intents handled directly by the LLM module."""

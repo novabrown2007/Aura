@@ -43,7 +43,7 @@ class EventManager:
         self.listeners: Dict[str, List[Callable]] = {}
 
         if self.logger:
-            self.logger.info(f"Initialized.")
+            self.logger.info("Event manager initialized.")
     # --------------------------------------------------
     # Subscription
     # --------------------------------------------------

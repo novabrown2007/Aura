@@ -67,7 +67,7 @@ class MySQLDatabase(AuraModule):
             self.logger = context.logger.getChild("Database")
 
         if self.logger:
-            self.logger.info("MySQL initialized.")
+            self._logStartup("mysqlDatabase module started.")
 
     # --------------------------------------------------
     # Connection Management

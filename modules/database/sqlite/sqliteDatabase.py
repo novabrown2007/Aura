@@ -99,7 +99,7 @@ class SQLiteDatabase(AuraModule):
         self.connection.row_factory = sqlite3.Row
 
         if self.logger:
-            self.logger.info(f"SQLite connected: '{self.database_path}'.")
+            self._logStartup(f"sqliteDatabase module started: database_path='{self.database_path}'.")
 
     def close(self):
         """Close the SQLite connection."""

@@ -54,6 +54,13 @@ class PushToTalkManager:
         self.active = False
         self.lastResult = PushToTalkResult()
 
+        if self.logger:
+            self.logger.info(
+                "Push-to-talk manager started "
+                f"(enabled={self.enabled}, hotkey={self.hotkey}, autoSpeak={self.autoSpeak}, "
+                f"tempAudioDirectory={self.tempAudioDirectory})."
+            )
+
     def startCapture(self) -> bool:
         """Start microphone capture for a push-to-talk turn."""
 

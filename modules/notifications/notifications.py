@@ -52,8 +52,7 @@ class Notifications(AuraModule):
         self.createNotificationsTable()
         self._subscribeToEvents()
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("notifications module started.")
 
     def getIntents(self):
         """Return intents handled by notifications."""

@@ -12,7 +12,7 @@ class IntentRouter:
         self.context = context
         self.logger = context.logger.getChild("Router") if context.logger else None
         if self.logger:
-            self.logger.info("Initialized.")
+            self.logger.info("Intent router initialized.")
 
     def route(self, intent):
         """

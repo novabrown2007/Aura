@@ -19,7 +19,7 @@ class Engine:
             self.context.should_exit = False
 
         if self.logger:
-            self.logger.info("Initialized.")
+            self.logger.info("Engine initialized.")
 
     def run(self, poll_interval: float = 0.1):
         """

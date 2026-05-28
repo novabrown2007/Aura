@@ -56,7 +56,7 @@ class ModuleLoader:
         self.context.moduleLoader = self
 
         if self.logger:
-            self.logger.info("Initialized.")
+            self.logger.info("Module loader initialized.")
 
     def loadModules(self):
         """Discover and load enabled modules in dependency order."""

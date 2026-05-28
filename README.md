@@ -640,8 +640,10 @@ buildozer android release
 
 Aura creates a `logs` directory automatically if it does not exist.
 
-Each startup creates a new timestamped log file in `logs/`, and all log levels
-are written there for that run.
+Each startup creates a new timestamped log file in `logs/`, and the same output
+is mirrored into `logs/log.txt` for the current run. Module startup lines now
+include the backend module loader, core runtime components, and the voice
+subsystems such as push-to-talk and always-active wake word initialization.
 
 ## Configuration
 

@@ -45,8 +45,7 @@ class Reminders(AuraModule):
         self._subscribeToEvents()
         self._registerReminderPollingSchedule()
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("reminders module started.")
 
     def getIntents(self):
         """Return intents handled by reminders."""

@@ -75,6 +75,12 @@ class VoiceManager:
             self.context.speechQueue = self.speechQueue
             self.context.pushToTalkManager = self.pushToTalkManager
 
+        self._log(
+            "Voice manager started "
+            f"(stt_enabled={self.inputEnabled}, tts_enabled={self.outputEnabled}, "
+            f"push_to_talk_enabled={self.pushToTalkEnabled})."
+        )
+
     def startVoiceCapture(self):
         """Start recording a local push-to-talk voice capture."""
 

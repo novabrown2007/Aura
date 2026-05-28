@@ -59,7 +59,7 @@ class ThreadingManager:
         self.controls: dict[str, ThreadControl] = {}
 
         if self.logger:
-            self.logger.info(f"Initialized.")
+            self.logger.info("Threading manager initialized.")
 
     # --------------------------------------------------
     # Thread Creation

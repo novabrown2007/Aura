@@ -42,7 +42,7 @@ class Scheduler:
         self.running = False
 
         if self.logger:
-            self.logger.info(f"Initialized.")
+            self.logger.info("Scheduler initialized.")
 
     # --------------------------------------------------
     # Schedule Management

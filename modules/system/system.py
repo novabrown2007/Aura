@@ -54,8 +54,7 @@ class System(AuraModule):
         self.restartAction = Restart(context)
         self.reloadAction = Reload(context)
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("system module started.")
 
     def getIntents(self):
         """Return intents handled by system."""

@@ -60,8 +60,7 @@ class Calendar(AuraModule):
         self._registerReminderPollingSchedule()
         self.ensureDefaultCalendar()
 
-        if self.logger:
-            self.logger.info("Initialized.")
+        self._logStartup("calendar module started.")
 
     def getIntents(self):
         """Return intents handled by calendar."""

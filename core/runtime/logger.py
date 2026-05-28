@@ -12,7 +12,8 @@ class AuraLogger:
 
     On initialization, the logger ensures a `logs` directory exists in the
     current project root, creates a new timestamped log file for the current
-    process, and routes all log levels into that file.
+    process, and mirrors the same output into `logs/log.txt` for the active
+    run.
     """
 
     def __init__(self, name="Aura", level=logging.INFO, logs_dir="logs"):
@@ -36,6 +37,7 @@ class AuraLogger:
         self.logsDirectory.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.logFilePath = self.logsDirectory / f"aura_{timestamp}_{os.getpid()}.log"
+        self.logTxtPath = self.logsDirectory / "log.txt"
 
         formatter = logging.Formatter(
             "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
@@ -47,6 +49,10 @@ class AuraLogger:
         file_handler = logging.FileHandler(self.logFilePath, encoding="utf-8")
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
+
+        txt_handler = logging.FileHandler(self.logTxtPath, mode="w", encoding="utf-8")
+        txt_handler.setFormatter(formatter)
+        self.logger.addHandler(txt_handler)
 
         self.logger.info("logger.py has been initialized.")
 
