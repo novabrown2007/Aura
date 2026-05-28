@@ -31,6 +31,10 @@ class VoiceManager:
         self.outputDirectory = self._getConfigValue("voice.voiceOutputDirectory", self._getConfigValue("voiceOutputDirectory", "temp/voice"))
         self.playbackEnabled = self._getBoolConfig("voice.voicePlaybackEnabled", self._getBoolConfig("voicePlaybackEnabled", True))
         self.outputSampleRate = int(self._getConfigValue("voice.voiceSampleRate", self._getConfigValue("voiceSampleRate", 22050)))
+        self.outputAutoDownloadModel = self._getBoolConfig(
+            "voice.TTS.voiceAutoDownloadModel",
+            self._getBoolConfig("voice.voiceAutoDownloadModel", self._getBoolConfig("voiceAutoDownloadModel", True)),
+        )
         self.pushToTalkEnabled = self._getBoolConfig(
             "voice.pushToTalk.enabled",
             self._getBoolConfig("voice.pushToTalkEnabled", self._getBoolConfig("voice.PTT.pushToTalkEnabled", False)),
@@ -57,6 +61,7 @@ class VoiceManager:
             outputDirectory=str(self.outputDirectory),
             playbackEnabled=bool(self.playbackEnabled and self.outputEnabled),
             sampleRate=self.outputSampleRate,
+            autoDownloadModel=bool(self.outputAutoDownloadModel),
         )
         self.audioPlayer = self.textToSpeech.audioPlayer
         self.speechQueue = SpeechQueue(context, self.textToSpeech)

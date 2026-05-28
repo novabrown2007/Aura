@@ -9,6 +9,15 @@ __pycache__/
 .env
 logs/
 *.log
+temp/
+voices/
+voice_models/
+*.wav
+*.mp3
+*.flac
+*.onnx
+*.onnx.json
+*.tflite
 aura.sqlite3
 aura_memory.sqlite3
 *.sqlite3

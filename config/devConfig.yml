@@ -91,6 +91,8 @@ voice:
     # Piper output sample rate.
     # Valid value: integer Hz. The default Piper voice uses 22050.
     voiceSampleRate: 22050
+    # Download the configured Piper voice model automatically when missing.
+    voiceAutoDownloadModel: true
   PTT:
     # Push-to-talk hotkey label for developer/manual flows.
     # Valid value: key name string. The current dev console uses enter.

@@ -111,6 +111,7 @@ DEFAULT_DEV_CONFIG = {
             "voiceOutputDirectory": "temp/voice",
             "voicePlaybackEnabled": True,
             "voiceSampleRate": 22050,
+            "voiceAutoDownloadModel": True,
         },
         "pushToTalk": {
             "pushToTalkHotkey": "enter",

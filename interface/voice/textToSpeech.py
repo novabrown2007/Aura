@@ -21,6 +21,7 @@ class TextToSpeech:
         outputDirectory: str = "temp/voice",
         playbackEnabled: bool = True,
         sampleRate: int = 22050,
+        autoDownloadModel: bool = True,
     ):
         self.context = context
         self.logger = context.logger.getChild("Voice.TTS") if context and getattr(context, "logger", None) else None
@@ -28,6 +29,7 @@ class TextToSpeech:
         self.outputDirectory = str(outputDirectory)
         self.playbackEnabled = bool(playbackEnabled)
         self.sampleRate = int(sampleRate)
+        self.autoDownloadModel = bool(autoDownloadModel)
         self.audioPlayer = AudioPlayer(context)
         self.model = None
         self.initialized = False
@@ -57,6 +59,9 @@ class TextToSpeech:
                 return None
 
             modelPath = self._resolveModelPath(self.modelPath)
+            if modelPath is None and self.autoDownloadModel:
+                self._downloadVoiceModel(self.modelPath)
+                modelPath = self._resolveModelPath(self.modelPath)
             if modelPath is None:
                 searched = ", ".join(str(path) for path in self._modelPathCandidates(self.modelPath))
                 self.lastError = (
@@ -211,6 +216,55 @@ class TextToSpeech:
                 seen.add(key)
                 uniqueCandidates.append(candidate)
         return uniqueCandidates
+
+    def _downloadVoiceModel(self, value: str):
+        """Download a named Piper voice model and config when missing."""
+
+        voiceName = self._voiceNameFromModelPath(value)
+        if not voiceName:
+            return
+
+        downloadDirectory = self._voiceDownloadDirectory(value)
+        try:
+            from piper.download_voices import download_voice
+        except Exception as error:
+            self.lastError = f"Piper voice downloader is unavailable: {error}"
+            if self.logger:
+                self.logger.error(self.lastError)
+            return
+
+        try:
+            downloadDirectory.mkdir(parents=True, exist_ok=True)
+            if self.logger:
+                self.logger.info(f"Downloading Piper voice model '{voiceName}' to {downloadDirectory}")
+            download_voice(voiceName, downloadDirectory)
+        except Exception as error:
+            self.lastError = f"Piper voice model download failed for {voiceName}: {error}"
+            if self.logger:
+                self.logger.error(self.lastError)
+
+    @staticmethod
+    def _voiceNameFromModelPath(value: str) -> str:
+        """Return a Piper voice name such as en_US-lessac-medium."""
+
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        path = Path(raw)
+        if path.suffix == ".json":
+            path = path.with_suffix("")
+        if path.suffix == ".onnx":
+            return path.stem
+        return path.name
+
+    @staticmethod
+    def _voiceDownloadDirectory(value: str) -> Path:
+        """Return where auto-downloaded Piper voices should live."""
+
+        raw = Path(str(value or "").strip())
+        if raw.parent != Path("."):
+            return raw.parent
+        return Path("voices")
 
     def _createOutputPath(self) -> Path:
         """Create a temp WAV path inside the configured output directory."""

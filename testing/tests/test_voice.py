@@ -10,6 +10,7 @@ import unittest
 import wave
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
@@ -313,7 +314,7 @@ class VoiceTests(unittest.TestCase):
         sys.modules["piper.voice"] = types.SimpleNamespace(PiperVoice=FakePiperVoice)
 
         try:
-            tts = TextToSpeech(self.context, modelPath="missing-voice", outputDirectory="temp/voice")
+            tts = TextToSpeech(self.context, modelPath="missing-voice", outputDirectory="temp/voice", autoDownloadModel=False)
             result = tts.generateSpeech("Hello Aura.")
 
             self.assertFalse(result.success)
@@ -325,6 +326,26 @@ class VoiceTests(unittest.TestCase):
                 sys.modules.pop("piper.voice", None)
             else:
                 sys.modules["piper.voice"] = original_piper
+
+    def test_text_to_speech_downloads_missing_named_voice(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            voices_dir = Path(temp_dir) / "voices"
+            model_path = voices_dir / "en_US-lessac-medium.onnx"
+            config_path = voices_dir / "en_US-lessac-medium.onnx.json"
+
+            def fake_download_voice(voice, download_dir):
+                self.assertEqual(voice, "en_US-lessac-medium")
+                Path(download_dir).mkdir(parents=True, exist_ok=True)
+                model_path.write_bytes(b"fake model")
+                config_path.write_text("{}", encoding="utf-8")
+
+            tts = TextToSpeech(self.context, modelPath=str(model_path), autoDownloadModel=True)
+
+            with patch("piper.download_voices.download_voice", side_effect=fake_download_voice):
+                self.assertIsNone(tts._resolveModelPath(str(model_path)))
+                tts._downloadVoiceModel(str(model_path))
+
+            self.assertEqual(tts._resolveModelPath(str(model_path)), model_path.resolve())
 
     def test_audio_player_plays_wave_files(self):
         original_sounddevice = sys.modules.get("sounddevice")
