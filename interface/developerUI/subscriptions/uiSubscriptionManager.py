@@ -38,6 +38,14 @@ class UISubscriptionManager:
         "memory.injected",
         "provider.request.completed",
         "provider.request.failed",
+        "interruption.requested",
+        "interruption.started",
+        "interruption.completed",
+        "interruption.failed",
+        "operation.cancelled",
+        "tts.cancelled",
+        "provider.cancelled",
+        "conversation.cancelled",
         "error",
     )
 
@@ -95,9 +103,11 @@ class UISubscriptionManager:
                         "modules": snapshot.get("modules", {}),
                         "threads": snapshot.get("threads", []),
                         "scheduler": snapshot.get("scheduler", {}),
+                        "interruptions": snapshot.get("interruptions", {}),
                     }
                 )
                 self.state.updateProviders(snapshot.get("providers", {}))
+                self.state.updateInterruptions(snapshot.get("interruptions", {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Developer UI observability refresh failed: {error}")

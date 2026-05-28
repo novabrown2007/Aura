@@ -70,6 +70,15 @@ class RuntimeContext:
         self.observability = None
         """Runtime diagnostics and execution trace service."""
 
+        self.interruptionManager = None
+        """Global interruption coordinator."""
+
+        self.cancellationManager = None
+        """Cooperative cancellation token manager."""
+
+        self.interruptionRegistry = None
+        """Registry for active interruptible operations."""
+
         # ----------------------------
         # Modules
         # ----------------------------

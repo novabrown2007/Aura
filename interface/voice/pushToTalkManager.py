@@ -62,6 +62,7 @@ class PushToTalkManager:
             )
         )
         self.active = False
+        self.cancelRequested = False
         self.lastResult = PushToTalkResult()
         self.captureSource = "push_to_talk"
 
@@ -76,6 +77,7 @@ class PushToTalkManager:
         """Start microphone capture for a push-to-talk turn."""
 
         self.captureSource = self._normalizeSource(source)
+        self.cancelRequested = False
         if not self.enabled:
             self._fail("Push-to-talk is disabled.", emitEvent=False)
             return False
@@ -91,12 +93,15 @@ class PushToTalkManager:
             self.logger.info(f"Voice capture starting from source={self.captureSource}.")
 
         try:
+            self._registerCaptureOperation(self.captureSource)
             started = self.voiceManager.startVoiceCapture()
         except Exception as error:
+            self._completeCaptureOperation()
             self._fail(f"Voice capture could not start: {error}")
             return False
 
         if not started:
+            self._completeCaptureOperation()
             message = getattr(self.voiceManager.recorder, "lastError", "") or "No microphone or capture device is available."
             self._fail(message)
             return False
@@ -112,6 +117,8 @@ class PushToTalkManager:
             return self._fail("Push-to-talk capture is not active.")
 
         try:
+            if self.cancelRequested:
+                return self._fail("Voice capture cancelled.")
             source = self.captureSource
             audioPath = self.voiceManager.stopVoiceCapture()
             self.active = False
@@ -136,6 +143,11 @@ class PushToTalkManager:
                 return self._fail(transcription.errorMessage or "Transcription failed.", transcription=transcription, audioPath=audioPath)
 
             text = transcription.text.strip()
+            interruption = getattr(self.context, "interruptionManager", None)
+            if interruption is not None and interruption.isInterruptionCommand(text):
+                interruption.handleVoiceCommand(text, source=source)
+                return self._cancelledResult(text, transcription, audioPath, source)
+
             self._emit("conversation.message.received", {"text": text, "source": source})
             if self.logger:
                 self.logger.info(f"Voice transcription from {source}: {text}")
@@ -180,7 +192,9 @@ class PushToTalkManager:
             return result
         finally:
             self.active = False
+            self.cancelRequested = False
             self.captureSource = "push_to_talk"
+            self._completeCaptureOperation()
             self.voiceManager._cleanupAudio()
 
     def runDevConsoleLoop(self, inputFn=input, outputFn=print) -> PushToTalkResult:
@@ -232,6 +246,37 @@ class PushToTalkManager:
         if recorder is not None and self.tempAudioDirectory:
             recorder.tempDirectory = self.tempAudioDirectory
 
+    def cancelActiveCapture(self) -> bool:
+        """Cancel any active microphone capture."""
+
+        self.cancelRequested = True
+        cancelled = bool(self.active or (self.voiceManager and self.voiceManager.recorder.isRecording()))
+        try:
+            if self.voiceManager is not None and self.voiceManager.recorder.isRecording():
+                self.voiceManager.stopVoiceCapture()
+        except Exception:
+            pass
+        self.active = False
+        self._completeCaptureOperation()
+        return cancelled
+
+    def _cancelledResult(self, text: str, transcription: TranscriptionResult, audioPath: str, source: str) -> PushToTalkResult:
+        """Return a successful interruption result without normal routing."""
+
+        result = PushToTalkResult(
+            success=True,
+            audioPath=audioPath,
+            transcribedText=text,
+            assistantResponse="",
+            transcription=transcription,
+            speech=None,
+            errorMessage="",
+            source=source,
+        )
+        self.lastResult = result
+        self._emit("voice.loop.completed", result.__dict__)
+        return result
+
     def _speakAssistantResponse(self, response: str, source: str) -> SpeechResult:
         """Speak a voice-origin assistant response through TextToSpeech."""
 
@@ -260,6 +305,31 @@ class PushToTalkManager:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Push-to-talk event emission failed for {eventName}: {error}")
+
+    def _registerCaptureOperation(self, source: str):
+        registry = getattr(self.context, "interruptionRegistry", None)
+        if registry is None:
+            return
+        try:
+            registry.registerOperation(
+                "voice.capture",
+                "voice",
+                "capture",
+                cancelHandler=lambda _context: self.cancelActiveCapture(),
+                metadata={"source": source},
+            )
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Failed to register voice capture interruption operation: {error}")
+
+    def _completeCaptureOperation(self):
+        registry = getattr(self.context, "interruptionRegistry", None)
+        if registry is None:
+            return
+        try:
+            registry.completeOperation("voice.capture")
+        except Exception:
+            pass
 
     def _getConfigValue(self, key: str, default=None):
         config = getattr(self.context, "config", None)

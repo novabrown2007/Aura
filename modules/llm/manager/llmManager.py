@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import re
 import time
+from threading import Lock
+from uuid import uuid4
 
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
@@ -43,6 +45,8 @@ class LLMManager:
         self.offlineUntil = 0.0
         self.initialized = False
         self.rawLogger = None
+        self._activeRequestIds: set[str] = set()
+        self._requestLock = Lock()
 
         if context is not None:
             self.initialize(context)
@@ -205,10 +209,18 @@ class LLMManager:
                     self.logger.info(f"Routing LLM request to fallback provider: {providerName}")
 
             method = getattr(provider, methodName)
-            if schema is None:
-                response = method(systemPrompt, userPrompt, conversationHistory)
-            else:
-                response = method(systemPrompt, userPrompt, schema, conversationHistory)
+            operationId, token = self._beginProviderRequest(providerName, methodName)
+            try:
+                if token is not None and token.cancellationRequested:
+                    return LLMResponse(success=False, provider=providerName, error="Provider request cancelled.")
+                if schema is None:
+                    response = method(systemPrompt, userPrompt, conversationHistory)
+                else:
+                    response = method(systemPrompt, userPrompt, schema, conversationHistory)
+                if token is not None and token.cancellationRequested:
+                    return LLMResponse(success=False, provider=providerName, error="Provider request cancelled.")
+            finally:
+                self._finishProviderRequest(operationId)
 
             lastResponse = response
             if self.rawLogger:
@@ -233,6 +245,69 @@ class LLMManager:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
 
         return lastResponse
+
+    def cancelActiveRequests(self) -> list[str]:
+        """Request cooperative cancellation for active provider requests."""
+
+        with self._requestLock:
+            requestIds = list(self._activeRequestIds)
+
+        cancellationManager = getattr(self.context, "cancellationManager", None)
+        for operationId in requestIds:
+            try:
+                if cancellationManager is not None:
+                    cancellationManager.cancel(operationId)
+            except Exception:
+                pass
+
+        for provider in getattr(self, "providers", {}).values():
+            if hasattr(provider, "cancelActiveRequests"):
+                try:
+                    provider.cancelActiveRequests()
+                except Exception as error:
+                    if self.logger:
+                        self.logger.warning(f"Provider cancellation hook failed: {error}")
+        return requestIds
+
+    def _beginProviderRequest(self, providerName: str, methodName: str):
+        """Register a provider request as an interruptible operation."""
+
+        operationId = f"provider.{providerName}.{methodName}.{uuid4().hex}"
+        token = None
+        cancellationManager = getattr(self.context, "cancellationManager", None)
+        registry = getattr(self.context, "interruptionRegistry", None)
+        try:
+            if cancellationManager is not None:
+                token = cancellationManager.createToken(operationId)
+            if registry is not None:
+                registry.registerOperation(
+                    operationId,
+                    "provider",
+                    "provider",
+                    cancelHandler=lambda _context: self.cancelActiveRequests(),
+                    metadata={"provider": providerName, "method": methodName},
+                )
+            with self._requestLock:
+                self._activeRequestIds.add(operationId)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Failed to register provider interruption operation: {error}")
+        return operationId, token
+
+    def _finishProviderRequest(self, operationId: str):
+        """Remove provider request interruption metadata."""
+
+        with self._requestLock:
+            self._activeRequestIds.discard(operationId)
+        registry = getattr(self.context, "interruptionRegistry", None)
+        if registry is not None:
+            try:
+                registry.completeOperation(operationId)
+            except Exception:
+                pass
+        cancellationManager = getattr(self.context, "cancellationManager", None)
+        if cancellationManager is not None and hasattr(cancellationManager, "complete"):
+            cancellationManager.complete(operationId)
 
     @staticmethod
     def _providerSupportsRequest(provider: LLMProvider, methodName: str) -> bool:

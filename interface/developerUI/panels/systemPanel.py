@@ -25,6 +25,10 @@ class SystemPanel(TextPanel):
         voiceProviders = providers.get("voice", {}) or {}
         stt = voiceProviders.get("stt", {}) or {}
         tts = voiceProviders.get("tts", {}) or {}
+        interruptions = snapshot.interruptions or system.get("interruptions", {}) or {}
+        interruptionState = interruptions.get("state", {}) if isinstance(interruptions.get("state"), dict) else {}
+        cancelled = interruptions.get("cancelledOperations") or interruptionState.get("cancelledOperations") or []
+        failed = interruptions.get("failedOperations") or interruptionState.get("failedOperations") or []
         lines = [
             "[SYSTEM]",
             f"Uptime Seconds: {system.get('uptimeSeconds', 0)}",
@@ -41,6 +45,12 @@ class SystemPanel(TextPanel):
             f"Active LLM: {activeProvider} ({activeModel})",
             f"Active STT: {stt.get('provider', 'Unavailable')} ({stt.get('model', 'Unavailable')})",
             f"Active TTS: {tts.get('provider', 'Unavailable')} ({tts.get('model', 'Unavailable')})",
+            "",
+            "Interruptions:",
+            f"Enabled: {bool(interruptions.get('enabled', False))}",
+            f"Active: {bool(interruptionState.get('active', interruptions.get('active', False)))}",
+            f"Cancelled: {', '.join(str(item) for item in cancelled) if cancelled else 'None'}",
+            f"Failed: {', '.join(str(item) for item in failed) if failed else 'None'}",
             "",
             "Loaded Modules:",
         ]

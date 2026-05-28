@@ -48,6 +48,16 @@ voice:
     # requires a custom trained model before it can be enabled reliably.
     activationPhrases: ["Hey Jarvis"]
 
+interruptions:
+  # Global interruption/cancellation layer for stop/cancel voice commands.
+  interruptionsEnabled: true
+  # Whether spoken commands like "Stop" and "Nevermind" trigger cancellation.
+  interruptionVoiceCommandsEnabled: true
+  # Whether interruptions clear pending clarification/conversation state.
+  interruptionClearConversationState: true
+  # Whether interruption requests and cancellation results are logged verbosely.
+  interruptionDebugLogging: true
+
 # Connection credentials for the Home Automation Bridge
 homeAutomationBridge:
   host: 127.0.0.1

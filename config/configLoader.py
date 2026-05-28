@@ -31,7 +31,7 @@ DEFAULT_USER_CONFIG = {
         },
         "alwaysActive": {
             "enabled": True,
-            "activationPhrases": ["Aura", "Hey Aura", "Aura Wake"],
+            "activationPhrases": ["Hey Jarvis"],
         },
     },
     "homeAutomationBridge": {
@@ -59,6 +59,12 @@ DEFAULT_DEV_CONFIG = {
         "consoleLoggingEnabled": True,
         "fileLoggingEnabled": True,
         "debugLoggingEnabled": True,
+    },
+    "interruptions": {
+        "interruptionsEnabled": True,
+        "interruptionVoiceCommandsEnabled": True,
+        "interruptionClearConversationState": True,
+        "interruptionDebugLogging": True,
     },
     "llm": {
         "activeProvider": "gemini",

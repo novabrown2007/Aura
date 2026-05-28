@@ -7,6 +7,7 @@ import time
 import wave
 from pathlib import Path
 from threading import Lock
+from threading import Event
 
 from .audioPlayer import AudioPlayer
 from .models.speechResult import SpeechResult
@@ -37,6 +38,7 @@ class TextToSpeech:
         self.lastResult = SpeechResult()
         self.lastError = ""
         self._lock = Lock()
+        self._cancelEvent = Event()
         self._generatedAudioPaths: list[Path] = []
 
     def initialize(self):
@@ -123,6 +125,9 @@ class TextToSpeech:
             self.lastResult = result
             return result
 
+        # A previous interruption should not permanently suppress later speech.
+        self._cancelEvent.clear()
+
         model = self.initialize()
         if model is None:
             result = SpeechResult(success=False, errorMessage=self.lastError or "Piper voice model is unavailable.")
@@ -131,9 +136,14 @@ class TextToSpeech:
 
         start = time.perf_counter()
         try:
+            self._registerSpeechOperation(cleaned)
             outputPath = self._createOutputPath()
             with wave.open(str(outputPath), "wb") as audioFile:
+                if self._cancelEvent.is_set():
+                    raise RuntimeError("Speech cancelled.")
                 model.synthesize_wav(cleaned, audioFile)
+            if self._cancelEvent.is_set():
+                raise RuntimeError("Speech cancelled.")
 
             generationTime = time.perf_counter() - start
             if self.logger:
@@ -164,6 +174,8 @@ class TextToSpeech:
             )
             self.lastResult = result
             return result
+        finally:
+            self._completeSpeechOperation()
 
     def shutdown(self):
         """Release cached model references and clean temp audio files."""
@@ -178,6 +190,16 @@ class TextToSpeech:
         self._cleanupGeneratedAudio()
         self.model = None
         self.initialized = False
+
+    def cancel(self):
+        """Cancel active speech generation/playback and clean queued audio."""
+
+        self._cancelEvent.set()
+        try:
+            self.audioPlayer.stopAudio()
+        except Exception:
+            pass
+        self._cleanupGeneratedAudio()
 
     def _resolveModelPath(self, value: str) -> Path | None:
         """Find a local Piper model path from a configurable input."""
@@ -291,6 +313,31 @@ class TextToSpeech:
             except Exception as error:
                 if self.logger:
                     self.logger.warning(f"Failed to remove generated speech file {item}: {error}")
+
+    def _registerSpeechOperation(self, text: str):
+        registry = getattr(self.context, "interruptionRegistry", None)
+        if registry is None:
+            return
+        try:
+            registry.registerOperation(
+                "tts.synthesis",
+                "voice",
+                "tts",
+                cancelHandler=lambda _context: self.cancel(),
+                metadata={"textPreview": str(text or "")[:160]},
+            )
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Failed to register TTS interruption operation: {error}")
+
+    def _completeSpeechOperation(self):
+        registry = getattr(self.context, "interruptionRegistry", None)
+        if registry is None:
+            return
+        try:
+            registry.completeOperation("tts.synthesis")
+        except Exception:
+            pass
 
     @staticmethod
     def _importPiperVoice():

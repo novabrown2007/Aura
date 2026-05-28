@@ -12,6 +12,12 @@ logging:
   fileLoggingEnabled: true
   debugLoggingEnabled: true
 
+interruptions:
+  interruptionsEnabled: true
+  interruptionVoiceCommandsEnabled: true
+  interruptionClearConversationState: true
+  interruptionDebugLogging: true
+
 llm:
   # Primary LLM provider Aura should use.
   activeProvider: gemini

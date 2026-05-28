@@ -17,6 +17,7 @@ from core.threading.scheduler.scheduler import Scheduler
 from core.eventBus.autonomy import AutonomousTaskManager
 from modules.llm.contextAwareness import ContextAwarenessManager
 from core.runtime.observability import ObservabilityManager
+from core.interruption import InterruptionManager
 from core.voice.wakeWord import WakeWordManager
 
 from core.router.intentRouter import IntentRouter
@@ -122,6 +123,7 @@ def buildRuntimeContext():
     context.eventManager = EventManager(context)
     context.taskManager = TaskManager(context)
     context.scheduler = Scheduler(context)
+    context.interruptionManager = InterruptionManager(context).initialize(context)
     context.observability = ObservabilityManager(context)
     context.autonomousTasks = AutonomousTaskManager(context)
     context.contextAwareness = ContextAwarenessManager(context)

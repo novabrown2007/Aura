@@ -59,6 +59,14 @@ class DeveloperUIState:
         self.errors = deque(maxlen=200)
         self.system = {}
         self.performance = {}
+        self.interruptions = {
+            "available": False,
+            "enabled": False,
+            "active": False,
+            "lastRequest": {},
+            "cancelledOperations": [],
+            "failedOperations": [],
+        }
         self._lock = RLock()
 
     def recordEvent(self, event: ConsoleEvent):
@@ -79,6 +87,12 @@ class DeveloperUIState:
 
         with self._lock:
             self.providers = dict(providers or {})
+
+    def updateInterruptions(self, interruptions: dict[str, Any]):
+        """Update global interruption state for the developer UI."""
+
+        with self._lock:
+            self.interruptions = dict(interruptions or {})
 
     def updateBridge(self, bridge: dict[str, Any]):
         """Update bridge state."""
@@ -161,6 +175,7 @@ class DeveloperUIState:
                 errors=list(self.errors),
                 system=system,
                 performance=dict(self.performance),
+                interruptions=dict(self.interruptions),
             )
 
     def _applyEvent(self, event: ConsoleEvent):
@@ -194,6 +209,12 @@ class DeveloperUIState:
         elif name == "tts.finished":
             self.voice["tts"] = "Idle"
             self.voice["playback"] = "Finished" if payload.get("success", True) else "Failed"
+        elif name == "tts.cancelled":
+            self.voice["tts"] = "Cancelled"
+            self.voice["playback"] = "Cancelled"
+            self._applyInterruptionEvent(name, payload, event.timestamp)
+        elif name.startswith("interruption.") or name.endswith(".cancelled") or name == "operation.cancelled":
+            self._applyInterruptionEvent(name, payload, event.timestamp)
         elif name.startswith("wakeword."):
             self._applyWakeWordEvent(name, payload, event.timestamp)
         elif name.startswith("memory.") or "memory" in name:
@@ -244,3 +265,34 @@ class DeveloperUIState:
         elif name == "wakeword.error":
             wakeWord.update({"state": "Error", "listening": False, "microphone": "Unavailable"})
         self.voice["alwaysActive"] = wakeWord
+
+    def _applyInterruptionEvent(self, name: str, payload: dict[str, Any], timestamp: str):
+        interruptions = dict(self.interruptions or {})
+        interruptions.update({"available": True, "enabled": True, "lastEvent": name, "lastUpdated": timestamp})
+        if name == "interruption.started":
+            interruptions["active"] = True
+            interruptions["lastRequest"] = payload.get("request", payload)
+            interruptions["cancelledOperations"] = []
+            interruptions["failedOperations"] = []
+        elif name == "interruption.completed":
+            interruptions["active"] = False
+            interruptions["lastRequest"] = payload.get("request", interruptions.get("lastRequest", {}))
+            interruptions["cancelledOperations"] = list(payload.get("interruptedOperations") or payload.get("cancelledOperations") or [])
+            interruptions["failedOperations"] = list(payload.get("failedOperations") or [])
+            interruptions["durationMs"] = float(payload.get("durationMs") or 0.0)
+        elif name == "interruption.failed":
+            interruptions["active"] = False
+            interruptions["failedOperations"] = list(payload.get("failedOperations") or [])
+        elif name == "operation.cancelled":
+            cancelled = list(interruptions.get("cancelledOperations") or [])
+            operationId = payload.get("operationId")
+            if operationId and operationId not in cancelled:
+                cancelled.append(operationId)
+            interruptions["cancelledOperations"] = cancelled
+        elif name.endswith(".cancelled"):
+            cancelled = list(interruptions.get("cancelledOperations") or [])
+            operationId = payload.get("operationId") or name
+            if operationId and operationId not in cancelled:
+                cancelled.append(operationId)
+            interruptions["cancelledOperations"] = cancelled
+        self.interruptions = interruptions
