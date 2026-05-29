@@ -222,13 +222,20 @@ class LLMHandlerTests(unittest.TestCase):
     @patch("modules.llm.providers.ollama.ollamaProvider.requests.post")
     def test_generate_response_handles_http_error(self, mock_post):
         """Validate that generate response handles http error behaves as expected."""
-        mock_post.return_value = DummyResponse(500, text="server error")
-        handler = LLMHandler(make_llm_context())
+        oldGeminiKey = os.environ.pop("GEMINI_API_KEY", None)
+        try:
+            mock_post.return_value = DummyResponse(500, text="server error")
+            handler = LLMHandler(make_llm_context())
 
-        result = handler.generateResponse("Tell me something useful.")
+            result = handler.generateResponse("Tell me something useful.")
 
-        self.assertIn("can't reach an available language provider", result)
-        self.assertIn("server error", result)
+            self.assertIn("can't reach an available language provider", result)
+            self.assertIn("server error", result)
+        finally:
+            if oldGeminiKey is None:
+                os.environ.pop("GEMINI_API_KEY", None)
+            else:
+                os.environ["GEMINI_API_KEY"] = oldGeminiKey
 
     def test_generate_structured_response_uses_manager_validation(self):
         """Structured responses should be parsed and returned as dictionaries."""

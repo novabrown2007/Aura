@@ -188,6 +188,7 @@ class LLMManager:
 
         providerOrder = self._getProviderOrder()
         lastResponse = LLMResponse(success=False, provider="", error="No LLM provider available.")
+        preferredFailure: LLMResponse | None = None
 
         for providerName in providerOrder:
             provider = self.providers.get(providerName)
@@ -226,6 +227,8 @@ class LLMManager:
                 self._finishProviderRequest(operationId)
 
             lastResponse = response
+            if providerName == self.preferredProviderName and not response.success and preferredFailure is None:
+                preferredFailure = response
             if self.rawLogger:
                 self.rawLogger.logExchange(
                     providerName,
@@ -247,7 +250,7 @@ class LLMManager:
             if self.logger:
                 self.logger.warning(f"LLM provider '{providerName}' failed: {response.error}")
 
-        return lastResponse
+        return preferredFailure or lastResponse
 
     def cancelActiveRequests(self) -> list[str]:
         """Request cooperative cancellation for active provider requests."""
