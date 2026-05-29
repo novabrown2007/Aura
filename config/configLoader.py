@@ -183,6 +183,16 @@ DEFAULT_DEV_CONFIG = {
     "conversation": {
         "conversationTimeoutSeconds": 300,
     },
+    "personality": {
+        "personalityEnabled": True,
+        "humorEnabled": True,
+        "suggestionsEnabled": True,
+        "initiativeLevel": 0.35,
+        "toneMode": "casual",
+        "maxSuggestionsPerHour": 3,
+        "personalityStrength": 0.35,
+        "verbosity": "normal",
+    },
     "homeAutomationBridge": {
         "timeout": 5,
         "refreshSeconds": 5,
@@ -394,6 +404,13 @@ class ConfigLoader:
             "developerUIMaxEvents": "DEVELOPER_UI_MAX_EVENTS",
             "developerUIVerboseLogging": "DEVELOPER_UI_VERBOSE_LOGGING",
             "developerUITraceEvents": "DEVELOPER_UI_TRACE_EVENTS",
+            "personality.personalityEnabled": "PERSONALITY_ENABLED",
+            "personality.humorEnabled": "PERSONALITY_HUMOR_ENABLED",
+            "personality.suggestionsEnabled": "PERSONALITY_SUGGESTIONS_ENABLED",
+            "personality.initiativeLevel": "PERSONALITY_INITIATIVE_LEVEL",
+            "personality.toneMode": "PERSONALITY_TONE_MODE",
+            "personality.maxSuggestionsPerHour": "PERSONALITY_MAX_SUGGESTIONS_PER_HOUR",
+            "personality.personalityStrength": "PERSONALITY_STRENGTH",
         }
 
         self.load()

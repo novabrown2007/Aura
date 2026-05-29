@@ -56,6 +56,7 @@ class ObservabilityManager:
             "interruptions": self.getInterruptionState(),
             "conversation": self.getConversationState(),
             "vad": self.getVADState(),
+            "personality": self.getPersonalityState(),
         }
 
     def getThreads(self):
@@ -219,6 +220,19 @@ class ObservabilityManager:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"VAD snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
+
+    def getPersonalityState(self):
+        """Return controlled personality diagnostics."""
+
+        manager = getattr(self.context, "personalityManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            return manager.snapshot()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Personality snapshot failed: {error}")
             return {"available": False, "enabled": False, "error": str(error)}
 
     def getModuleHealth(self):

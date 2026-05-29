@@ -135,8 +135,10 @@ behavior with `wakeWordAllowPretrainedFallback: false` when you want startup to
 fail until a custom wake model is installed. Missing OpenWakeWord assets are
 downloaded automatically when `wakeWordAutoDownloadModels` is enabled.
 
-The voice layer does not implement streaming transcription, interruption,
-barge-in, speaker identification, or realtime VAD.
+The voice layer does not implement streaming transcription, barge-in, or
+speaker identification. Always-active capture uses local VAD to detect speech
+endpoints and then sends the finalized WAV through the existing Faster-Whisper
+STT pipeline.
 
 ## Interfaces
 
@@ -445,6 +447,36 @@ Short-term context expires after `conversation.conversationTimeoutSeconds`
 seconds of inactivity (`300` by default). This is separate from long-term
 memory and is intended only for the active conversation.
 
+## Personality
+
+Aura includes a controlled personality layer through:
+
+```python
+context.personalityManager
+```
+
+The personality layer adds tone guidance, optional subtle humor, lightweight
+contextual suggestions, and initiative throttling. It is deliberately bounded:
+commands outrank suggestions, deterministic execution outranks personality, and
+the behavior governor blocks fake consciousness, emotional coercion, refusal
+drift, and self-preservation phrasing.
+
+Configuration lives under `personality` in `config/devConfig.yml`:
+
+```yaml
+personality:
+  personalityEnabled: true
+  humorEnabled: true
+  suggestionsEnabled: true
+  initiativeLevel: 0.35
+  toneMode: casual
+  maxSuggestionsPerHour: 3
+  personalityStrength: 0.35
+```
+
+User commands such as "Turn off jokes", "Turn off suggestions", and "Be
+concise" are handled deterministically and acknowledged without provider calls.
+
 ## Observability
 
 Aura exposes runtime diagnostics through:
@@ -706,6 +738,8 @@ python run_tests.py --suite datetime_utils
 python run_tests.py --suite events
 python run_tests.py --suite autonomous_tasks
 python run_tests.py --suite context_awareness
+python run_tests.py --suite conversation_continuity
+python run_tests.py --suite personality
 python run_tests.py --suite observability
 python run_tests.py --suite notifications
 python run_tests.py --suite system

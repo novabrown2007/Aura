@@ -80,6 +80,9 @@ class LLMHandler(AuraModule):
 
         userInput = self._resolveConversationInput(str(userInput or ""))
         self._emit("message.received", {"text": userInput})
+        personalityReply = self._tryHandlePersonalityCommand(userInput)
+        if personalityReply is not None:
+            return self._finishResponse(userInput, personalityReply)
         deterministicReply = self._tryAnswerDeterministicQuestion(userInput)
         if deterministicReply is not None:
             return self._finishResponse(userInput, deterministicReply)
@@ -94,12 +97,14 @@ class LLMHandler(AuraModule):
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
             cleaned = self._offlineToolUnavailableMessage()
+            cleaned = self._applyPersonality(userInput, cleaned)
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
             return cleaned
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and not self._hasConversationFallback():
             cleaned = self._providerFailureMessage(self._offlineReason())
+            cleaned = self._applyPersonality(userInput, cleaned)
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
             return cleaned
@@ -108,6 +113,7 @@ class LLMHandler(AuraModule):
         conversationHistory = self._getConversationHistory()
         if self._shouldUseIntentPipeline(userInput):
             cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
+            cleaned = self._applyPersonality(userInput, cleaned)
             self._logConversation(userInput, cleaned)
             self._emit("response.generated", {"text": cleaned})
             return cleaned
@@ -117,12 +123,13 @@ class LLMHandler(AuraModule):
         if not response.success:
             if self.logger:
                 self.logger.error(f"LLM response failed: {response.error}")
-            return self._providerFailureMessage(response.error)
+            return self._finishResponse(userInput, self._providerFailureMessage(response.error))
 
         cleaned = self._cleanResponseText(response.text) or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)
         if toolResult is not None:
             cleaned = self._cleanResponseText(toolResult)
+        cleaned = self._applyPersonality(userInput, cleaned)
 
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
@@ -144,7 +151,7 @@ class LLMHandler(AuraModule):
     def _finishResponse(self, userInput: str, responseText: str) -> str:
         """Clean, log, emit, and optionally speak a deterministic response."""
 
-        cleaned = self._cleanResponseText(responseText)
+        cleaned = self._applyPersonality(userInput, self._cleanResponseText(responseText))
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
         return cleaned
@@ -263,6 +270,7 @@ Rules:
     def _injectMemoryPrompt(self, prompt: str, userInput: str, conversationHistory: list | None = None) -> str:
         """Inject tuned memory context when the structured memory pipeline is available."""
 
+        prompt = self._injectPersonalityPrompt(prompt)
         if not self.memoryEnabled or not self.memory or not hasattr(self.memory, "injectPrompt"):
             return prompt
         try:
@@ -276,6 +284,45 @@ Rules:
             if self.logger:
                 self.logger.warning(f"Memory prompt injection failed: {error}")
             return prompt
+
+    def _injectPersonalityPrompt(self, prompt: str) -> str:
+        """Append controlled personality guidance for provider responses."""
+
+        manager = getattr(self.context, "personalityManager", None)
+        if manager is None or not hasattr(manager, "buildPromptGuidance"):
+            return prompt
+        try:
+            return f"{prompt.rstrip()}\n\n{manager.buildPromptGuidance()}"
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Personality prompt guidance failed: {error}")
+            return prompt
+
+    def _tryHandlePersonalityCommand(self, userInput: str) -> str | None:
+        """Handle user commands that configure personality behavior."""
+
+        manager = getattr(self.context, "personalityManager", None)
+        if manager is None or not hasattr(manager, "handleUserCommand"):
+            return None
+        try:
+            return manager.handleUserCommand(userInput)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Personality command handling failed: {error}")
+            return None
+
+    def _applyPersonality(self, userInput: str, responseText: str) -> str:
+        """Apply response-level personality without affecting command execution."""
+
+        manager = getattr(self.context, "personalityManager", None)
+        if manager is None or not hasattr(manager, "applyToResponse"):
+            return responseText
+        try:
+            return manager.applyToResponse(userInput, responseText)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Personality response processing failed: {error}")
+            return responseText
 
     def _isOfflineMode(self) -> bool:
         """Return whether the active LLM manager is configured for offline mode."""

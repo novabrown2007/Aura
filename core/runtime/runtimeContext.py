@@ -177,6 +177,12 @@ class RuntimeContext:
         self.conversationManager = None
         """Short-term conversational continuity and reference resolution manager."""
 
+        self.personalityManager = None
+        """Controlled assistant personality, tone, suggestion, and behavior governor."""
+
+        self.personalityEventHandler = None
+        """Event-bus bridge for personality context updates."""
+
         self.memoryManager = None
         """Handles long-term memory and user information."""
 
