@@ -18,11 +18,11 @@ from core.eventBus.autonomy import AutonomousTaskManager
 from modules.llm.contextAwareness import ContextAwarenessManager
 from core.runtime.observability import ObservabilityManager
 from core.interruption import InterruptionManager
-from core.personality import PersonalityManager
-from core.personality.handlers import PersonalityEventHandler
-from core.voice.wakeWord import WakeWordManager
-from core.voice.vad import VADManager
-from core.conversation import ConversationManager
+from assistant.personality import PersonalityManager
+from assistant.personality.handlers import PersonalityEventHandler
+from interface.voice.wakeWord import WakeWordManager
+from interface.voice.vad import VADManager
+from assistant.conversation import ConversationManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -37,8 +37,8 @@ from interface.voice import VoiceManager
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
-from modules.llm.conversationHistory import ConversationHistory
-from modules.llm.memory import MemoryManager
+from assistant.conversation import ConversationHistory
+from assistant.memory import MemoryManager
 
 from core.engine import Engine
 

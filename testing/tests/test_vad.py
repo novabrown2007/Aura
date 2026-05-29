@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import numpy as np
 
 from core.runtime.observability import ObservabilityManager
-from core.voice.vad import VADConfig, VADManager, VADResult, VADState
-from core.voice.vad.silenceTracker import SilenceTracker
+from interface.voice.vad import VADConfig, VADManager, VADResult, VADState
+from interface.voice.vad import SilenceTracker
 from interface.developerUI.models import ConsoleEvent
 from interface.developerUI.state import DeveloperUIState
 from interface.voice import VoiceManager

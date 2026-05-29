@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from core.personality import BehaviorGovernor, InteractionPolicy, PersonalityManager
-from core.personality.handlers import PersonalityEventHandler
-from core.personality.models import PersonalityProfile
+from assistant.personality import BehaviorGovernor, InteractionPolicy, PersonalityManager
+from assistant.personality.handlers import PersonalityEventHandler
+from assistant.personality.models import PersonalityProfile
 from core.runtime.observability import ObservabilityManager
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.models.llmResponse import LLMResponse

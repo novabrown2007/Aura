@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from core.voice.vad import VADManager
+from interface.voice.vad import VADManager
 
 from .models.speechResult import SpeechResult
 from .models.transcriptionResult import TranscriptionResult

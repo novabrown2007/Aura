@@ -19,9 +19,9 @@ from uuid import uuid4
 
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.models.llmResponse import LLMResponse
-from modules.llm.providers.base.llmProvider import LLMProvider
 from modules.llm.utils.promptBuilder import PromptBuilder
 from modules.logger.llmLogger import LLMLogger
+from providers.base.llmProvider import LLMProvider
 
 
 class LLMManager:
@@ -449,8 +449,8 @@ class LLMManager:
     def _createDefaultProviders(self) -> dict[str, LLMProvider]:
         """Create default providers lazily so importing LLMManager stays lightweight."""
 
-        from modules.llm.providers.gemini.geminiProvider import GeminiProvider
-        from modules.llm.providers.ollama.ollamaProvider import OllamaProvider
+        from providers.gemini.geminiProvider import GeminiProvider
+        from providers.ollama.ollamaProvider import OllamaProvider
 
         return {
             "gemini": GeminiProvider(self.context),
