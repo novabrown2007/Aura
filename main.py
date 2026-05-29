@@ -20,6 +20,7 @@ from core.runtime.observability import ObservabilityManager
 from core.interruption import InterruptionManager
 from assistant.personality import PersonalityManager
 from assistant.personality.handlers import PersonalityEventHandler
+from assistant.notifications import NotificationManager
 from interface.voice.wakeWord import WakeWordManager
 from interface.voice.vad import VADManager
 from assistant.conversation import ConversationManager
@@ -97,6 +98,9 @@ def shutdown(context):
     if context.voiceManager:
         context.voiceManager.shutdown()
 
+    if getattr(context, "notificationManager", None):
+        context.notificationManager.shutdown()
+
     if context.database:
         context.database.close()
 
@@ -170,6 +174,7 @@ def buildRuntimeContext():
     context.moduleManager = ModuleManager(context)
     context.moduleLoader = context.moduleManager
     context.moduleManager.loadModules()
+    context.notificationManager = NotificationManager(context)
 
     # Engine
     context.engine = Engine(context)

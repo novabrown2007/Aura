@@ -51,6 +51,7 @@ class ObservabilityManager:
             "tools": self.getTools(),
             "providers": self.getProviders(),
             "modules": self.getModuleHealth(),
+            "notifications": self.getNotificationState(),
             "traces": self.getTraces(),
             "scheduler": self.getSchedulerState(),
             "interruptions": self.getInterruptionState(),
@@ -233,6 +234,19 @@ class ObservabilityManager:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Personality snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
+
+    def getNotificationState(self):
+        """Return notification attention-management diagnostics."""
+
+        manager = getattr(self.context, "notificationManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            return manager.snapshot()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Notification snapshot failed: {error}")
             return {"available": False, "enabled": False, "error": str(error)}
 
     def getModuleHealth(self):

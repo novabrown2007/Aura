@@ -64,6 +64,15 @@ homeAutomationBridge:
   port: 8080
   ssl: false
 
+notifications:
+  notificationsEnabled: true
+  allowVoiceInterruptions: true
+  criticalNotificationsAlwaysInterrupt: true
+  notificationCooldownSeconds: 30
+  maxQueuedNotifications: 50
+  quietHoursEnabled: false
+  quietHoursActive: false
+
 # List of modules and their status
 # Valid status values: enabled, disabled.
 # Loadable module keys can use package names like home_automation or module names like homeAutomation.

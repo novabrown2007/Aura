@@ -157,6 +157,15 @@ class RuntimeContext:
         self.speechQueue = None
         """Serialized assistant speech queue."""
 
+        self.notificationManager = None
+        """Assistant notification attention manager."""
+
+        self.notificationHistory = None
+        """Serialized notification lifecycle history."""
+
+        self.notificationQueue = None
+        """Priority notification queue."""
+
         # ----------------------------
         # Database
         # ----------------------------

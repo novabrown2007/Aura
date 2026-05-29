@@ -218,6 +218,22 @@ personality:
   # Verbosity preference for future tone expansion.
   verbosity: normal
 
+notifications:
+  # Whether assistant notifications are active.
+  notificationsEnabled: true
+  # Whether voice alerts can interrupt active speech/conversation.
+  allowVoiceInterruptions: true
+  # Whether critical alerts always interrupt.
+  criticalNotificationsAlwaysInterrupt: true
+  # Seconds before repeated non-critical notifications are suppressed.
+  notificationCooldownSeconds: 30
+  # Maximum queued notification items retained for delivery.
+  maxQueuedNotifications: 50
+  # Whether quiet hours are enabled.
+  quietHoursEnabled: false
+  # Runtime quiet-hours flag managed by future time/window logic.
+  quietHoursActive: false
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

@@ -18,6 +18,7 @@ class ConsoleStateSnapshot:
     providers: dict[str, Any] = field(default_factory=dict)
     bridge: dict[str, Any] = field(default_factory=dict)
     notifications: list[dict[str, Any]] = field(default_factory=list)
+    notificationCenter: dict[str, Any] = field(default_factory=dict)
     errors: list[dict[str, Any]] = field(default_factory=list)
     system: dict[str, Any] = field(default_factory=dict)
     performance: dict[str, Any] = field(default_factory=dict)
@@ -36,6 +37,7 @@ class ConsoleStateSnapshot:
             "providers": dict(self.providers),
             "bridge": dict(self.bridge),
             "notifications": list(self.notifications),
+            "notificationCenter": dict(self.notificationCenter),
             "errors": list(self.errors),
             "system": dict(self.system),
             "performance": dict(self.performance),

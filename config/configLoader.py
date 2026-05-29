@@ -47,6 +47,15 @@ DEFAULT_USER_CONFIG = {
         "port": 8080,
         "ssl": False,
     },
+    "notifications": {
+        "notificationsEnabled": True,
+        "allowVoiceInterruptions": True,
+        "criticalNotificationsAlwaysInterrupt": True,
+        "notificationCooldownSeconds": 30,
+        "maxQueuedNotifications": 50,
+        "quietHoursEnabled": False,
+        "quietHoursActive": False,
+    },
     "modules": {
         "llm": "enabled",
         "calendar": "enabled",
@@ -203,6 +212,15 @@ DEFAULT_DEV_CONFIG = {
         "sessionId": "auto",
         "interface": "windows",
         "heartbeatSeconds": 30,
+    },
+    "notifications": {
+        "notificationsEnabled": True,
+        "allowVoiceInterruptions": True,
+        "criticalNotificationsAlwaysInterrupt": True,
+        "notificationCooldownSeconds": 30,
+        "maxQueuedNotifications": 50,
+        "quietHoursEnabled": False,
+        "quietHoursActive": False,
     },
 }
 
