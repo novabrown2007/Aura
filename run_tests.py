@@ -36,6 +36,7 @@ SUITES = {
     "llm": "testing.tests.test_llm_handler",
     "prompts": "testing.tests.test_prompt_builder",
     "voice": "testing.tests.test_voice",
+    "vad": "testing.tests.test_vad",
     "assistant_testing": "testing.tests.test_assistant_testing",
     "reminders": "testing.tests.test_reminders",
     "mysql_integration": "testing.tests.test_mysql_integration",

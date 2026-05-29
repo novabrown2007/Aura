@@ -139,6 +139,9 @@ class RuntimeContext:
         self.wakeWordManager = None
         """Passive local wake word activation manager."""
 
+        self.vadManager = None
+        """Voice activity detection and speech endpoint coordinator."""
+
         self.developerUI = None
         """Developer/operator UI interface manager."""
 

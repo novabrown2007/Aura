@@ -19,6 +19,7 @@ from modules.llm.contextAwareness import ContextAwarenessManager
 from core.runtime.observability import ObservabilityManager
 from core.interruption import InterruptionManager
 from core.voice.wakeWord import WakeWordManager
+from core.voice.vad import VADManager
 from core.conversation import ConversationManager
 
 from core.router.intentRouter import IntentRouter
@@ -152,6 +153,7 @@ def buildRuntimeContext():
     context.conversationManager = ConversationManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
+    context.vadManager = VADManager(context)
     context.voiceManager = VoiceManager(context)
     context.wakeWordManager = WakeWordManager(context)
 

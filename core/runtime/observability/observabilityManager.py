@@ -55,6 +55,7 @@ class ObservabilityManager:
             "scheduler": self.getSchedulerState(),
             "interruptions": self.getInterruptionState(),
             "conversation": self.getConversationState(),
+            "vad": self.getVADState(),
         }
 
     def getThreads(self):
@@ -206,6 +207,19 @@ class ObservabilityManager:
             return snapshot
         except Exception as error:
             return {"available": False, "error": str(error)}
+
+    def getVADState(self):
+        """Return voice activity detection diagnostics."""
+
+        manager = getattr(self.context, "vadManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            return manager.snapshot()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"VAD snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
 
     def getModuleHealth(self):
         """Return loaded/discovered module health metadata."""

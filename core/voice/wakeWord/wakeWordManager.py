@@ -206,7 +206,13 @@ class WakeWordManager:
             if not pushToTalk.startCapture(source="always_active"):
                 self._emitError(getattr(pushToTalk.lastResult, "errorMessage", "") or "Wake word voice capture could not start.")
                 return
-            sleep(max(0.1, float(self.config.wakeWordCaptureSeconds)))
+            vadManager = getattr(self.context, "vadManager", None)
+            if vadManager is not None and getattr(pushToTalk, "vadControlled", False):
+                vadManager.waitForCompletion(
+                    timeoutSeconds=max(0.1, float(getattr(vadManager.config, "vadMaxRecordingDuration", 30.0)) + 0.5)
+                )
+            else:
+                sleep(max(0.1, float(self.config.wakeWordCaptureSeconds)))
             result = pushToTalk.stopAndProcess()
             if not getattr(result, "success", False):
                 self._emitError(getattr(result, "errorMessage", "") or "Wake word voice loop failed.")

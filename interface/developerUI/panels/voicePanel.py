@@ -13,6 +13,7 @@ class VoicePanel(TextPanel):
     def refresh(self, snapshot):
         voice = snapshot.voice
         wakeWord = voice.get("alwaysActive", {}) or {}
+        vad = voice.get("vad", {}) or {}
         lines = [
             "[VOICE]",
             f"Mic: {voice.get('mic', 'Unknown')}",
@@ -31,6 +32,16 @@ class VoicePanel(TextPanel):
             f"Microphone: {wakeWord.get('microphone', 'Unknown')}",
             f"Prediction: {float(wakeWord.get('predictionTimeMs') or 0.0):.2f} ms",
             f"Activations: {wakeWord.get('activationCount', 0)}",
+            "",
+            "[VAD]",
+            f"Enabled: {vad.get('enabled', False)}",
+            f"State: {vad.get('state', 'Unknown')}",
+            f"Backend: {vad.get('backend', '') or vad.get('detector', {}).get('backend', 'Unknown')}",
+            f"Confidence: {float(vad.get('confidence') or 0.0):.2f}",
+            f"Speech: {vad.get('speechDetected', False)}",
+            f"Silence: {vad.get('silenceDetected', False)} ({float(vad.get('silenceDuration') or 0.0):.1f}s)",
+            f"Recording: {float(vad.get('recordingDuration') or 0.0):.1f}s",
+            f"Speech Duration: {float(vad.get('speechDuration') or 0.0):.1f}s",
             "",
             "[STT]",
             voice.get("transcription", "") or "No transcription yet.",

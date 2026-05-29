@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+from core.voice.vad import VADManager
+
 from .models.speechResult import SpeechResult
 from .models.transcriptionResult import TranscriptionResult
 from .speechQueue import SpeechQueue
@@ -66,6 +68,9 @@ class VoiceManager:
         self.audioPlayer = self.textToSpeech.audioPlayer
         self.speechQueue = SpeechQueue(context, self.textToSpeech)
         self.pushToTalkManager = PushToTalkManager(context, self)
+        self.vadManager = getattr(context, "vadManager", None) if context is not None else None
+        if self.vadManager is None:
+            self.vadManager = VADManager(context)
 
         self.lastTranscription = TranscriptionResult()
         self.lastSpeech = SpeechResult()
@@ -79,6 +84,7 @@ class VoiceManager:
             self.context.audioPlayer = self.audioPlayer
             self.context.speechQueue = self.speechQueue
             self.context.pushToTalkManager = self.pushToTalkManager
+            self.context.vadManager = self.vadManager
 
         self._log(
             "Voice manager started "
@@ -86,13 +92,24 @@ class VoiceManager:
             f"push_to_talk_enabled={self.pushToTalkEnabled})."
         )
 
-    def startVoiceCapture(self):
+    def startVoiceCapture(self, source: str = "voice_capture", vadControlled: bool = False):
         """Start recording a local push-to-talk voice capture."""
 
         if not self.inputEnabled:
             self._log("Voice input is disabled in configuration.")
             return False
+        if vadControlled and self.vadManager is not None and self.vadManager.enabled:
+            self.vadManager.startSession(source=source)
+            if hasattr(self.recorder, "setAudioChunkHandler"):
+                self.recorder.setAudioChunkHandler(
+                    lambda chunk, sampleRate: self.vadManager.processFrame(chunk, sampleRate=sampleRate)
+                )
+        else:
+            if hasattr(self.recorder, "setAudioChunkHandler"):
+                self.recorder.setAudioChunkHandler(None)
         started = self.recorder.startRecording()
+        if not started and vadControlled and self.vadManager is not None:
+            self.vadManager.cancelSession(reason=self.recorder.lastError or "capture start failed")
         self.voiceActive = bool(started)
         return started
 
@@ -105,9 +122,15 @@ class VoiceManager:
         stopped = self.recorder.stopRecording()
         if not stopped:
             self.voiceActive = False
+            if hasattr(self.recorder, "setAudioChunkHandler"):
+                self.recorder.setAudioChunkHandler(None)
             return ""
 
         self.voiceActive = False
+        if hasattr(self.recorder, "setAudioChunkHandler"):
+            self.recorder.setAudioChunkHandler(None)
+        if self.vadManager is not None:
+            self.vadManager.finalizeSession(reason="recording stopped")
         path = self.recorder.saveRecording()
         self.lastAudioPath = path or ""
         return self.lastAudioPath
@@ -120,13 +143,20 @@ class VoiceManager:
             self.lastTranscription = result
             return result
 
-        if not self.startVoiceCapture():
+        vadControlled = bool(self.vadManager is not None and self.vadManager.enabled)
+        try:
+            started = self.startVoiceCapture(source="voice_capture", vadControlled=vadControlled)
+        except TypeError:
+            started = self.startVoiceCapture()
+        if not started:
             result = TranscriptionResult(success=False, errorMessage=self.recorder.lastError or "Voice capture could not start.")
             self.lastTranscription = result
             return result
 
         try:
-            if recordSeconds and recordSeconds > 0:
+            if vadControlled:
+                self.vadManager.waitForCompletion(timeoutSeconds=float(recordSeconds or 0) or None)
+            elif recordSeconds and recordSeconds > 0:
                 time.sleep(float(recordSeconds))
             audioPath = self.stopVoiceCapture()
             if not audioPath:
@@ -136,6 +166,8 @@ class VoiceManager:
 
             result = self.speechToText.transcribeDetailed(audioPath)
             self.lastTranscription = result
+            if self.vadManager is not None:
+                self.vadManager.markProcessingComplete()
             if result.success and result.text.strip():
                 self.lastAssistantResponse = self._sendTextToAura(result.text)
             else:
@@ -181,6 +213,8 @@ class VoiceManager:
 
         try:
             self.recorder.cleanup()
+            if hasattr(self.recorder, "setAudioChunkHandler"):
+                self.recorder.setAudioChunkHandler(None)
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Voice recorder shutdown failed: {error}")

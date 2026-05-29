@@ -29,6 +29,14 @@ DEFAULT_USER_CONFIG = {
             "enabled": True,
             "pushToTalkAutoSpeak": True,
         },
+        "vad": {
+            "vadEnabled": True,
+            "vadSilenceThresholdSeconds": 1.2,
+            "vadSpeechThreshold": 0.5,
+            "vadMinSpeechDuration": 0.3,
+            "vadMaxRecordingDuration": 30,
+            "vadDebugLogging": True,
+        },
         "alwaysActive": {
             "enabled": True,
             "activationPhrases": ["Hey Jarvis"],
@@ -124,6 +132,14 @@ DEFAULT_DEV_CONFIG = {
             "pushToTalkAutoSpeak": True,
             "pushToTalkTempAudioDirectory": "temp/push_to_talk",
         },
+        "vad": {
+            "vadEnabled": True,
+            "vadSilenceThresholdSeconds": 1.2,
+            "vadSpeechThreshold": 0.5,
+            "vadMinSpeechDuration": 0.3,
+            "vadMaxRecordingDuration": 30,
+            "vadDebugLogging": True,
+        },
         "alwaysActive": {
             "wakeWordSensitivity": 0.5,
             "wakeWordCooldownSeconds": 5,
@@ -213,6 +229,13 @@ CONFIG_ALIASES = {
     "voice.wakeWord.wakeWordAutoStart": "voice.alwaysActive.wakeWordAutoStart",
     "voice.wakeWord.wakeWordDebugLogging": "voice.alwaysActive.wakeWordDebugLogging",
     "voice.wakeWord.wakeWordDebugLoggingLocation": "voice.alwaysActive.wakeWordDebugLoggingLocation",
+    "voice.vad.enabled": "voice.vad.vadEnabled",
+    "vadEnabled": "voice.vad.vadEnabled",
+    "vadSilenceThresholdSeconds": "voice.vad.vadSilenceThresholdSeconds",
+    "vadSpeechThreshold": "voice.vad.vadSpeechThreshold",
+    "vadMinSpeechDuration": "voice.vad.vadMinSpeechDuration",
+    "vadMaxRecordingDuration": "voice.vad.vadMaxRecordingDuration",
+    "vadDebugLogging": "voice.vad.vadDebugLogging",
 }
 
 
@@ -327,6 +350,13 @@ class ConfigLoader:
             "voice.pushToTalk.pushToTalkAutoSpeak": "PUSH_TO_TALK_AUTO_SPEAK",
             "voice.pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
             "voice.pushToTalk.pushToTalkTempAudioDirectory": "PUSH_TO_TALK_TEMP_AUDIO_DIRECTORY",
+            "voice.vad.enabled": "VAD_ENABLED",
+            "voice.vad.vadEnabled": "VAD_ENABLED",
+            "voice.vad.vadSilenceThresholdSeconds": "VAD_SILENCE_THRESHOLD_SECONDS",
+            "voice.vad.vadSpeechThreshold": "VAD_SPEECH_THRESHOLD",
+            "voice.vad.vadMinSpeechDuration": "VAD_MIN_SPEECH_DURATION",
+            "voice.vad.vadMaxRecordingDuration": "VAD_MAX_RECORDING_DURATION",
+            "voice.vad.vadDebugLogging": "VAD_DEBUG_LOGGING",
             "voice.alwaysActive.enabled": "WAKE_WORD_ENABLED",
             "voice.alwaysActive.activationPhrase": "WAKE_WORD_PHRASE",
             "voice.alwaysActive.activationPhrases": "WAKE_WORD_PHRASES",

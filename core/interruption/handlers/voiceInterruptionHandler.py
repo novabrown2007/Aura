@@ -49,6 +49,14 @@ class VoiceInterruptionHandler:
             interruptionContext.markFailed("voice.playback", str(error))
 
         try:
+            vadManager = getattr(self.context, "vadManager", None)
+            if vadManager is not None and hasattr(vadManager, "cancelSession"):
+                if vadManager.cancelSession(reason="voice interruption"):
+                    cancelled.append("voice.vad")
+        except Exception as error:
+            interruptionContext.markFailed("voice.vad", str(error))
+
+        try:
             pushToTalk = getattr(voice, "pushToTalkManager", None)
             if pushToTalk is not None and hasattr(pushToTalk, "cancelActiveCapture"):
                 if pushToTalk.cancelActiveCapture():

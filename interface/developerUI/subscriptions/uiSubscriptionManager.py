@@ -26,6 +26,13 @@ class UISubscriptionManager:
         "wakeword.cooldown.started",
         "wakeword.cooldown.finished",
         "wakeword.error",
+        "vad.started",
+        "vad.speech.detected",
+        "vad.silence.detected",
+        "vad.speech.completed",
+        "vad.finalizing",
+        "vad.timeout",
+        "vad.error",
         "session.created",
         "session.ended",
         "conversation.started",
@@ -115,6 +122,7 @@ class UISubscriptionManager:
                 self.state.updateProviders(snapshot.get("providers", {}))
                 self.state.updateInterruptions(snapshot.get("interruptions", {}))
                 self.state.updateConversation(snapshot.get("conversation", {}))
+                self.state.updateVADState(snapshot.get("vad", {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Developer UI observability refresh failed: {error}")
