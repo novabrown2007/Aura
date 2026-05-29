@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from core.voice.wakeWord import WakeWordManager
+from interface.voice.wakeWord import WakeWordManager
 from core.voice.wakeWord.configuration import WakeWordConfig
 from core.voice.wakeWord.events import WakeWordEvents
 from core.voice.wakeWord.models import WakeWordResult

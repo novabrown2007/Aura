@@ -15,9 +15,10 @@ class CoverageContractTests(unittest.TestCase):
 
     root = Path(__file__).resolve().parents[2]
     excludedParts = {".venv", "venv", "__pycache__", ".git", ".idea", "build", "dist", "logs"}
-    sourceRoots = {"bridge", "config", "core", "interface", "modules", "scripts"}
+    sourceRoots = {"assistant", "bridge", "config", "core", "interface", "modules", "providers", "scripts"}
     testedFeatureAreas = {
         "bridge": ("testing/tests/test_bridge_protocol.py",),
+        "assistant": ("testing/tests/test_architecture.py",),
         "config": ("testing/tests/test_config_loader.py",),
         "core/conversation": ("testing/tests/test_conversation_continuity.py",),
         "core/engine.py": ("testing/tests/test_runtime_smoke.py",),
@@ -44,6 +45,8 @@ class CoverageContractTests(unittest.TestCase):
         "interface/inputProcessing": ("testing/tests/test_voice.py",),
         "interface/model_status.py": ("testing/tests/interfaceTests/test_android_interface.py",),
         "interface/voice": ("testing/tests/test_voice.py",),
+        "interface/voice/vad": ("testing/tests/test_vad.py",),
+        "interface/voice/wakeWord": ("testing/tests/test_wake_word.py",),
         "interface/web": ("testing/tests/interfaceTests/test_web_interface.py",),
         "interface/windows": ("testing/tests/interfaceTests/test_windows_interface.py",),
         "modules/automation_composer": ("testing/tests/test_automation_composer.py",),
@@ -67,6 +70,11 @@ class CoverageContractTests(unittest.TestCase):
         "modules/notifications": ("testing/tests/test_notifications.py",),
         "modules/reminders": ("testing/tests/test_reminders.py",),
         "modules/system": ("testing/tests/test_system.py",),
+        "providers": ("testing/tests/test_architecture.py",),
+        "providers/base": ("testing/tests/test_architecture.py",),
+        "providers/gemini": ("testing/tests/test_architecture.py",),
+        "providers/ollama": ("testing/tests/test_architecture.py",),
+        "providers/speech": ("testing/tests/test_architecture.py",),
         "scripts": (
             "testing/tests/interfaceTests/test_android_interface.py",
             "testing/tests/interfaceTests/test_web_interface.py",

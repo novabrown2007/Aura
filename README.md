@@ -6,8 +6,13 @@
 
 ## Overview
 
-Aura is a personal assistant runtime with shared backend systems and separate
-interface packages in one master branch.
+Aura is a modular assistant runtime with a layered architecture:
+
+- `core/` for engine and infrastructure
+- `assistant/` for cognition and behavior
+- `interface/` for input and output
+- `modules/` for deterministic capabilities
+- `providers/` for external AI and service adapters
 
 The backend owns runtime startup, persistence, scheduling, LLM integration,
 memory/history, calendar, reminders, notifications, home automation, and system
@@ -18,15 +23,11 @@ builds can include only the files needed for that target.
 
 ```text
 config/                 Runtime configuration loading
-core/                   Engine, runtime context, router, threading, autonomy,
-                        context awareness, and observability systems
-modules/                Backend modules and persistence integrations
-modules/home_automation/
-                        Home automation bridge and device backend
-interface/windows/      Windows visual interface
-interface/android/      Android visual interface
-interface/web/          Web visual interface and static assets
-interface/inputProcessing/
+core/                   Engine, runtime, logging, events, threading, config
+assistant/              Conversation, memory, personality, orchestration
+interface/              Voice, desktop, mobile, notifications, overlays
+modules/                Capability integrations and deterministic tools
+providers/              External AI/service wrappers
 testing/tests/                  Automated test suites
 scripts/                Build and maintenance helpers
 ```
@@ -135,10 +136,13 @@ behavior with `wakeWordAllowPretrainedFallback: false` when you want startup to
 fail until a custom wake model is installed. Missing OpenWakeWord assets are
 downloaded automatically when `wakeWordAutoDownloadModels` is enabled.
 
-The voice layer does not implement streaming transcription, barge-in, or
-speaker identification. Always-active capture uses local VAD to detect speech
-endpoints and then sends the finalized WAV through the existing Faster-Whisper
-STT pipeline.
+The voice layer does not implement streaming transcription or speaker
+identification. Always-active capture uses local VAD to detect speech endpoints
+and then sends the finalized WAV through the existing Faster-Whisper STT
+pipeline.
+
+Canonical voice imports now live under `interface.voice`, including wake word
+and VAD helpers.
 
 ## Interfaces
 
@@ -429,6 +433,16 @@ Duration helpers are available:
 context.contextAwareness.secondsSinceChanged("desktop_activity")
 ```
 
+## Layered Architecture
+
+The canonical architecture reference is [ARCHITECTURE.md](./ARCHITECTURE.md).
+It documents:
+
+- layer responsibilities
+- dependency direction
+- event flow
+- compatibility shim policy
+
 ## Conversational Continuity
 
 Aura keeps short-term conversational context through:
@@ -476,6 +490,16 @@ personality:
 
 User commands such as "Turn off jokes", "Turn off suggestions", and "Be
 concise" are handled deterministically and acknowledged without provider calls.
+
+## Providers
+
+Provider wrappers now live under `providers/` and are the preferred imports for
+LLM/provider infrastructure:
+
+- `providers.gemini.GeminiProvider`
+- `providers.ollama.OllamaProvider`
+- `providers.base.LLMProvider`
+- `providers.base.ProviderCapabilities`
 
 ## Observability
 
@@ -739,6 +763,7 @@ python run_tests.py --suite events
 python run_tests.py --suite autonomous_tasks
 python run_tests.py --suite context_awareness
 python run_tests.py --suite conversation_continuity
+python run_tests.py --suite architecture
 python run_tests.py --suite personality
 python run_tests.py --suite observability
 python run_tests.py --suite notifications

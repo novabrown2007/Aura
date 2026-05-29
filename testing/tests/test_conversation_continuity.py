@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import unittest
 
-from core.conversation import ConversationManager
+from assistant.conversation import ConversationManager
 from core.runtime.observability import ObservabilityManager
 from core.threading.events.eventManager import EventManager
 from modules.llm.llmHandler import LLMHandler
@@ -113,4 +113,3 @@ class ConversationContinuityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
