@@ -20,6 +20,9 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIn("providers/", text)
 
     def test_canonical_layer_packages_import(self):
+        from core.modules import AuraModule as CoreAuraModule
+        from core.modules import ModuleAction, ModuleCapability, ModuleContext, ModuleIntent, ModuleManager, ModuleMetadata, ModulePermissions, ModuleRegistry, ModuleState
+        from core.modules.moduleLoader import ModuleLoader as FrameworkModuleLoader
         from assistant.conversation import ConversationManager
         from assistant.conversation import ConversationHistory
         from assistant.personality import PersonalityManager
@@ -31,6 +34,9 @@ class ArchitectureTests(unittest.TestCase):
         from providers.speech.piperProvider import PiperProvider
         from interface.voice.vad import VADManager
         from interface.voice.wakeWord import WakeWordManager
+        from modules.weather import WeatherModule
+        from modules.spotify import SpotifyModule
+        from modules.smartHome import SmartHomeModule
         from assistant.conversation.conversationStateManager import ConversationStateManager
         from assistant.personality.personalityManager import PersonalityManager as CanonicalPersonalityManager
         from assistant.memory.memoryManager import MemoryManager as CanonicalMemoryManager
@@ -42,6 +48,17 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIsNotNone(ConversationHistory)
         self.assertIsNotNone(PersonalityManager)
         self.assertIsNotNone(MemoryManager)
+        self.assertIsNotNone(CoreAuraModule)
+        self.assertIsNotNone(ModuleAction)
+        self.assertIsNotNone(ModuleCapability)
+        self.assertIsNotNone(ModuleContext)
+        self.assertIsNotNone(ModuleIntent)
+        self.assertIsNotNone(ModuleManager)
+        self.assertIsNotNone(ModuleMetadata)
+        self.assertIsNotNone(ModulePermissions)
+        self.assertIsNotNone(ModuleRegistry)
+        self.assertIsNotNone(ModuleState)
+        self.assertIsNotNone(FrameworkModuleLoader)
         self.assertIsNotNone(ConversationStateManager)
         self.assertIsNotNone(CanonicalPersonalityManager)
         self.assertIsNotNone(CanonicalMemoryManager)
@@ -53,6 +70,9 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIsNotNone(PiperProvider)
         self.assertIsNotNone(VADManager)
         self.assertIsNotNone(WakeWordManager)
+        self.assertIsNotNone(WeatherModule)
+        self.assertIsNotNone(SpotifyModule)
+        self.assertIsNotNone(SmartHomeModule)
         self.assertIsNotNone(MemoryStore)
         self.assertIsNotNone(MemoryRetriever)
         self.assertIsNotNone(MemorySummarizer)
@@ -66,6 +86,10 @@ class ArchitectureTests(unittest.TestCase):
             "interface/voice/vad",
             "interface/voice/wakeWord",
             "providers",
+            "core/modules",
+            "modules/weather",
+            "modules/spotify",
+            "modules/smartHome",
             "providers/speech",
         ]:
             self.assertTrue((self.root / relative).exists(), relative)

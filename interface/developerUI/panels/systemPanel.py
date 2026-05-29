@@ -56,5 +56,14 @@ class SystemPanel(TextPanel):
         ]
         if isinstance(modules, dict):
             for name, module in sorted(modules.items()):
-                lines.append(f"- {name}: loaded={module.get('loaded', True)} class={module.get('class')}")
+                lines.append(
+                    "- {name}: state={state} loaded={loaded} intents={intents} actions={actions} class={className}".format(
+                        name=name,
+                        state=module.get("state", "UNKNOWN"),
+                        loaded=module.get("loaded", True),
+                        intents=module.get("intents", 0),
+                        actions=module.get("actions", 0),
+                        className=module.get("class"),
+                    )
+                )
         return lines

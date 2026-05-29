@@ -19,6 +19,7 @@ SUITES = {
     "conversation_continuity": "testing.tests.test_conversation_continuity",
     "personality": "testing.tests.test_personality",
     "architecture": "testing.tests.test_architecture",
+    "module_framework": "testing.tests.test_module_framework",
     "observability": "testing.tests.test_observability",
     "events": "testing.tests.test_events",
     "bridge_protocol": "testing.tests.test_bridge_protocol",

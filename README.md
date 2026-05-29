@@ -19,11 +19,16 @@ memory/history, calendar, reminders, notifications, home automation, and system
 lifecycle logic. Each interface package is kept isolated so platform-specific
 builds can include only the files needed for that target.
 
+Capability modules are now standardized through the module framework under
+`core/modules/`, with example integrations for weather, Spotify, calendar,
+reminders, and smart home.
+
 ## Project Structure
 
 ```text
 config/                 Runtime configuration loading
 core/                   Engine, runtime, logging, events, threading, config
+core/modules/           Module framework infrastructure and lifecycle control
 assistant/              Conversation, memory, personality, orchestration
 interface/              Voice, desktop, mobile, notifications, overlays
 modules/                Capability integrations and deterministic tools
@@ -240,6 +245,35 @@ The bridge client auto-subscribes to:
 - `assistant.context`
 
 The legacy nested `home_automation.bridge` config path is still accepted as a fallback for older config files.
+
+## Module Framework
+
+Aura now treats capability integrations as first-class modules. The canonical
+framework lives in `core/modules/` and handles:
+
+- discovery
+- registration
+- metadata
+- permissions
+- actions
+- intents
+- lifecycle state
+- safe load/unload/reload coordination
+
+The compatibility loader in `core/runtime/moduleLoader.py` now delegates to the
+new `ModuleManager`, so existing code paths continue to work while new code can
+target the canonical framework directly.
+
+Example module packages include:
+
+- `modules/weather`
+- `modules/spotify`
+- `modules/calendar`
+- `modules/reminders`
+- `modules/smartHome`
+
+Modules are discovered through the runtime module manager and exposed in the
+developer UI through observability snapshots.
 
 ## Event Bus
 
@@ -764,6 +798,7 @@ python run_tests.py --suite autonomous_tasks
 python run_tests.py --suite context_awareness
 python run_tests.py --suite conversation_continuity
 python run_tests.py --suite architecture
+python run_tests.py --suite module_framework
 python run_tests.py --suite personality
 python run_tests.py --suite observability
 python run_tests.py --suite notifications

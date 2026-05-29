@@ -264,6 +264,16 @@ class VoiceTests(unittest.TestCase):
             if path:
                 Path(path).unlink(missing_ok=True)
 
+    def test_voice_recorder_caches_numpy_during_dependency_loading(self):
+        recorder = VoiceRecorder(self.context, sampleRate=16000)
+        fake_sounddevice = SimpleNamespace(InputStream=FakeInputStream)
+
+        with patch.dict(sys.modules, {"sounddevice": fake_sounddevice}, clear=False):
+            recorder._ensureDependencies()
+
+        self.assertIsNotNone(recorder._numpy)
+        self.assertIs(recorder._sounddevice, fake_sounddevice)
+
     def test_text_to_speech_initializes_once_and_generates_audio(self):
         original_piper = sys.modules.get("piper.voice")
         original_sounddevice = sys.modules.get("sounddevice")
