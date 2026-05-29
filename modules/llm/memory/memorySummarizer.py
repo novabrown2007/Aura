@@ -50,8 +50,12 @@ class MemorySummarizer:
             return []
 
         cleaned = self._compact(text, limit=500)
+        if self._looksLikeQuestion(cleaned):
+            return []
+
         facts: list[str] = []
         patterns = (
+            (r"\bmy name is\s+([a-zA-Z][a-zA-Z .'-]{1,80})\b", "Nova's name is {value}."),
             (r"\b(?:my birthday is|i was born|i am born|born on)\s+([^,.]+(?:,?\s*\d{4})?)", "Nova's birthday is {value}."),
             (r"\bi (?:prefer|like) (?:writing )?dates? in\s+([a-zA-Z/.\-]+)", "Nova prefers dates in {value}."),
             (r"\bmy favorite colou?r is\s+([^,.]+)", "Nova's favorite color is {value}."),
@@ -73,7 +77,9 @@ class MemorySummarizer:
                 value = self._cleanFactValue(match.group(1))
                 if not value:
                     continue
-                if "gender identity" in template:
+                if "name is" in template:
+                    value = self._normalizeName(value)
+                elif "gender identity" in template:
                     value = self._normalizeGenderIdentity(value)
                 elif "relationship orientation" in template:
                     value = self._normalizeRelationshipOrientation(value)
@@ -156,9 +162,32 @@ class MemorySummarizer:
         return value
 
     @staticmethod
+    def _normalizeName(value: str) -> str:
+        words = []
+        for word in str(value or "").strip(" .,\n\t").split():
+            if word.lower() in {"and", "but", "so"}:
+                break
+            words.append(word)
+        return " ".join(words)
+
+    @staticmethod
     def _looksSensitive(text: str) -> bool:
         sensitive = ("password", "token", "api key", "secret", "credential", "private key")
         return any(term in text for term in sensitive)
+
+    @staticmethod
+    def _looksLikeQuestion(text: str) -> bool:
+        lowered = str(text or "").strip().lower()
+        if not lowered:
+            return False
+        if lowered.endswith("?"):
+            return True
+        return bool(
+            re.match(
+                r"^(what|who|when|where|why|how|do|does|did|can|could|would|should|is|are|am)\b",
+                lowered,
+            )
+        )
 
     @staticmethod
     def _normalizeMessages(messages) -> list[tuple[str, str]]:

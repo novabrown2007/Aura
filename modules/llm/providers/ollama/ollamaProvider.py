@@ -32,7 +32,7 @@ class OllamaProvider(LLMProvider):
         self.endpoint = self._normalizeEndpoint(self.endpoint)
         self.model = self._getConfigValue(config, "llm.providers.ollama.model", None)
         self.model = self.model or self._getConfigValue(config, "llm.ollama.model", None)
-        self.model = self.model or self._getConfigValue(config, "llm.model", "llama3.1:8b")
+        self.model = self.model or self._getConfigValue(config, "llm.model", "gemma4:e4b")
         self.timeout = self._getConfigValue(config, "llm.timeout", 30)
         self.retryCount = self._getConfigValue(config, "llm.retryCount", 1)
         self.logger = self._getLogger("LLM.Ollama")

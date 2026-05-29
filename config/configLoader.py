@@ -67,12 +67,12 @@ DEFAULT_DEV_CONFIG = {
         "interruptionDebugLogging": True,
     },
     "llm": {
-        "activeProvider": "gemini",
-        "fallbackProvider": "none",
+        "activeProvider": "ollama",
+        "fallbackProvider": "gemini",
         "retryCount": 2,
         "timeout": 30,
         "ollama": {
-            "model": "llama3.2:1b",
+            "model": "gemma4:e4b",
         },
         "gemini": {
             "model": "gemini-2.5-flash",

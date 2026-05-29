@@ -58,8 +58,8 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_system_model_route_returns_current_model_label(self):
         self.context.llmManager = SimpleNamespace(
-            activeProviderName="gemini",
-            providers={"gemini": SimpleNamespace(model="gemini-2.5-flash")},
+            activeProviderName="ollama",
+            providers={"ollama": SimpleNamespace(model="gemma4:e4b")},
         )
 
         response = self.handler._dispatchApi("GET", "/api/system/model", {}, {})

@@ -255,10 +255,10 @@ def make_context(database=None, extra=None):
         {
             "llm": {
                 "activeProvider": "ollama",
-                "fallbackProvider": "ollama",
+                "fallbackProvider": "gemini",
                 "ollama": {
                     "endpoint": "http://localhost:11434/api/generate",
-                    "model": "llama3.2:1b",
+                    "model": "gemma4:e4b",
                 },
                 "history": {"enabled": True, "limit": 25},
                 "memory": {"enabled": True, "frequency": 20},

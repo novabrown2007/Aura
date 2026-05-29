@@ -150,9 +150,9 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
         {
             "llm": {
                 "activeProvider": "ollama",
-                "fallbackProvider": "ollama",
+                "fallbackProvider": "gemini",
                 "endpoint": endpoint,
-                "model": "llama3.2:1b",
+                "model": "gemma4:e4b",
                 "timeout": 10,
                 "retryCount": 1,
                 "history": {"enabled": True, "limit": 10},
@@ -160,7 +160,7 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
                 "providers": {
                     "ollama": {
                         "endpoint": endpoint,
-                        "model": "llama3.2:1b",
+                        "model": "gemma4:e4b",
                     }
                 },
             }
@@ -309,6 +309,44 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertEqual(manager.activeProviderName, "ollama")
         self.assertIn("quota", manager.offlineReason)
 
+    @patch.object(GeminiProvider, "initialize")
+    def test_manager_keeps_ollama_primary_when_gemini_fallback_is_unavailable(self, mock_initialize):
+        """Gemini fallback startup failure should not force Ollama into offline mode."""
+
+        mock_initialize.return_value = None
+        context = make_llm_context()
+        context.config._data["llm"]["fallbackProvider"] = "gemini"
+        manager = LLMManager(context)
+
+        self.assertFalse(manager.offlineMode)
+        self.assertEqual(manager.activeProviderName, "ollama")
+        self.assertEqual(manager.fallbackProviderName, "gemini")
+
+    def test_manager_allows_structured_output_when_fallback_supports_it(self):
+        """Gemini fallback should keep tool parsing available after Ollama fails."""
+
+        context = make_llm_context()
+        manager = LLMManager(context)
+        manager.providers["ollama"] = StubProvider(
+            "ollama",
+            LLMResponse(provider="ollama", success=False, error="connection refused"),
+        )
+        manager.providers["gemini"] = StubProvider(
+            "gemini",
+            LLMResponse(provider="gemini", success=True, text="Recovered"),
+        )
+        manager.activeProviderName = "ollama"
+        manager.preferredProviderName = "ollama"
+        manager.fallbackProviderName = "gemini"
+        manager.offlineMode = False
+
+        response = manager.generateResponse("system", "hello")
+
+        self.assertTrue(response.success)
+        self.assertEqual(response.provider, "gemini")
+        self.assertTrue(manager.offlineMode)
+        self.assertTrue(manager.canUseStructuredOutput())
+
     def test_manager_can_fail_closed_without_conversational_fallback(self):
         """A disabled fallback should not route normal chat to Ollama."""
 
@@ -405,6 +443,8 @@ class LLMHandlerTests(unittest.TestCase):
 
         mock_initialize.return_value = None
         context = make_llm_context()
+        context.config._data["llm"]["activeProvider"] = "gemini"
+        context.config._data["llm"]["fallbackProvider"] = "ollama"
         manager = LLMManager(context)
 
         self.assertTrue(manager.offlineMode)
@@ -878,7 +918,7 @@ class LLMHandlerTests(unittest.TestCase):
             offlineMode=True,
             canUseStructuredOutput=lambda: False,
             getStatus=lambda: {
-                "activeModel": "llama3.2:1b",
+                "activeModel": "gemma4:e4b",
                 "offlineReason": "429 RESOURCE_EXHAUSTED quota exceeded",
             },
             generateResponse=lambda *args, **kwargs: calls.append(args) or LLMResponse(
@@ -963,7 +1003,7 @@ class LLMHandlerTests(unittest.TestCase):
             self.skipTest("Set RUN_LIVE_LLM_TEST=true to run live LLM connection test.")
 
         endpoint = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
-        model = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+        model = os.getenv("OLLAMA_MODEL", "gemma4:e4b")
 
         try:
             response = requests.post(

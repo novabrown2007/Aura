@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from time import perf_counter
+from time import perf_counter, time
 from typing import Callable
 
 from interface.developerUI.models import ConsoleEvent
@@ -18,6 +18,12 @@ class UIEventTracer:
         self.traceEvents = bool(traceEvents)
         self.originalEmit: Callable | None = None
         self.installed = False
+        self.suppressedEvents = {"task_completed"}
+        self.throttledEvents = {
+            "memory.retrieval.completed": 10.0,
+            "memory.injected": 10.0,
+        }
+        self._lastTraceAt: dict[str, float] = {}
         logger = getattr(context, "logger", None)
         self.logger = logger.getChild("DeveloperUI.EventTracer") if logger else None
 
@@ -59,6 +65,8 @@ class UIEventTracer:
     def trace(self, name: str, payload: dict | None = None, durationMs: float = 0.0, error: str = ""):
         """Record one event in UI state."""
 
+        if not error and not self._shouldTrace(name):
+            return
         event = ConsoleEvent(
             name=str(name),
             payload=payload if isinstance(payload, dict) else {"value": payload},
@@ -70,9 +78,24 @@ class UIEventTracer:
         if self.performanceTracker is not None:
             self.performanceTracker.record(event.name, durationMs, category="event")
 
+    def _shouldTrace(self, name: str) -> bool:
+        """Return whether an event is useful enough for the live console."""
+
+        eventName = str(name or "")
+        if eventName in self.suppressedEvents:
+            return False
+        interval = self.throttledEvents.get(eventName)
+        if interval is None:
+            return True
+        now = time()
+        last = self._lastTraceAt.get(eventName, 0.0)
+        if now - last < interval:
+            return False
+        self._lastTraceAt[eventName] = now
+        return True
+
     @staticmethod
     def _category(name: str) -> str:
         if "." in name:
             return name.split(".", 1)[0]
         return "general"
-

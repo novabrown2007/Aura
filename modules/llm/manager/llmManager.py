@@ -37,8 +37,8 @@ class LLMManager:
         self.context = context
         self.logger = None
         self.providers: dict[str, LLMProvider] = {}
-        self.activeProviderName = "gemini"
-        self.preferredProviderName = "gemini"
+        self.activeProviderName = "ollama"
+        self.preferredProviderName = "ollama"
         self.fallbackProviderName = ""
         self.offlineMode = False
         self.offlineReason = ""
@@ -61,7 +61,7 @@ class LLMManager:
         self.logger = self._getLogger("LLM.Manager")
         self.rawLogger = LLMLogger(self.context)
         self.activeProviderName = self._getConfigValue(config, "llm.activeProvider", None)
-        self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "gemini")
+        self.activeProviderName = self.activeProviderName or self._getConfigValue(config, "llm.provider", "ollama")
         self.preferredProviderName = self.activeProviderName
         self.fallbackProviderName = self._normalizeProviderName(
             self._getConfigValue(config, "llm.fallbackProvider", "")
@@ -72,18 +72,21 @@ class LLMManager:
         for provider in self.providers.values():
             provider.initialize()
 
-        self.offlineMode = not bool(self.providers.get("gemini") and self.providers["gemini"].initialized)
+        preferredProvider = self.providers.get(self.preferredProviderName)
+        self.offlineMode = not bool(preferredProvider and preferredProvider.initialized)
         if self.offlineMode:
-            self.offlineReason = "Gemini provider unavailable at startup."
+            self.offlineReason = "Preferred LLM provider unavailable at startup."
             if self._hasFallbackProvider():
                 self.activeProviderName = self.fallbackProviderName
             else:
                 self.activeProviderName = self.preferredProviderName
             if self.logger:
                 if self._hasFallbackProvider():
-                    self.logger.info(f"Gemini provider unavailable. Using {self.fallbackProviderName} in offline mode.")
+                    self.logger.info(
+                        f"Preferred LLM provider unavailable. Using {self.fallbackProviderName} in offline mode."
+                    )
                 else:
-                    self.logger.info("Gemini provider unavailable. No conversational fallback provider configured.")
+                    self.logger.info("Preferred LLM provider unavailable. No conversational fallback provider configured.")
 
         if self.context is not None:
             self.context.llmManager = self
@@ -355,7 +358,12 @@ class LLMManager:
 
         if not self.offlineMode:
             return True
-        return self._fallbackCooldownExpired()
+        if self._fallbackCooldownExpired():
+            return True
+        fallbackProvider = self.providers.get(self.fallbackProviderName)
+        if fallbackProvider is None or not fallbackProvider.initialized:
+            return False
+        return self._providerSupportsRequest(fallbackProvider, "generateStructuredResponse")
 
     def getStatus(self) -> dict:
         """Return concise provider routing state for interfaces and diagnostics."""
@@ -388,9 +396,13 @@ class LLMManager:
             self.activeProviderName = self.preferredProviderName
         if self.logger:
             if self._hasFallbackProvider():
-                self.logger.warning(f"Gemini became unavailable. Falling back to {self.fallbackProviderName}: {error}")
+                self.logger.warning(
+                    f"Preferred LLM provider became unavailable. Falling back to {self.fallbackProviderName}: {error}"
+                )
             else:
-                self.logger.warning(f"Gemini became unavailable. No conversational fallback configured: {error}")
+                self.logger.warning(
+                    f"Preferred LLM provider became unavailable. No conversational fallback configured: {error}"
+                )
 
     def _restorePreferredProvider(self):
         """Mark the preferred provider as active after a successful retry."""

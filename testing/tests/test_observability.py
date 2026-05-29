@@ -60,7 +60,7 @@ class ObservabilityTests(unittest.TestCase):
             activeProviderName="ollama",
             fallbackProviderName="gemini",
             providers={
-                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
+                "ollama": SimpleNamespace(initialized=True, model="gemma4:e4b"),
                 "gemini": SimpleNamespace(initialized=False, model="gemini-2.5-flash"),
             },
         )
@@ -75,7 +75,7 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(snapshot["memory"]["keys"], ["user_name"])
         self.assertEqual(snapshot["tools"][0]["name"], "system.getTime")
         self.assertEqual(snapshot["providers"]["activeProvider"], "ollama")
-        self.assertEqual(snapshot["providers"]["activeModel"], "llama3.2:1b")
+        self.assertEqual(snapshot["providers"]["activeModel"], "gemma4:e4b")
         self.assertTrue(snapshot["providers"]["providers"]["ollama"]["active"])
         self.assertEqual(snapshot["providers"]["providers"]["gemini"]["model"], "gemini-2.5-flash")
         self.assertTrue(snapshot["modules"]["system"]["loaded"])
@@ -86,16 +86,16 @@ class ObservabilityTests(unittest.TestCase):
         context.llmManager = SimpleNamespace(
             getStatus=lambda: {
                 "offlineMode": True,
-                "activeProvider": "ollama",
-                "activeModel": "llama3.2:1b",
-                "preferredProvider": "gemini",
-                "preferredModel": "gemini-2.5-flash",
-                "fallbackProvider": "ollama",
-                "offlineReason": "429 RESOURCE_EXHAUSTED",
-                "canUseStructuredOutput": False,
+                "activeProvider": "gemini",
+                "activeModel": "gemini-2.5-flash",
+                "preferredProvider": "ollama",
+                "preferredModel": "gemma4:e4b",
+                "fallbackProvider": "gemini",
+                "offlineReason": "Ollama connection refused",
+                "canUseStructuredOutput": True,
             },
             providers={
-                "ollama": SimpleNamespace(initialized=True, model="llama3.2:1b"),
+                "ollama": SimpleNamespace(initialized=True, model="gemma4:e4b"),
                 "gemini": SimpleNamespace(initialized=True, model="gemini-2.5-flash"),
             },
         )
@@ -104,10 +104,11 @@ class ObservabilityTests(unittest.TestCase):
         providers = manager.getProviders()
 
         self.assertTrue(providers["offlineMode"])
-        self.assertEqual(providers["activeProvider"], "ollama")
-        self.assertEqual(providers["preferredProvider"], "gemini")
-        self.assertEqual(providers["offlineReason"], "429 RESOURCE_EXHAUSTED")
-        self.assertFalse(providers["canUseStructuredOutput"])
+        self.assertEqual(providers["activeProvider"], "gemini")
+        self.assertEqual(providers["preferredProvider"], "ollama")
+        self.assertEqual(providers["fallbackProvider"], "gemini")
+        self.assertEqual(providers["offlineReason"], "Ollama connection refused")
+        self.assertTrue(providers["canUseStructuredOutput"])
 
     def test_event_and_tool_execution_record_traces(self):
         context = make_context()

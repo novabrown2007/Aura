@@ -94,6 +94,7 @@ class MemoryManager(AuraModule):
         self.memoryFormatter = MemoryFormatter(self.contextCompressor, context)
         self.promptInjector = PromptInjector(self.memoryFormatter, context)
         self.retriever = MemoryRetriever(self.store, self.index, self.searchEngine, context)
+        self._compactStoredMemories()
         self.rebuildIndex()
 
         self.eventHandler = MemoryEventHandler(context, self)
@@ -125,8 +126,28 @@ class MemoryManager(AuraModule):
             if self.logger:
                 self.logger.warning("Rejected unsafe memory content")
             return None
+        category, title, content, tags = self._normalizeMemoryCandidate(category, title, content, tags)
+        if self._shouldRejectMemory(title, content):
+            if self.logger:
+                self.logger.debug(f"Rejected non-durable memory candidate: {title}")
+            return None
         category = MemoryCategory.normalize(category)
         score = self.scorer.score(content, category, explicitImportance=importance)
+        existing = self._findDuplicateMemory(category, title, content)
+        if existing is not None:
+            sameContent = self._memoryFingerprint(existing.content) == self._memoryFingerprint(content)
+            mergedTags = sorted(set(existing.tags).union(str(tag).strip().lower() for tag in (tags or []) if str(tag).strip()))
+            mergedMetadata = dict(existing.metadata or {})
+            mergedMetadata.update(metadata or {})
+            return self.updateMemory(
+                existing.memoryId,
+                title=existing.title if sameContent else title,
+                content=existing.content if sameContent else content,
+                tags=mergedTags,
+                importance=max(existing.importance, score),
+                source=source or existing.source,
+                metadata=mergedMetadata,
+            )
         memory = Memory(
             category=category,
             title=title,
@@ -394,6 +415,49 @@ class MemoryManager(AuraModule):
         if self.index is not None:
             self.index.rebuild(self.store.queryMemories(MemoryQuery()))
 
+    def _compactStoredMemories(self):
+        """Remove invalid question memories and merge exact duplicate facts."""
+
+        if self.store is None:
+            return
+        seen: dict[tuple[str, str], Memory] = {}
+        for memory in self.store.queryMemories(MemoryQuery()):
+            original = memory.asDict()
+            category, title, content, tags = self._normalizeMemoryCandidate(
+                memory.category,
+                memory.title,
+                memory.content,
+                memory.tags,
+            )
+            memory.category = category
+            memory.title = title
+            memory.content = content
+            memory.tags = tags
+            if memory.asDict() != original:
+                self.store.upsertMemory(memory)
+            if self._shouldRejectMemory(memory.title, memory.content):
+                self.store.deleteMemory(memory.memoryId)
+                continue
+            key = self._dedupeKey(memory)
+            if not key[1]:
+                continue
+            existing = seen.get(key)
+            if existing is None:
+                seen[key] = memory
+                continue
+            preferNewer = self._memoryFingerprint(existing.content) != self._memoryFingerprint(memory.content)
+            keep, remove = self._chooseMemoryToKeep(existing, memory, preferNewer=preferNewer)
+            mergedTags = sorted(set(keep.tags).union(remove.tags))
+            mergedMetadata = dict(remove.metadata or {})
+            mergedMetadata.update(keep.metadata or {})
+            keep.tags = mergedTags
+            keep.importance = max(keep.importance, remove.importance)
+            keep.metadata = mergedMetadata
+            self.store.upsertMemory(keep)
+            self.store.deleteMemory(remove.memoryId)
+            seen[key] = keep
+        self._compactConversationSummaries()
+
     def shutdown(self):
         """Close memory resources."""
 
@@ -410,6 +474,122 @@ class MemoryManager(AuraModule):
     def _titleFromContent(content: str) -> str:
         cleaned = " ".join(str(content or "").split())
         return cleaned[:72].rstrip(".") or "Memory"
+
+    def _findDuplicateMemory(self, category: str, title: str, content: str) -> Memory | None:
+        fingerprint = self._memoryFingerprint(content)
+        titleFingerprint = self._memoryFingerprint(title)
+        if not fingerprint and not titleFingerprint:
+            return None
+        for memory in self.store.queryMemories(MemoryQuery(categories=[category])):
+            if fingerprint and self._memoryFingerprint(memory.content) == fingerprint:
+                return memory
+            if titleFingerprint and self._memoryFingerprint(memory.title) == titleFingerprint:
+                return memory
+        return None
+
+    @classmethod
+    def _normalizeMemoryCandidate(
+        cls,
+        category: str,
+        title: str,
+        content: str,
+        tags: list[str] | None,
+    ) -> tuple[str, str, str, list[str]]:
+        category = MemoryCategory.normalize(category)
+        title = str(title or "").strip()
+        content = str(content or "").strip()
+        normalizedTags = sorted({str(tag).strip().lower() for tag in (tags or []) if str(tag).strip()})
+
+        name = cls._extractNameFact(f"{title}\n{content}")
+        if name:
+            return "people", "Name", f"Nova's name is {name}.", sorted(set(normalizedTags).union({"profile", "name"}))
+        return category, title, content, normalizedTags
+
+    @staticmethod
+    def _extractNameFact(text: str) -> str:
+        match = re.search(r"\b(?:my|nova's)\s+name\s+is\s+([a-zA-Z][a-zA-Z .'-]{1,80})", str(text or ""), flags=re.IGNORECASE)
+        if not match:
+            return ""
+        words = []
+        for word in match.group(1).strip(" .,\n\t").split():
+            if word.lower() in {"and", "but", "so"}:
+                break
+            words.append(word)
+        return " ".join(words)
+
+    @classmethod
+    def _shouldRejectMemory(cls, title: str, content: str) -> bool:
+        text = " ".join(str(value or "").strip() for value in (title, content) if str(value or "").strip())
+        if not text:
+            return True
+        return cls._looksLikeQuestion(str(title or "")) or cls._looksLikeQuestion(str(content or ""))
+
+    @staticmethod
+    def _looksLikeQuestion(text: str) -> bool:
+        lowered = str(text or "").strip().lower()
+        if not lowered:
+            return False
+        if lowered.endswith("?"):
+            return True
+        return bool(
+            re.match(
+                r"^(what|who|when|where|why|how|do|does|did|can|could|would|should|is|are|am)\b",
+                lowered,
+            )
+        )
+
+    @staticmethod
+    def _memoryFingerprint(text: str) -> str:
+        lowered = str(text or "").lower()
+        lowered = lowered.replace("non-binaring", "non-binary").replace("nonbinary", "non-binary")
+        lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
+        return " ".join(lowered.split())
+
+    @staticmethod
+    def _chooseMemoryToKeep(first: Memory, second: Memory, preferNewer: bool = False) -> tuple[Memory, Memory]:
+        if second.importance > first.importance:
+            return second, first
+        if second.importance == first.importance:
+            if preferNewer:
+                if second.createdAt > first.createdAt:
+                    return second, first
+            elif second.createdAt < first.createdAt:
+                return second, first
+        return first, second
+
+    @classmethod
+    def _dedupeKey(cls, memory: Memory) -> tuple[str, str]:
+        titleFingerprint = cls._memoryFingerprint(memory.title)
+        if memory.category in {"people", "preferences"} and (
+            "profile" in memory.tags
+            or titleFingerprint
+            in {
+                "name",
+                "birthday",
+                "age",
+                "relationship orientation",
+                "gender identity",
+                "sexual orientation",
+            }
+        ):
+            return memory.category, titleFingerprint
+        return memory.category, cls._memoryFingerprint(memory.content)
+
+    def _compactConversationSummaries(self):
+        summaries = [
+            memory
+            for memory in self.store.queryMemories(MemoryQuery(categories=[MemoryCategory.CONVERSATION_SUMMARIES.value]))
+            if self._memoryFingerprint(memory.content)
+        ]
+        for candidate in summaries:
+            candidateText = self._memoryFingerprint(candidate.content)
+            for other in summaries:
+                if candidate.memoryId == other.memoryId:
+                    continue
+                otherText = self._memoryFingerprint(other.content)
+                if len(candidateText) < len(otherText) and candidateText in otherText:
+                    self.store.deleteMemory(candidate.memoryId)
+                    break
 
     def _findLegacyMemory(self, key: str) -> Memory | None:
         key = str(key or "")

@@ -43,7 +43,7 @@ class ConfigLoaderTests(unittest.TestCase):
         """Ollama model placeholders should resolve through OLLAMA_MODEL."""
 
         old_value = os.environ.get("OLLAMA_MODEL")
-        os.environ["OLLAMA_MODEL"] = "llama3.2:1b"
+        os.environ["OLLAMA_MODEL"] = "gemma4:e4b"
 
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -57,7 +57,7 @@ class ConfigLoaderTests(unittest.TestCase):
 
                 config = ConfigLoader(path=str(config_path))
 
-                self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
+                self.assertEqual(config.get("llm.ollama.model"), "gemma4:e4b")
         finally:
             if old_value is None:
                 os.environ.pop("OLLAMA_MODEL", None)
@@ -159,8 +159,9 @@ class ConfigLoaderTests(unittest.TestCase):
             config = ConfigLoader(path=str(config_path), devPath=str(dev_config_path))
 
             self.assertTrue(config_path.exists())
-            self.assertEqual(config.get("llm.activeProvider"), "gemini")
-            self.assertEqual(config.get("llm.ollama.model"), "llama3.2:1b")
+            self.assertEqual(config.get("llm.activeProvider"), "ollama")
+            self.assertEqual(config.get("llm.fallbackProvider"), "gemini")
+            self.assertEqual(config.get("llm.ollama.model"), "gemma4:e4b")
             self.assertEqual(config.get("llm.history.persistAcrossRestarts"), True)
             self.assertEqual(config.asDict()["llm"]["ollama"]["endpoint"], "CHANGE_ME")
             self.assertEqual(config.asDict()["huggingFace"]["apiToken"], "CHANGE_ME")
