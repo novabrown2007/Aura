@@ -46,6 +46,12 @@ class UISubscriptionManager:
         "tts.cancelled",
         "provider.cancelled",
         "conversation.cancelled",
+        "conversation.updated",
+        "conversation.followup.detected",
+        "conversation.reference.resolved",
+        "conversation.context.expired",
+        "conversation.clarification.started",
+        "conversation.clarification.completed",
         "error",
     )
 
@@ -108,6 +114,7 @@ class UISubscriptionManager:
                 )
                 self.state.updateProviders(snapshot.get("providers", {}))
                 self.state.updateInterruptions(snapshot.get("interruptions", {}))
+                self.state.updateConversation(snapshot.get("conversation", {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Developer UI observability refresh failed: {error}")

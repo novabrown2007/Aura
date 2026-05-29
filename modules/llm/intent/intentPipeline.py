@@ -133,6 +133,7 @@ class IntentPipeline:
 
         if self._isCancellation(userInput):
             self.pendingClarification = None
+            self._completeConversationClarification()
             self._logStage("CLARIFICATION", "Cancelled pending intent")
             return "Okay, I won't worry about that for now."
 
@@ -140,12 +141,14 @@ class IntentPipeline:
         pendingIntent = self.pendingClarification.get("intent")
         if not missingParameter or not isinstance(pendingIntent, StructuredIntent):
             self.pendingClarification = None
+            self._completeConversationClarification()
             return None
 
         value = self._extractClarificationValue(userInput, missingParameter, allowBare=True)
         if value is None:
             if self._looksLikeNewConversation(userInput):
                 self.pendingClarification = None
+                self._completeConversationClarification()
                 self._logStage("CLARIFICATION", "Cleared stale pending intent")
                 return None
             return self.askClarification(pendingIntent, self.pendingClarification.get("reason"))
@@ -157,6 +160,7 @@ class IntentPipeline:
             return self.askClarification(completedIntent, validation["error"])
 
         self.pendingClarification = None
+        self._completeConversationClarification()
         self._logStage("CLARIFICATION", f"Resolved {missingParameter}")
         return self._executeValidatedIntents(
             baseSystemPrompt,
@@ -198,7 +202,21 @@ class IntentPipeline:
             "missingParameter": missingParameter,
             "reason": reason,
         }
+        conversationManager = getattr(self.context, "conversationManager", None)
+        if conversationManager is not None and hasattr(conversationManager, "startClarification"):
+            conversationManager.startClarification(
+                self.askClarification(intent, reason),
+                intent.asDict(),
+                missingField=missingParameter,
+            )
         self._logStage("CLARIFICATION", f"Waiting for {missingParameter}")
+
+    def _completeConversationClarification(self):
+        """Notify the conversation manager that a pending clarification ended."""
+
+        conversationManager = getattr(self.context, "conversationManager", None)
+        if conversationManager is not None and hasattr(conversationManager, "completeClarification"):
+            conversationManager.completeClarification()
 
     def _withUpdatedArgument(
         self,
@@ -620,6 +638,9 @@ class IntentPipeline:
                 "result": execution.get("result"),
             }
         )
+        conversationManager = getattr(self.context, "conversationManager", None)
+        if conversationManager is not None and hasattr(conversationManager, "recordAction"):
+            conversationManager.recordAction(intent.intent, intent.arguments, execution)
         if len(self.recentToolContext) > self.contextWindow:
             self.recentToolContext = self.recentToolContext[-self.contextWindow:]
 

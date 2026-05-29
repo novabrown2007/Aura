@@ -188,6 +188,7 @@ class ConfigLoaderTests(unittest.TestCase):
             self.assertEqual(config.get("memory.maxResults"), 10)
             self.assertEqual(config.get("memory.maxInjectionCount"), 10)
             self.assertEqual(config.get("developerUI.refreshRate"), 1000)
+            self.assertEqual(config.get("conversation.conversationTimeoutSeconds"), 300)
             self.assertEqual(config.get("homeAutomationBridge.interface"), "windows")
             self.assertEqual(config.asDict()["homeAutomationBridge"]["host"], "127.0.0.1")
             self.assertEqual(config.asDict()["homeAutomationBridge"]["protocolPath"], "/protocol/aura")

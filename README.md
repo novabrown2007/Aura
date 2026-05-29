@@ -427,6 +427,24 @@ Duration helpers are available:
 context.contextAwareness.secondsSinceChanged("desktop_activity")
 ```
 
+## Conversational Continuity
+
+Aura keeps short-term conversational context through:
+
+```python
+context.conversationManager
+```
+
+The conversation manager tracks active topics, entities, recent actions, and
+pending clarifications so follow-up turns can be resolved before provider or
+tool routing. For example, after "Turn off the bedroom lights", a follow-up
+like "Actually make them blue" is resolved against the active `bedroom lights`
+entity and `lighting` topic.
+
+Short-term context expires after `conversation.conversationTimeoutSeconds`
+seconds of inactivity (`300` by default). This is separate from long-term
+memory and is intended only for the active conversation.
+
 ## Observability
 
 Aura exposes runtime diagnostics through:

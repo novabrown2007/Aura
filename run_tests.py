@@ -16,6 +16,7 @@ SUITES = {
     "automation_composer": "testing.tests.test_automation_composer",
     "threading_scheduler": "testing.tests.test_threading_scheduler",
     "context_awareness": "testing.tests.test_context_awareness",
+    "conversation_continuity": "testing.tests.test_conversation_continuity",
     "observability": "testing.tests.test_observability",
     "events": "testing.tests.test_events",
     "bridge_protocol": "testing.tests.test_bridge_protocol",
