@@ -183,6 +183,25 @@ memory:
   retrievalCandidateLimit: 24
   # Whether retrieval debug details are retained for developer UI visibility.
   retrievalDebug: true
+  semantic:
+    # Whether semantic retrieval is enabled.
+    enabled: true
+    # Preferred embedding provider. Valid values: gemini or local.
+    provider: gemini
+    # Embedding model name to request when the provider supports it.
+    model: text-embedding-004
+    # Maximum semantic retrieval results.
+    maxResults: 5
+    # Minimum similarity score required for semantic matches.
+    minimumSimilarity: 0.65
+    # Weight assigned to recency during semantic ranking.
+    recencyWeight: 0.2
+    # Weight assigned to importance during semantic ranking.
+    importanceWeight: 0.2
+    # Weight assigned to semantic similarity during semantic ranking.
+    similarityWeight: 0.6
+    # Whether new/updated memories are automatically indexed.
+    autoIndex: true
 
 developerUI:
   # Whether the developer UI is enabled.

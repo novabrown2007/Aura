@@ -181,6 +181,17 @@ DEFAULT_DEV_CONFIG = {
         "minRelevance": 0.2,
         "retrievalCandidateLimit": 24,
         "retrievalDebug": True,
+        "semantic": {
+            "enabled": True,
+            "provider": "gemini",
+            "model": "text-embedding-004",
+            "maxResults": 5,
+            "minimumSimilarity": 0.65,
+            "recencyWeight": 0.2,
+            "importanceWeight": 0.2,
+            "similarityWeight": 0.6,
+            "autoIndex": True,
+        },
     },
     "developerUI": {
         "enabled": True,
@@ -428,8 +439,17 @@ class ConfigLoader:
             "personality.initiativeLevel": "PERSONALITY_INITIATIVE_LEVEL",
             "personality.toneMode": "PERSONALITY_TONE_MODE",
             "personality.maxSuggestionsPerHour": "PERSONALITY_MAX_SUGGESTIONS_PER_HOUR",
-            "personality.personalityStrength": "PERSONALITY_STRENGTH",
-        }
+    "personality.personalityStrength": "PERSONALITY_STRENGTH",
+    "semanticMemoryEnabled": "memory.semantic.enabled",
+    "embeddingProvider": "memory.semantic.provider",
+    "embeddingModel": "memory.semantic.model",
+    "semanticMemoryMaxResults": "memory.semantic.maxResults",
+    "semanticMemoryMinimumSimilarity": "memory.semantic.minimumSimilarity",
+    "semanticMemoryRecencyWeight": "memory.semantic.recencyWeight",
+    "semanticMemoryImportanceWeight": "memory.semantic.importanceWeight",
+    "semanticMemorySimilarityWeight": "memory.semantic.similarityWeight",
+    "semanticMemoryAutoIndex": "memory.semantic.autoIndex",
+}
 
         self.load()
 

@@ -13,6 +13,10 @@ class MemoryEventHandler:
         "response.generated",
         "session.created",
         "session.ended",
+        "memory.created",
+        "memory.updated",
+        "memory.deleted",
+        "memory.reindex.requested",
     )
 
     def __init__(self, context, memoryManager):
@@ -59,6 +63,12 @@ class MemoryEventHandler:
                 self._handleConversationEnded(data)
             elif name == "session.created":
                 self._handleSessionCreated(data)
+            elif name in {"memory.created", "memory.updated"}:
+                self._handleMemoryChanged(data)
+            elif name == "memory.deleted":
+                self._handleMemoryDeleted(data)
+            elif name == "memory.reindex.requested":
+                self._handleReindexRequested()
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Memory event handling failed: {error}")
@@ -87,7 +97,34 @@ class MemoryEventHandler:
         sessionId = self._sessionId(data)
         self._sessionMessages.setdefault(sessionId, [])
 
+    def _handleMemoryChanged(self, data: dict):
+        memoryManager = self.memoryManager
+        embeddingManager = getattr(memoryManager, "memoryEmbeddingManager", None)
+        if embeddingManager is None:
+            return
+        memory = getattr(memoryManager.store, "getMemory", lambda *_args, **_kwargs: None)(str(data.get("memoryId") or data.get("memory_id") or ""))
+        if memory is None:
+            from modules.llm.memory.models import Memory
+
+            memory = Memory.fromDict(data)
+        embeddingManager.refreshMemory(memory)
+
+    def _handleMemoryDeleted(self, data: dict):
+        embeddingManager = getattr(self.memoryManager, "memoryEmbeddingManager", None)
+        if embeddingManager is None:
+            return
+        memoryId = str(data.get("memoryId") or data.get("memory_id") or "")
+        if memoryId:
+            embeddingManager.removeMemory(memoryId)
+
+    def _handleReindexRequested(self):
+        memoryManager = self.memoryManager
+        embeddingManager = getattr(memoryManager, "memoryEmbeddingManager", None)
+        if embeddingManager is None:
+            return
+        memories = memoryManager.store.queryMemories() if hasattr(memoryManager.store, "queryMemories") else []
+        embeddingManager.reindexAll(memories)
+
     @staticmethod
     def _sessionId(data: dict) -> str:
         return str(data.get("sessionId") or data.get("session_id") or data.get("conversationId") or "default")
-
