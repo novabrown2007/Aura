@@ -200,6 +200,24 @@ conversation:
   # Seconds of inactivity before short-term conversational context resets.
   conversationTimeoutSeconds: 300
 
+personality:
+  # Controlled conversational style layer. This never overrides valid commands.
+  personalityEnabled: true
+  # Allow occasional subtle humor in non-command conversations.
+  humorEnabled: true
+  # Allow lightweight contextual suggestions.
+  suggestionsEnabled: true
+  # How proactive Aura may be. Valid value: 0.0 to 1.0.
+  initiativeLevel: 0.35
+  # Default tone mode: casual, professional, concise, developer, or voice.
+  toneMode: casual
+  # Maximum proactive suggestions in one hour.
+  maxSuggestionsPerHour: 3
+  # Strength of stylistic personality. Valid value: 0.0 to 1.0.
+  personalityStrength: 0.35
+  # Verbosity preference for future tone expansion.
+  verbosity: normal
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

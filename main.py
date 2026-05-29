@@ -18,6 +18,8 @@ from core.eventBus.autonomy import AutonomousTaskManager
 from modules.llm.contextAwareness import ContextAwarenessManager
 from core.runtime.observability import ObservabilityManager
 from core.interruption import InterruptionManager
+from core.personality import PersonalityManager
+from core.personality.handlers import PersonalityEventHandler
 from core.voice.wakeWord import WakeWordManager
 from core.voice.vad import VADManager
 from core.conversation import ConversationManager
@@ -151,6 +153,9 @@ def buildRuntimeContext():
     context.llmManager = LLMManager(context)
     context.memoryManager = MemoryManager(context)
     context.conversationManager = ConversationManager(context)
+    context.personalityManager = PersonalityManager(context)
+    context.personalityEventHandler = PersonalityEventHandler(context, context.personalityManager)
+    context.personalityEventHandler.subscribe()
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
     context.vadManager = VADManager(context)
