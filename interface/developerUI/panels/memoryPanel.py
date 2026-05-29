@@ -22,6 +22,24 @@ class MemoryPanel(TextPanel):
             f"Filtered: {memory.get('filtered', 0)}",
             f"Top Score: {memory.get('topScore', 0.0)}",
         ]
+        semantic = memory.get("semantic") or {}
+        lines.extend(
+            [
+                "",
+                "Semantic Memory:",
+                f"Enabled: {'Yes' if semantic.get('enabled') else 'No'}",
+                f"Provider: {semantic.get('provider') or 'Unknown'}",
+                f"Indexed: {semantic.get('indexedCount', 0)}",
+                f"Last Index: {semantic.get('lastIndexAt') or 'Never'}",
+            ]
+        )
+        if semantic.get("lastSearchText"):
+            lines.append(f"Last Search: {semantic.get('lastSearchText')}")
+        lastSearch = semantic.get("lastSearch") or {}
+        if isinstance(lastSearch, dict) and lastSearch.get("combinedCount") is not None:
+            lines.append(f"Last Results: {lastSearch.get('combinedCount')} (semantic={lastSearch.get('semanticCount', 0)}, keyword={lastSearch.get('keywordCount', 0)})")
+        if semantic.get("lastError"):
+            lines.append(f"Semantic Error: {semantic.get('lastError')}")
         if memory.get("refreshError"):
             lines.extend(["", f"Refresh Error: {memory.get('refreshError')}"])
         lines.extend(["", "Stored Memories:"])

@@ -118,10 +118,17 @@ class ObservabilityManager:
             return {"available": False, "count": 0, "keys": []}
 
         memory = memory_manager.getMemory()
+        semantic = {}
+        if hasattr(memory_manager, "semanticMemoryState"):
+            try:
+                semantic = memory_manager.semanticMemoryState()
+            except Exception as error:
+                semantic = {"available": False, "error": str(error)}
         return {
             "available": True,
             "count": len(memory),
             "keys": sorted(str(key) for key in memory.keys()),
+            "semantic": semantic,
         }
 
     def getTools(self):

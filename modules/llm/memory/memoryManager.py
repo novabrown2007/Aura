@@ -6,11 +6,17 @@ import re
 from pathlib import Path
 from typing import Any
 
+from assistant.memory.hybridMemoryRetriever import HybridMemoryRetriever
+from assistant.memory.memoryEmbeddingManager import MemoryEmbeddingManager
+from assistant.memory.memoryInjector import MemoryInjector
+from assistant.memory.memoryRelevanceScorer import MemoryRelevanceScorer
+from assistant.memory.semanticMemoryIndex import SemanticMemoryIndex
+from assistant.memory.semanticMemoryRetriever import SemanticMemoryRetriever
+from assistant.memory.storage import SQLiteEmbeddingStore
 from modules.llm.memory.conversation import ConversationContextManager
 from modules.llm.memory.handlers.memoryEventHandler import MemoryEventHandler
 from modules.llm.memory.injection import ContextCompressor, MemoryFormatter, PromptInjector
 from modules.llm.memory.indexing import MemoryIndex
-from modules.llm.memory.memoryInjector import MemoryInjector
 from modules.llm.memory.memoryRetriever import MemoryRetriever
 from modules.llm.memory.memoryScorer import MemoryScorer
 from modules.llm.memory.memorySummarizer import MemorySummarizer
@@ -62,6 +68,19 @@ class MemoryManager(AuraModule):
         self.lastRetrievalDebug = ""
         self.retriever = None
         self.eventHandler = None
+        self.semanticMemoryEnabled = True
+        self.semanticMemoryMaxResults = 5
+        self.semanticMemoryMinimumSimilarity = 0.65
+        self.semanticMemoryRecencyWeight = 0.2
+        self.semanticMemoryImportanceWeight = 0.2
+        self.semanticMemorySimilarityWeight = 0.6
+        self.semanticMemoryAutoIndex = True
+        self.semanticMemoryIndex = None
+        self.semanticMemoryStore = None
+        self.memoryEmbeddingManager = None
+        self.semanticMemoryRetriever = None
+        self.hybridMemoryRetriever = None
+        self.semanticMemoryScorer = None
         if context is not None:
             self.initialize(context)
 
@@ -79,6 +98,13 @@ class MemoryManager(AuraModule):
         self.importanceThreshold = float(self._config(config, "memoryImportanceThreshold", self._config(config, "memory.importanceThreshold", 0.35)))
         self.autoSummarization = bool(self._config(config, "memoryAutoSummarization", self._config(config, "memory.autoSummarization", True)))
         databasePath = self._config(config, "memoryDatabasePath", self._config(config, "memory.databasePath", "aura_memory.sqlite3"))
+        self.semanticMemoryEnabled = bool(self._config(config, "semanticMemoryEnabled", self._config(config, "memory.semantic.enabled", True)))
+        self.semanticMemoryMaxResults = int(self._config(config, "semanticMemoryMaxResults", self._config(config, "memory.semantic.maxResults", 5)))
+        self.semanticMemoryMinimumSimilarity = float(self._config(config, "semanticMemoryMinimumSimilarity", self._config(config, "memory.semantic.minimumSimilarity", 0.65)))
+        self.semanticMemoryRecencyWeight = float(self._config(config, "semanticMemoryRecencyWeight", self._config(config, "memory.semantic.recencyWeight", 0.2)))
+        self.semanticMemoryImportanceWeight = float(self._config(config, "semanticMemoryImportanceWeight", self._config(config, "memory.semantic.importanceWeight", 0.2)))
+        self.semanticMemorySimilarityWeight = float(self._config(config, "semanticMemorySimilarityWeight", self._config(config, "memory.semantic.similarityWeight", 0.6)))
+        self.semanticMemoryAutoIndex = bool(self._config(config, "semanticMemoryAutoIndex", self._config(config, "memory.semantic.autoIndex", True)))
 
         if self.store is None:
             self.store = SQLiteMemoryStore(str(Path(databasePath)), context=context)
@@ -94,8 +120,32 @@ class MemoryManager(AuraModule):
         self.memoryFormatter = MemoryFormatter(self.contextCompressor, context)
         self.promptInjector = PromptInjector(self.memoryFormatter, context)
         self.retriever = MemoryRetriever(self.store, self.index, self.searchEngine, context)
+        self.semanticMemoryStore = SQLiteEmbeddingStore(str(Path(databasePath)), context=context)
+        self.semanticMemoryIndex = SemanticMemoryIndex(context)
+        self.semanticMemoryScorer = MemoryRelevanceScorer(context)
+        self.memoryEmbeddingManager = MemoryEmbeddingManager(
+            context,
+            store=self.semanticMemoryStore,
+            index=self.semanticMemoryIndex,
+        )
+        self.semanticMemoryRetriever = SemanticMemoryRetriever(
+            self.store,
+            self.semanticMemoryIndex,
+            self.memoryEmbeddingManager,
+            context,
+            scorer=self.semanticMemoryScorer,
+        )
+        self.hybridMemoryRetriever = HybridMemoryRetriever(
+            self.store,
+            self.searchEngine,
+            self.semanticMemoryRetriever,
+            self.semanticMemoryScorer,
+            context,
+        )
         self._compactStoredMemories()
         self.rebuildIndex()
+        if self.semanticMemoryAutoIndex:
+            self.memoryEmbeddingManager.reindexAll(self.store.queryMemories(MemoryQuery()))
 
         self.eventHandler = MemoryEventHandler(context, self)
         self.eventHandler.subscribe()
@@ -160,6 +210,8 @@ class MemoryManager(AuraModule):
         )
         stored = self.store.upsertMemory(memory)
         self.index.add(stored)
+        if self.semanticMemoryEnabled and self.semanticMemoryAutoIndex and self.memoryEmbeddingManager is not None:
+            self.memoryEmbeddingManager.indexMemory(stored)
         return stored
 
     def updateMemory(self, memoryId: str, **changes) -> Memory | None:
@@ -175,6 +227,8 @@ class MemoryManager(AuraModule):
                 setattr(memory, key, value)
         updated = self.store.upsertMemory(Memory.fromDict(memory.asDict()))
         self.index.add(updated)
+        if self.semanticMemoryEnabled and self.semanticMemoryAutoIndex and self.memoryEmbeddingManager is not None:
+            self.memoryEmbeddingManager.refreshMemory(updated)
         return updated
 
     def deleteMemory(self, memoryId: str) -> bool:
@@ -183,6 +237,8 @@ class MemoryManager(AuraModule):
         deleted = self.store.deleteMemory(memoryId)
         if deleted:
             self.index.remove(memoryId)
+            if self.memoryEmbeddingManager is not None:
+                self.memoryEmbeddingManager.removeMemory(memoryId)
         return deleted
 
     def retrieveMemories(self, query: MemoryQuery | None = None, **filters) -> list[Memory]:
@@ -232,10 +288,26 @@ class MemoryManager(AuraModule):
     def getContext(self, userMessage: str = "", limit: int | None = None, conversationHistory: list | None = None) -> dict[str, str]:
         """Return prompt-friendly contextual memory."""
 
-        result = self.retrieveContext(userMessage, limit=limit, conversationHistory=conversationHistory)
+        relevant = self.retrieveRelevantMemories(userMessage, limit=limit or self.maxResults, sessionContext={"conversationHistory": conversationHistory or []})
         context = {}
-        for scored in result.injectedMemories:
-            memory = scored.memory
+        for item in relevant:
+            memoryDict = dict(item.get("memory") or {})
+            if not memoryDict:
+                memoryDict = {
+                    "category": str(item.get("memory_type") or item.get("category") or "system_context"),
+                    "title": str(item.get("memory_key") or item.get("summary") or item.get("content") or "Memory"),
+                    "content": str(item.get("content") or item.get("summary") or ""),
+                    "tags": list(item.get("topics") or []),
+                    "importance": float(item.get("importance") or 0.0),
+                    "source": "legacy",
+                    "metadata": {
+                        "legacyKey": item.get("memory_key") or item.get("title") or "",
+                        "summary": item.get("summary") or item.get("content") or "",
+                        "memoryType": item.get("memory_type") or item.get("category") or "",
+                        "relationships": dict(item.get("relationships") or {}),
+                    },
+                }
+            memory = Memory.fromDict(memoryDict)
             key = f"{memory.category}.{self.injector._key(memory.title)}"
             context[key] = memory.content
         return context
@@ -271,6 +343,29 @@ class MemoryManager(AuraModule):
     ) -> tuple[str, RetrievalResult]:
         """Inject tuned memory context into a system prompt."""
 
+        if self.semanticMemoryEnabled and self.hybridMemoryRetriever is not None:
+            injected, result = self.injector.injectIntoPrompt(
+                prompt,
+                userMessage,
+                conversationHistory=conversationHistory,
+                sessionId=sessionId,
+                limit=limit or self.semanticMemoryMaxResults,
+            )
+            if getattr(result, "memorySection", ""):
+                self.lastRetrievalDebug = result.debugOutput
+                return injected, result
+            if limit is not None:
+                result = self.retrieveContext(userMessage, limit=limit, conversationHistory=conversationHistory, sessionId=sessionId)
+                injected = self.promptInjector.inject(prompt, result.memorySection)
+            else:
+                injected, result = self.contextualRetriever.injectPrompt(
+                    prompt,
+                    userMessage,
+                    conversationHistory=conversationHistory,
+                    sessionId=sessionId,
+                )
+            self.lastRetrievalDebug = result.debugOutput
+            return injected, result
         if limit is not None:
             result = self.retrieveContext(userMessage, limit=limit, conversationHistory=conversationHistory, sessionId=sessionId)
             injected = self.promptInjector.inject(prompt, result.memorySection)
@@ -338,9 +433,31 @@ class MemoryManager(AuraModule):
             return self.updateMemory(existing.memoryId, content=content, importance=score, tags=topics or [key], metadata=metadata)
         return self.createMemory("system_context", key, content, tags=topics or [key], importance=score, source=source, metadata=metadata)
 
-    def retrieveRelevantMemories(self, query: str, limit: int | None = None) -> list[dict]:
+    def retrieveRelevantMemories(self, query: str, limit: int | None = None, sessionContext: dict | None = None) -> list[dict]:
         """Compatibility search API returning legacy-shaped dictionaries."""
 
+        sessionContext = sessionContext or {"sessionId": ""}
+        if self.semanticMemoryEnabled and self.hybridMemoryRetriever is not None:
+            results = self.hybridMemoryRetriever.retrieve(query, sessionContext=sessionContext, limit=limit or self.semanticMemoryMaxResults)
+            self._updateSemanticDiagnostics(query, results)
+            return [
+                {
+                    "memory": result.memory.asDict(),
+                    "memory_key": str(result.memory.metadata.get("legacyKey") or result.memory.title),
+                    "content": result.memory.content,
+                    "summary": str(result.memory.metadata.get("summary") or result.memory.content),
+                    "memory_type": str(result.memory.metadata.get("memoryType") or result.memory.category),
+                    "topics": list(result.memory.tags),
+                    "relationships": dict(result.memory.metadata.get("relationships") or {}),
+                    "importance": result.memory.importance,
+                    "score": result.relevanceScore,
+                    "similarity": result.similarity,
+                    "relevanceScore": result.relevanceScore,
+                    "matchedBy": result.matchedBy,
+                    "explanation": result.explanation,
+                }
+                for result in results
+            ]
         memories = self.searchMemories(query, limit=limit or self.maxResults)
         return [self._legacyDict(memory) for memory in memories]
 
@@ -369,6 +486,16 @@ class MemoryManager(AuraModule):
             else:
                 result[f"{memory.category}.{self.injector._key(memory.title)}"] = memory.content
         return result
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return runtime diagnostics for observability and developer UI surfaces."""
+
+        memoryState = {
+            "enabled": bool(self.enabled),
+            "storedCount": self.store.count() if hasattr(self.store, "count") else 0,
+            "semantic": self.semanticMemoryState(),
+        }
+        return memoryState
 
     def get(self, key: str):
         """Compatibility lookup by title/tag/id."""
@@ -400,6 +527,8 @@ class MemoryManager(AuraModule):
 
         for memory in self.store.queryMemories(MemoryQuery()):
             self.store.deleteMemory(memory.memoryId)
+        if self.semanticMemoryStore is not None:
+            self.semanticMemoryStore.clear()
         self.rebuildIndex()
 
     def pruneMemories(self, minImportance: float | None = None, limit: int | None = None) -> int:
@@ -414,6 +543,8 @@ class MemoryManager(AuraModule):
 
         if self.index is not None:
             self.index.rebuild(self.store.queryMemories(MemoryQuery()))
+        if self.semanticMemoryEnabled and self.memoryEmbeddingManager is not None:
+            self.memoryEmbeddingManager.reindexAll(self.store.queryMemories(MemoryQuery()))
 
     def _compactStoredMemories(self):
         """Remove invalid question memories and merge exact duplicate facts."""
@@ -463,6 +594,8 @@ class MemoryManager(AuraModule):
 
         if self.eventHandler:
             self.eventHandler.unsubscribe()
+        if self.memoryEmbeddingManager is not None:
+            self.memoryEmbeddingManager.shutdown()
         if hasattr(self.store, "close"):
             self.store.close()
 
@@ -610,6 +743,30 @@ class MemoryManager(AuraModule):
             "importance": memory.importance,
             "score": memory.importance,
         }
+
+    def semanticMemoryState(self) -> dict[str, Any]:
+        """Return semantic memory diagnostics for observability and UI use."""
+
+        state = self.memoryEmbeddingManager.snapshot() if self.memoryEmbeddingManager is not None else {"available": False, "enabled": False}
+        state["lastSearch"] = dict(getattr(self.hybridMemoryRetriever, "snapshot", lambda: {})())
+        return state
+
+    def _updateSemanticDiagnostics(self, query: str, results):
+        if self.memoryEmbeddingManager is not None:
+            self.memoryEmbeddingManager.lastSearchText = str(query or "")
+        if self.hybridMemoryRetriever is not None:
+            self.hybridMemoryRetriever.lastDiagnostics["queryText"] = str(query or "")
+
+    def _emit(self, eventName: str, payload: dict[str, Any]):
+        eventManager = getattr(self.context, "eventManager", None)
+        if eventManager is None:
+            return None
+        try:
+            return eventManager.emit(eventName, payload)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Memory event emission failed for {eventName}: {error}")
+        return None
 
     @staticmethod
     def _config(config, key: str, default=None):

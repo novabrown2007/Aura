@@ -131,6 +131,9 @@ class UISubscriptionManager:
                 self.state.updateConversation(snapshot.get("conversation", {}))
                 self.state.updateVADState(snapshot.get("vad", {}))
                 self.state.updateNotifications(snapshot.get("notifications", {}))
+                memoryState = snapshot.get("memory", {}) or {}
+                if isinstance(memoryState, dict) and memoryState.get("semantic"):
+                    self.state.updateSemanticMemory(memoryState.get("semantic", {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Developer UI observability refresh failed: {error}")

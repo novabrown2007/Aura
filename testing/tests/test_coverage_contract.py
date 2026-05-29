@@ -19,6 +19,7 @@ class CoverageContractTests(unittest.TestCase):
     testedFeatureAreas = {
         "bridge": ("testing/tests/test_bridge_protocol.py",),
         "assistant": ("testing/tests/test_architecture.py",),
+        "assistant/memory": ("testing/tests/test_semantic_memory.py",),
         "assistant/notifications": ("testing/tests/test_notification_priority.py",),
         "config": ("testing/tests/test_config_loader.py",),
         "core/conversation": ("testing/tests/test_conversation_continuity.py",),
@@ -77,6 +78,7 @@ class CoverageContractTests(unittest.TestCase):
         "modules/system": ("testing/tests/test_system.py",),
         "providers": ("testing/tests/test_architecture.py",),
         "providers/base": ("testing/tests/test_architecture.py",),
+        "providers/embeddings": ("testing/tests/test_semantic_memory.py",),
         "providers/gemini": ("testing/tests/test_architecture.py",),
         "providers/ollama": ("testing/tests/test_architecture.py",),
         "providers/speech": ("testing/tests/test_architecture.py",),

@@ -152,6 +152,32 @@ pipeline.
 Canonical voice imports now live under `interface.voice`, including wake word
 and VAD helpers.
 
+## Memory
+
+Aura's long-term memory remains structured and deterministic, with semantic
+retrieval layered on top as an optional accelerator rather than a replacement.
+The assistant memory layer can retrieve relevant memories by meaning when an
+embedding provider is available, then falls back to keyword and structured
+memory retrieval when it is not.
+
+Semantic memory defaults live under `memory.semantic` in
+`config/devConfig.yml`:
+
+```yaml
+memory:
+  semantic:
+    enabled: true
+    provider: gemini
+    model: text-embedding-004
+    maxResults: 5
+    minimumSimilarity: 0.65
+```
+
+The canonical semantic retrieval and embedding code now lives under
+`assistant/memory/`, with provider adapters under `providers/embeddings/`.
+The memory injector requests concise semantic context from the memory manager
+and keeps prompt injection lightweight and explainable.
+
 ## Interfaces
 
 All visual interfaces expose chat, reminders, calendar, notifications, and home
@@ -806,6 +832,7 @@ python run_tests.py --suite personality
 python run_tests.py --suite observability
 python run_tests.py --suite notifications
 python run_tests.py --suite notification_priority
+python run_tests.py --suite semantic_memory
 python run_tests.py --suite system
 python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory

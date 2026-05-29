@@ -31,6 +31,18 @@ class DeveloperUIState:
             "databasePath": "",
             "refreshError": "",
             "items": [],
+            "semantic": {
+                "available": False,
+                "enabled": False,
+                "provider": "",
+                "model": "",
+                "indexedCount": 0,
+                "lastIndexAt": "",
+                "lastSearchText": "",
+                "lastError": "",
+                "providerMetadata": {},
+                "lastSearch": {},
+            },
         }
         self.voice = {
             "mic": "Idle",
@@ -186,6 +198,27 @@ class DeveloperUIState:
             self.memory["managerAvailable"] = bool(managerAvailable)
             self.memory["databasePath"] = str(databasePath or "")
             self.memory["refreshError"] = str(refreshError or "")
+
+    def updateSemanticMemory(self, semanticState: dict[str, Any]):
+        """Update semantic memory diagnostics for the developer UI."""
+
+        with self._lock:
+            semantic = dict(self.memory.get("semantic") or {})
+            semantic.update(
+                {
+                    "available": bool(semanticState.get("available", semantic.get("available", False))),
+                    "enabled": bool(semanticState.get("enabled", semantic.get("enabled", False))),
+                    "provider": str(semanticState.get("provider") or semantic.get("provider") or ""),
+                    "model": str(semanticState.get("model") or semantic.get("model") or ""),
+                    "indexedCount": int(semanticState.get("indexedCount", semantic.get("indexedCount", 0))),
+                    "lastIndexAt": str(semanticState.get("lastIndexAt") or semantic.get("lastIndexAt") or ""),
+                    "lastSearchText": str(semanticState.get("lastSearchText") or semantic.get("lastSearchText") or ""),
+                    "lastError": str(semanticState.get("lastError") or semantic.get("lastError") or ""),
+                    "providerMetadata": dict(semanticState.get("providerMetadata") or semantic.get("providerMetadata") or {}),
+                    "lastSearch": dict(semanticState.get("lastSearch") or semantic.get("lastSearch") or {}),
+                }
+            )
+            self.memory["semantic"] = semantic
 
     def updateWakeWordState(self, wakeWordState: dict[str, Any]):
         """Update the wake word portion of the voice panel."""

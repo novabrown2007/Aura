@@ -43,6 +43,7 @@ Assistant contains all short-term cognition and behavior systems:
 
 - conversation continuity
 - memory management and retrieval
+- semantic memory embeddings, indexing, and hybrid retrieval
 - personality, tone, humor, and suggestion systems
 - notification prioritization, routing, suppression, and escalation
 - clarification and reference resolution
