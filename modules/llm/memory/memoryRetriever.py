@@ -36,7 +36,7 @@ class MemoryRetriever:
         base = self.store.queryMemories(storeQuery)
         results = self.searchEngine.search(base, query) if query.keywords or query.tags else base
         if self.logger:
-            self.logger.info(f"Retrieved {len(results)} memory item(s)")
+            self.logger.debug(f"Retrieved {len(results)} memory item(s)")
         return results[: query.limit] if query.limit else results
 
     def byCategory(self, category: str, limit: int | None = None) -> list[Memory]:

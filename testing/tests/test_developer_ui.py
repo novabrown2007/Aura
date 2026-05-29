@@ -258,6 +258,35 @@ class DeveloperUITests(unittest.TestCase):
         self.assertEqual(snapshot.voice["mic"], "Recording")
         self.assertGreaterEqual(performance.snapshot()["aggregates"]["event"]["count"], 1)
 
+    def test_event_tracer_suppresses_routine_task_completion_noise(self):
+        state = DeveloperUIState(maxEvents=10)
+        tracer = UIEventTracer(self.context, state, traceEvents=True)
+
+        tracer.install()
+        try:
+            self.context.eventManager.emit("task_completed", {"task": "schedule_calendar_poll_due_reminders"})
+            self.context.eventManager.emit("voice.capture.started", {"source": "unit"})
+        finally:
+            tracer.uninstall()
+
+        eventNames = [event["name"] for event in state.snapshot().events]
+        self.assertNotIn("task_completed", eventNames)
+        self.assertIn("voice.capture.started", eventNames)
+
+    def test_event_tracer_throttles_repetitive_memory_events(self):
+        state = DeveloperUIState(maxEvents=10)
+        tracer = UIEventTracer(self.context, state, traceEvents=True)
+
+        tracer.install()
+        try:
+            self.context.eventManager.emit("memory.retrieval.completed", {"debugOutput": "Retrieved: 10 memories"})
+            self.context.eventManager.emit("memory.retrieval.completed", {"debugOutput": "Retrieved: 10 memories"})
+        finally:
+            tracer.uninstall()
+
+        eventNames = [event["name"] for event in state.snapshot().events]
+        self.assertEqual(eventNames.count("memory.retrieval.completed"), 1)
+
     def test_subscription_manager_refreshes_observability_and_memory_debug(self):
         state = DeveloperUIState(maxEvents=10)
         self.context.memoryManager = type(
