@@ -255,7 +255,7 @@ def make_context(database=None, extra=None):
         {
             "llm": {
                 "activeProvider": "ollama",
-                "fallbackProvider": "ollama",
+                "fallbackProvider": "gemini",
                 "ollama": {
                     "endpoint": "http://localhost:11434/api/generate",
                     "model": "gemma4:e4b",

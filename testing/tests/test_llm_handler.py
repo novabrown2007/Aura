@@ -150,7 +150,7 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
         {
             "llm": {
                 "activeProvider": "ollama",
-                "fallbackProvider": "ollama",
+                "fallbackProvider": "gemini",
                 "endpoint": endpoint,
                 "model": "gemma4:e4b",
                 "timeout": 10,

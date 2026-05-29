@@ -136,11 +136,14 @@ class DeveloperUITests(unittest.TestCase):
             },
             providers={
                 "available": True,
-                "activeProvider": "gemini",
-                "activeModel": "gemini-2.5-flash",
-                "fallbackProvider": "",
+                "activeProvider": "ollama",
+                "activeModel": "gemma4:e4b",
+                "fallbackProvider": "gemini",
                 "offlineMode": False,
-                "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash", "initialized": True}},
+                "providers": {
+                    "ollama": {"active": True, "model": "gemma4:e4b", "initialized": True},
+                    "gemini": {"active": False, "model": "gemini-2.5-flash", "initialized": True},
+                },
                 "voice": {
                     "stt": {"provider": "faster-whisper", "model": "small.en", "enabled": True, "initialized": True},
                     "tts": {"provider": "piper", "model": "en_US-lessac-medium", "enabled": True, "initialized": False},
@@ -181,11 +184,11 @@ class DeveloperUITests(unittest.TestCase):
             IntentPanel: "lights.turnOn",
             MemoryPanel: "Birthday",
             VoicePanel: "turn on the lights",
-            ProviderPanel: "gemini-2.5-flash",
+            ProviderPanel: "gemma4:e4b",
             BridgePanel: "Home Bridge",
             NotificationPanel: "Motion detected",
             ErrorPanel: "quota",
-            SystemPanel: "Active LLM: gemini (gemini-2.5-flash)",
+            SystemPanel: "Active LLM: ollama (gemma4:e4b)",
         }
 
         for panelClass, expected in expectedText.items():
@@ -285,9 +288,13 @@ class DeveloperUITests(unittest.TestCase):
                     "scheduler": {"running": False},
                     "providers": {
                         "available": True,
-                        "activeProvider": "gemini",
-                        "activeModel": "gemini-2.5-flash",
-                        "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash"}},
+                        "activeProvider": "ollama",
+                        "activeModel": "gemma4:e4b",
+                        "fallbackProvider": "gemini",
+                        "providers": {
+                            "ollama": {"active": True, "model": "gemma4:e4b"},
+                            "gemini": {"active": False, "model": "gemini-2.5-flash"},
+                        },
                     },
                 }
             },
@@ -298,8 +305,8 @@ class DeveloperUITests(unittest.TestCase):
         snapshot = state.snapshot()
 
         self.assertTrue(snapshot.providers["available"])
-        self.assertEqual(snapshot.providers["activeProvider"], "gemini")
-        self.assertEqual(snapshot.providers["activeModel"], "gemini-2.5-flash")
+        self.assertEqual(snapshot.providers["activeProvider"], "ollama")
+        self.assertEqual(snapshot.providers["activeModel"], "gemma4:e4b")
         self.assertEqual(snapshot.memory["retrieved"], 2)
         self.assertEqual(snapshot.memory["injected"], 1)
         self.assertEqual(snapshot.memory["storedCount"], 1)
@@ -386,9 +393,13 @@ class DeveloperUITests(unittest.TestCase):
         state.updateProviders(
             {
                 "available": True,
-                "activeProvider": "gemini",
-                "activeModel": "gemini-2.5-flash",
-                "providers": {"gemini": {"active": True, "model": "gemini-2.5-flash"}},
+                "activeProvider": "ollama",
+                "activeModel": "gemma4:e4b",
+                "fallbackProvider": "gemini",
+                "providers": {
+                    "ollama": {"active": True, "model": "gemma4:e4b"},
+                    "gemini": {"active": False, "model": "gemini-2.5-flash"},
+                },
                 "voice": {
                     "stt": {"provider": "faster-whisper", "model": "small.en"},
                     "tts": {"provider": "piper", "model": "en_US-lessac-medium"},
@@ -398,7 +409,7 @@ class DeveloperUITests(unittest.TestCase):
 
         lines = SystemPanel.buildLines(state.snapshot())
 
-        self.assertIn("Active LLM: gemini (gemini-2.5-flash)", lines)
+        self.assertIn("Active LLM: ollama (gemma4:e4b)", lines)
         self.assertIn("Active STT: faster-whisper (small.en)", lines)
         self.assertIn("Active TTS: piper (en_US-lessac-medium)", lines)
 
