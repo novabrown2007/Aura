@@ -54,6 +54,7 @@ class ObservabilityManager:
             "traces": self.getTraces(),
             "scheduler": self.getSchedulerState(),
             "interruptions": self.getInterruptionState(),
+            "conversation": self.getConversationState(),
         }
 
     def getThreads(self):
@@ -192,6 +193,19 @@ class ObservabilityManager:
                 "tts": tts,
             },
         }
+
+    def getConversationState(self):
+        """Return short-term conversational continuity state."""
+
+        manager = getattr(self.context, "conversationManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False}
+        try:
+            snapshot = manager.snapshot()
+            snapshot["available"] = True
+            return snapshot
+        except Exception as error:
+            return {"available": False, "error": str(error)}
 
     def getModuleHealth(self):
         """Return loaded/discovered module health metadata."""

@@ -171,6 +171,9 @@ class RuntimeContext:
         self.conversationHistory = None
         """Stores active conversation context."""
 
+        self.conversationManager = None
+        """Short-term conversational continuity and reference resolution manager."""
+
         self.memoryManager = None
         """Handles long-term memory and user information."""
 

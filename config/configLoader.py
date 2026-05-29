@@ -164,6 +164,9 @@ DEFAULT_DEV_CONFIG = {
         "verboseLogging": False,
         "traceEvents": True,
     },
+    "conversation": {
+        "conversationTimeoutSeconds": 300,
+    },
     "homeAutomationBridge": {
         "timeout": 5,
         "refreshSeconds": 5,

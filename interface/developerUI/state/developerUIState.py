@@ -58,6 +58,7 @@ class DeveloperUIState:
         self.notifications = deque(maxlen=200)
         self.errors = deque(maxlen=200)
         self.system = {}
+        self.conversation = {"available": False}
         self.performance = {}
         self.interruptions = {
             "available": False,
@@ -93,6 +94,12 @@ class DeveloperUIState:
 
         with self._lock:
             self.interruptions = dict(interruptions or {})
+
+    def updateConversation(self, conversation: dict[str, Any]):
+        """Update short-term conversational continuity state."""
+
+        with self._lock:
+            self.conversation = dict(conversation or {})
 
     def updateBridge(self, bridge: dict[str, Any]):
         """Update bridge state."""
@@ -176,6 +183,7 @@ class DeveloperUIState:
                 system=system,
                 performance=dict(self.performance),
                 interruptions=dict(self.interruptions),
+                conversation=dict(self.conversation),
             )
 
     def _applyEvent(self, event: ConsoleEvent):

@@ -183,6 +183,10 @@ developerUI:
   # Whether event bus emissions should be traced into developer UI state.
   traceEvents: true
 
+conversation:
+  # Seconds of inactivity before short-term conversational context resets.
+  conversationTimeoutSeconds: 300
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

@@ -177,6 +177,13 @@ class DeveloperUITests(unittest.TestCase):
                 "modules": {"llm": {"loaded": True, "class": "LLMHandler"}},
             },
             performance={"aggregates": {"event": {"count": 1, "avgMs": 2.5}}},
+            conversation={
+                "available": True,
+                "activeTopic": {"name": "lighting"},
+                "activeEntity": {"name": "bedroom lights"},
+                "pendingClarification": {"active": False},
+                "followupChainLength": 3,
+            },
         )
         expectedText = {
             EventPanel: "voice.capture.started",
@@ -201,6 +208,13 @@ class DeveloperUITests(unittest.TestCase):
 
                 self.assertTrue(rendered, panelClass.__name__)
                 self.assertIn(expected, rendered[0])
+
+        sessionPanel = object.__new__(SessionPanel)
+        rendered = []
+        sessionPanel.setText = rendered.append
+        sessionPanel.refresh(snapshot)
+        self.assertIn("Active Topic: lighting", rendered[0])
+        self.assertIn("Active Entity: bedroom lights", rendered[0])
 
     def test_layout_manager_registers_all_required_developer_panels(self):
         """The developer interface should keep every operational panel registered."""
@@ -325,6 +339,13 @@ class DeveloperUITests(unittest.TestCase):
                             "gemini": {"active": False, "model": "gemini-2.5-flash"},
                         },
                     },
+                    "conversation": {
+                        "available": True,
+                        "activeTopic": {"name": "lighting"},
+                        "activeEntity": {"name": "bedroom lights"},
+                        "pendingClarification": {"active": False},
+                        "followupChainLength": 2,
+                    },
                 }
             },
         )()
@@ -340,6 +361,7 @@ class DeveloperUITests(unittest.TestCase):
         self.assertEqual(snapshot.memory["injected"], 1)
         self.assertEqual(snapshot.memory["storedCount"], 1)
         self.assertEqual(snapshot.memory["items"][0]["title"], "Relationship orientation")
+        self.assertEqual(snapshot.conversation["activeTopic"]["name"], "lighting")
         self.assertIn("llm", snapshot.system["modules"])
 
     def test_subscription_manager_reads_memory_store_without_retrieval_polling(self):

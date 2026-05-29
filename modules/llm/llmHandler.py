@@ -78,6 +78,7 @@ class LLMHandler(AuraModule):
     def generateResponse(self, userInput: str) -> str:
         """Generate a conversational response while preserving legacy API shape."""
 
+        userInput = self._resolveConversationInput(str(userInput or ""))
         self._emit("message.received", {"text": userInput})
         deterministicReply = self._tryAnswerDeterministicQuestion(userInput)
         if deterministicReply is not None:
@@ -126,6 +127,19 @@ class LLMHandler(AuraModule):
         self._logConversation(userInput, cleaned)
         self._emit("response.generated", {"text": cleaned})
         return cleaned
+
+    def _resolveConversationInput(self, userInput: str) -> str:
+        """Preprocess follow-ups and references through Aura's conversation manager."""
+
+        manager = getattr(self.context, "conversationManager", None)
+        if manager is None or not hasattr(manager, "preprocessInput"):
+            return userInput
+        try:
+            return manager.preprocessInput(userInput)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Conversation continuity preprocessing failed: {error}")
+            return userInput
 
     def _finishResponse(self, userInput: str, responseText: str) -> str:
         """Clean, log, emit, and optionally speak a deterministic response."""
