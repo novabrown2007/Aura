@@ -16,8 +16,10 @@ Aura is a modular assistant runtime with a layered architecture:
 
 The backend owns runtime startup, persistence, scheduling, LLM integration,
 memory/history, calendar, reminders, notifications, home automation, and system
-lifecycle logic. Each interface package is kept isolated so platform-specific
-builds can include only the files needed for that target.
+lifecycle logic. Attention management lives under `assistant/notifications/`
+so notification urgency, routing, suppression, and escalation stay separate from
+generic storage or logging. Each interface package is kept isolated so
+platform-specific builds can include only the files needed for that target.
 
 Capability modules are now standardized through the module framework under
 `core/modules/`, with example integrations for weather, Spotify, calendar,
@@ -30,6 +32,7 @@ config/                 Runtime configuration loading
 core/                   Engine, runtime, logging, events, threading, config
 core/modules/           Module framework infrastructure and lifecycle control
 assistant/              Conversation, memory, personality, orchestration
+assistant/notifications/ Notification attention management and escalation
 interface/              Voice, desktop, mobile, notifications, overlays
 modules/                Capability integrations and deterministic tools
 providers/              External AI/service wrappers
@@ -802,6 +805,7 @@ python run_tests.py --suite module_framework
 python run_tests.py --suite personality
 python run_tests.py --suite observability
 python run_tests.py --suite notifications
+python run_tests.py --suite notification_priority
 python run_tests.py --suite system
 python run_tests.py --suite short_memory
 python run_tests.py --suite long_memory

@@ -68,6 +68,19 @@ class DeveloperUIState:
         self.providers = {}
         self.bridge = {"connected": False, "messages": [], "subscriptions": []}
         self.notifications = deque(maxlen=200)
+        self.notificationCenter = {
+            "available": False,
+            "enabled": False,
+            "active": [],
+            "delivered": [],
+            "suppressed": [],
+            "escalated": [],
+            "acknowledged": [],
+            "interrupted": [],
+            "queued": [],
+            "history": {},
+            "lastUpdated": "",
+        }
         self.errors = deque(maxlen=200)
         self.system = {}
         self.conversation = {"available": False}
@@ -118,6 +131,14 @@ class DeveloperUIState:
 
         with self._lock:
             self.bridge.update(dict(bridge or {}))
+
+    def updateNotifications(self, notificationState: dict[str, Any]):
+        """Update notification attention-management state."""
+
+        with self._lock:
+            state = dict(self.notificationCenter or {})
+            state.update(dict(notificationState or {}))
+            self.notificationCenter = state
 
     def updateMemoryDebug(self, debugOutput: str):
         """Parse and store memory retrieval debug output."""
@@ -199,6 +220,7 @@ class DeveloperUIState:
                 providers=dict(self.providers),
                 bridge=dict(self.bridge),
                 notifications=list(self.notifications),
+                notificationCenter=dict(self.notificationCenter),
                 errors=list(self.errors),
                 system=system,
                 performance=dict(self.performance),
@@ -259,6 +281,7 @@ class DeveloperUIState:
                 self.bridge["connected"] = bool(payload.get("connected"))
         elif name.startswith("notification") or "notification" in name:
             self.notifications.append({"timestamp": event.timestamp, "name": name, "payload": payload})
+            self._applyNotificationEvent(name, payload, event.timestamp)
         if event.error or "error" in name or payload.get("error") or payload.get("errorMessage"):
             self.errors.append({"timestamp": event.timestamp, "name": name, "payload": payload, "error": event.error or payload.get("error") or payload.get("errorMessage")})
 
@@ -345,3 +368,34 @@ class DeveloperUIState:
         elif name == "vad.error":
             vad.update({"state": "ERROR", "active": False})
         self.voice["vad"] = vad
+
+    def _applyNotificationEvent(self, name: str, payload: dict[str, Any], timestamp: str):
+        notificationCenter = dict(self.notificationCenter or {})
+        notificationCenter["available"] = True
+        notificationCenter["lastUpdated"] = timestamp
+        notificationCenter["enabled"] = bool(notificationCenter.get("enabled", True))
+
+        if name == "notification.created":
+            notificationCenter["active"] = self._appendBounded(notificationCenter.get("active"), payload)
+        elif name == "notification.delivered":
+            notificationCenter["delivered"] = self._appendBounded(notificationCenter.get("delivered"), payload)
+        elif name == "notification.suppressed":
+            notificationCenter["suppressed"] = self._appendBounded(notificationCenter.get("suppressed"), payload)
+        elif name == "notification.escalated":
+            notificationCenter["escalated"] = self._appendBounded(notificationCenter.get("escalated"), payload)
+        elif name == "notification.acknowledged":
+            notificationCenter["acknowledged"] = self._appendBounded(notificationCenter.get("acknowledged"), payload)
+        elif name == "notification.interrupted":
+            notificationCenter["interrupted"] = self._appendBounded(notificationCenter.get("interrupted"), payload)
+        elif name == "notification.queued":
+            notificationCenter["queued"] = self._appendBounded(notificationCenter.get("queued"), payload)
+        elif name == "notification.snapshot":
+            notificationCenter["history"] = dict(payload or {})
+
+        self.notificationCenter = notificationCenter
+
+    @staticmethod
+    def _appendBounded(items, payload, maxItems: int = 25):
+        sequence = list(items or [])
+        sequence.append(dict(payload or {}))
+        return sequence[-int(maxItems):]

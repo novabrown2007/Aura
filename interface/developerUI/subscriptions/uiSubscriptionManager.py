@@ -41,6 +41,12 @@ class UISubscriptionManager:
         "bridge.disconnected",
         "assistant.notification",
         "notification.created",
+        "notification.delivered",
+        "notification.suppressed",
+        "notification.escalated",
+        "notification.acknowledged",
+        "notification.interrupted",
+        "notification.queued",
         "memory.retrieval.completed",
         "memory.injected",
         "provider.request.completed",
@@ -124,6 +130,7 @@ class UISubscriptionManager:
                 self.state.updateInterruptions(snapshot.get("interruptions", {}))
                 self.state.updateConversation(snapshot.get("conversation", {}))
                 self.state.updateVADState(snapshot.get("vad", {}))
+                self.state.updateNotifications(snapshot.get("notifications", {}))
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Developer UI observability refresh failed: {error}")

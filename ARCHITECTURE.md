@@ -44,6 +44,7 @@ Assistant contains all short-term cognition and behavior systems:
 - conversation continuity
 - memory management and retrieval
 - personality, tone, humor, and suggestion systems
+- notification prioritization, routing, suppression, and escalation
 - clarification and reference resolution
 - behavior governance
 - response shaping and orchestration
@@ -108,7 +109,7 @@ Typical flow:
 3. core/module framework discovers and coordinates capability modules
 4. modules execute deterministic capabilities
 5. providers generate text or structured output when needed
-6. assistant shapes the final response
+6. assistant shapes the final response and manages attention/notifications
 7. interface presents the response
 
 ## Migration Notes

@@ -18,6 +18,7 @@ SUITES = {
     "context_awareness": "testing.tests.test_context_awareness",
     "conversation_continuity": "testing.tests.test_conversation_continuity",
     "personality": "testing.tests.test_personality",
+    "notification_priority": "testing.tests.test_notification_priority",
     "architecture": "testing.tests.test_architecture",
     "module_framework": "testing.tests.test_module_framework",
     "observability": "testing.tests.test_observability",
