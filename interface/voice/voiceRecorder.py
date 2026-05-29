@@ -16,6 +16,7 @@ class VoiceRecorder:
         self.context = context
         self.sampleRate = int(sampleRate)
         self.channels = int(channels)
+        self.blockSize = max(160, int(self.sampleRate * 0.032))
         self.tempDirectory = str(tempDirectory or "").strip()
         self.logger = context.logger.getChild("Voice.Recorder") if context and getattr(context, "logger", None) else None
         self._lock = Lock()
@@ -25,6 +26,7 @@ class VoiceRecorder:
         self._frames: list[Any] = []
         self._tempPath: Path | None = None
         self._active = False
+        self._audioChunkHandler = None
         self.lastError = ""
 
     def startRecording(self):
@@ -38,12 +40,7 @@ class VoiceRecorder:
                 self._ensureDependencies()
                 self._frames = []
                 self._tempPath = None
-                self._stream = self._sounddevice.InputStream(
-                    samplerate=self.sampleRate,
-                    channels=self.channels,
-                    dtype="int16",
-                    callback=self._onAudioChunk,
-                )
+                self._stream = self._createInputStream()
                 self._stream.start()
                 self._active = True
                 if self.logger:
@@ -145,6 +142,12 @@ class VoiceRecorder:
 
         return bool(self._active)
 
+    def setAudioChunkHandler(self, handler):
+        """Install an optional observer for realtime audio chunks."""
+
+        with self._lock:
+            self._audioChunkHandler = handler
+
     def _onAudioChunk(self, indata: Any, frames: int, time_info: Any, status: Any):
         """Collect audio chunks from the microphone callback."""
 
@@ -153,8 +156,18 @@ class VoiceRecorder:
         np = self._numpy
         if np is None:
             self._frames.append(indata)
+            chunk = indata
+        else:
+            chunk = np.copy(indata)
+            self._frames.append(chunk)
+        handler = self._audioChunkHandler
+        if handler is None:
             return
-        self._frames.append(np.copy(indata))
+        try:
+            handler(chunk, self.sampleRate)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Voice audio chunk observer failed: {error}")
 
     def _ensureDependencies(self):
         """Load optional audio capture dependencies once."""
@@ -171,6 +184,22 @@ class VoiceRecorder:
                 import numpy as numpy_module
             except Exception as error:
                 raise RuntimeError(f"numpy is unavailable: {error}") from error
+
+    def _createInputStream(self):
+        """Create a low-latency microphone stream, with legacy fake compatibility."""
+
+        kwargs = {
+            "samplerate": self.sampleRate,
+            "channels": self.channels,
+            "dtype": "int16",
+            "callback": self._onAudioChunk,
+            "blocksize": self.blockSize,
+        }
+        try:
+            return self._sounddevice.InputStream(**kwargs)
+        except TypeError:
+            kwargs.pop("blocksize", None)
+            return self._sounddevice.InputStream(**kwargs)
             self._numpy = numpy_module
 
     def _cleanupStream(self):

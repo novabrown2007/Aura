@@ -107,6 +107,19 @@ voice:
     pushToTalkAutoSpeak: true
     # Directory used for temporary push-to-talk recordings.
     pushToTalkTempAudioDirectory: temp/push_to_talk
+  vad:
+    # Whether automatic speech endpoint detection is enabled.
+    vadEnabled: true
+    # Required trailing silence before Aura finalizes a voice turn.
+    vadSilenceThresholdSeconds: 1.2
+    # Silero speech probability threshold. Higher is stricter.
+    vadSpeechThreshold: 0.5
+    # Ignore speech bursts shorter than this duration.
+    vadMinSpeechDuration: 0.3
+    # Hard recording limit to prevent stuck microphone sessions.
+    vadMaxRecordingDuration: 30
+    # Whether VAD state transitions emit debug log details.
+    vadDebugLogging: true
   wakeWord:
     # Detection threshold for accepting a wake word prediction.
     # Valid value: float from 0.0 to 1.0. Higher is stricter.

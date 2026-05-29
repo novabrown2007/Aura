@@ -63,6 +63,7 @@ class PushToTalkManager:
         )
         self.active = False
         self.cancelRequested = False
+        self.vadControlled = False
         self.lastResult = PushToTalkResult()
         self.captureSource = "push_to_talk"
 
@@ -78,6 +79,7 @@ class PushToTalkManager:
 
         self.captureSource = self._normalizeSource(source)
         self.cancelRequested = False
+        self.vadControlled = self._shouldUseVAD(self.captureSource)
         if not self.enabled:
             self._fail("Push-to-talk is disabled.", emitEvent=False)
             return False
@@ -94,7 +96,7 @@ class PushToTalkManager:
 
         try:
             self._registerCaptureOperation(self.captureSource)
-            started = self.voiceManager.startVoiceCapture()
+            started = self.voiceManager.startVoiceCapture(source=self.captureSource, vadControlled=self.vadControlled)
         except Exception as error:
             self._completeCaptureOperation()
             self._fail(f"Voice capture could not start: {error}")
@@ -120,6 +122,9 @@ class PushToTalkManager:
             if self.cancelRequested:
                 return self._fail("Voice capture cancelled.")
             source = self.captureSource
+            vadManager = getattr(self.voiceManager, "vadManager", None)
+            if self.vadControlled and vadManager is not None:
+                vadManager.finalizeSession(reason="manual stop")
             audioPath = self.voiceManager.stopVoiceCapture()
             self.active = False
             self._emit("voice.capture.finished", {"audioPath": audioPath, "source": source})
@@ -129,6 +134,8 @@ class PushToTalkManager:
             self._emit("voice.transcription.started", {"audioPath": audioPath, "source": source})
             transcription = self.voiceManager.speechToText.transcribeDetailed(audioPath)
             self.voiceManager.lastTranscription = transcription
+            if vadManager is not None:
+                vadManager.markProcessingComplete()
             self._emit(
                 "voice.transcription.completed",
                 {
@@ -193,6 +200,7 @@ class PushToTalkManager:
         finally:
             self.active = False
             self.cancelRequested = False
+            self.vadControlled = False
             self.captureSource = "push_to_talk"
             self._completeCaptureOperation()
             self.voiceManager._cleanupAudio()
@@ -252,6 +260,9 @@ class PushToTalkManager:
         self.cancelRequested = True
         cancelled = bool(self.active or (self.voiceManager and self.voiceManager.recorder.isRecording()))
         try:
+            vadManager = getattr(self.voiceManager, "vadManager", None) if self.voiceManager is not None else None
+            if vadManager is not None and hasattr(vadManager, "cancelSession"):
+                vadManager.cancelSession(reason="voice capture cancelled")
             if self.voiceManager is not None and self.voiceManager.recorder.isRecording():
                 self.voiceManager.stopVoiceCapture()
         except Exception:
@@ -350,3 +361,11 @@ class PushToTalkManager:
     def _normalizeSource(source: str) -> str:
         normalized = str(source or "").strip().lower().replace("-", "_").replace(" ", "_")
         return normalized or "push_to_talk"
+
+    def _shouldUseVAD(self, source: str) -> bool:
+        """Use endpoint detection for automatic capture flows, not held PTT."""
+
+        if source == "push_to_talk":
+            return False
+        vadManager = getattr(self.voiceManager, "vadManager", None) if self.voiceManager is not None else None
+        return bool(vadManager is not None and getattr(vadManager, "enabled", False))

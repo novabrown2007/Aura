@@ -52,6 +52,18 @@ class DeveloperUIState:
                 "predictionTimeMs": 0.0,
                 "activationCount": 0,
             },
+            "vad": {
+                "available": False,
+                "enabled": False,
+                "state": "IDLE",
+                "speechDetected": False,
+                "silenceDetected": False,
+                "recordingDuration": 0.0,
+                "speechDuration": 0.0,
+                "silenceDuration": 0.0,
+                "confidence": 0.0,
+                "backend": "",
+            },
         }
         self.providers = {}
         self.bridge = {"connected": False, "messages": [], "subscriptions": []}
@@ -162,6 +174,14 @@ class DeveloperUIState:
             wakeWord.update(dict(wakeWordState or {}))
             self.voice["alwaysActive"] = wakeWord
 
+    def updateVADState(self, vadState: dict[str, Any]):
+        """Update voice activity detection state for the voice panel."""
+
+        with self._lock:
+            vad = dict(self.voice.get("vad") or {})
+            vad.update(dict(vadState or {}))
+            self.voice["vad"] = vad
+
     def snapshot(self) -> ConsoleStateSnapshot:
         """Return a stable snapshot for rendering."""
 
@@ -225,6 +245,8 @@ class DeveloperUIState:
             self._applyInterruptionEvent(name, payload, event.timestamp)
         elif name.startswith("wakeword."):
             self._applyWakeWordEvent(name, payload, event.timestamp)
+        elif name.startswith("vad."):
+            self._applyVADEvent(name, payload)
         elif name.startswith("memory.") or "memory" in name:
             debugOutput = payload.get("debugOutput") or payload.get("debug") or ""
             if debugOutput:
@@ -304,3 +326,22 @@ class DeveloperUIState:
                 cancelled.append(operationId)
             interruptions["cancelledOperations"] = cancelled
         self.interruptions = interruptions
+
+    def _applyVADEvent(self, name: str, payload: dict[str, Any]):
+        vad = dict(self.voice.get("vad") or {})
+        vad.update(dict(payload or {}))
+        if name == "vad.started":
+            vad.update({"state": "LISTENING", "active": True})
+            self.voice.update({"mic": "Listening", "recording": True})
+        elif name == "vad.speech.detected":
+            vad.update({"state": "SPEAKING", "speechDetected": True})
+            self.voice.update({"mic": "Speaking", "recording": True})
+        elif name == "vad.silence.detected":
+            vad.update({"state": "SILENCE_PENDING", "silenceDetected": True})
+            self.voice.update({"mic": "Silence pending", "recording": True})
+        elif name in {"vad.speech.completed", "vad.timeout", "vad.finalizing"}:
+            vad.update({"state": "FINALIZING", "active": False})
+            self.voice.update({"mic": "Finalizing", "recording": True})
+        elif name == "vad.error":
+            vad.update({"state": "ERROR", "active": False})
+        self.voice["vad"] = vad
