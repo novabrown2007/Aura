@@ -76,3 +76,6 @@ modules:
   calendar: enabled
   reminders: enabled
   notifications: enabled
+  weather: enabled
+  spotify: enabled
+  smartHome: disabled

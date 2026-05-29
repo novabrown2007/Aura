@@ -184,6 +184,7 @@ class VoiceRecorder:
                 import numpy as numpy_module
             except Exception as error:
                 raise RuntimeError(f"numpy is unavailable: {error}") from error
+            self._numpy = numpy_module
 
     def _createInputStream(self):
         """Create a low-latency microphone stream, with legacy fake compatibility."""
@@ -200,7 +201,6 @@ class VoiceRecorder:
         except TypeError:
             kwargs.pop("blocksize", None)
             return self._sounddevice.InputStream(**kwargs)
-            self._numpy = numpy_module
 
     def _cleanupStream(self):
         """Stop and close any active audio stream."""

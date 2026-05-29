@@ -1,6 +1,4 @@
-"""Initialize the `modules.base` package and expose package-level integration points."""
-
-"""Base classes for Aura modules."""
+"""Compatibility exports for legacy Aura module imports."""
 
 from modules.base.baseModule import AuraModule, ModuleMetadata, ServiceModule
 

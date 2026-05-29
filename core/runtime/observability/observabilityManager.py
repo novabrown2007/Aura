@@ -238,7 +238,7 @@ class ObservabilityManager:
     def getModuleHealth(self):
         """Return loaded/discovered module health metadata."""
 
-        loader = getattr(self.context, "moduleLoader", None)
+        loader = getattr(self.context, "moduleLoader", None) or getattr(self.context, "moduleManager", None)
         context_modules = getattr(self.context, "modules", {}) or {}
         if loader is None:
             return {
@@ -250,15 +250,22 @@ class ObservabilityManager:
         descriptors = getattr(loader, "descriptors", {}) or {}
         loaded = getattr(loader, "loadedModules", {}) or {}
         disabled = getattr(loader, "disabledModules", set()) or set()
+        registry = getattr(loader, "registry", None)
 
         for name, descriptor in sorted(descriptors.items()):
             module = loaded.get(name)
+            metadata = getattr(descriptor, "metadata", None)
+            if metadata is None and registry is not None and name in getattr(registry, "entries", {}):
+                metadata = registry.entries[name].metadata
             health[name] = {
                 "enabled": bool(getattr(descriptor, "enabled", False)),
                 "loaded": module is not None,
                 "disabled": name in disabled,
-                "version": getattr(descriptor.metadata, "version", ""),
-                "capabilities": list(getattr(descriptor.metadata, "capabilities", ())),
+                "version": getattr(metadata, "version", ""),
+                "capabilities": list(getattr(metadata, "capabilities", ())),
+                "intents": len(getattr(registry.entries.get(name), "intents", [])) if registry is not None and name in getattr(registry, "entries", {}) else 0,
+                "actions": len(getattr(registry.entries.get(name), "actions", [])) if registry is not None and name in getattr(registry, "entries", {}) else 0,
+                "state": registry.entries[name].state.value if registry is not None and name in getattr(registry, "entries", {}) else None,
                 "class": module.__class__.__name__ if module is not None else None,
             }
 

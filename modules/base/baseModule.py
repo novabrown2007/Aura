@@ -1,93 +1,11 @@
-"""Standard module contract for Aura plugins."""
+"""Compatibility base module contract for legacy Aura imports."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
-
-@dataclass(frozen=True)
-class ModuleMetadata:
-    """Public metadata advertised by an Aura module."""
-
-    name: str
-    version: str = "0.1.0"
-    description: str = ""
-    dependencies: tuple[str, ...] = field(default_factory=tuple)
-    permissions: tuple[str, ...] = field(default_factory=tuple)
-    capabilities: tuple[str, ...] = field(default_factory=tuple)
-
-    @classmethod
-    def fromDict(cls, values: dict[str, Any]):
-        """Create metadata from a dictionary."""
-
-        return cls(
-            name=str(values["name"]),
-            version=str(values.get("version", "0.1.0")),
-            description=str(values.get("description", "")),
-            dependencies=tuple(values.get("dependencies", ())),
-            permissions=tuple(values.get("permissions", ())),
-            capabilities=tuple(values.get("capabilities", ())),
-        )
-
-    def asDict(self):
-        """Return metadata as a plain dictionary."""
-
-        return {
-            "name": self.name,
-            "version": self.version,
-            "description": self.description,
-            "dependencies": list(self.dependencies),
-            "permissions": list(self.permissions),
-            "capabilities": list(self.capabilities),
-        }
-
-
-class AuraModule:
-    """Base class for Aura plugin modules."""
-
-    metadata = ModuleMetadata(name="module")
-
-    def __init__(self):
-        """Initialize base module state."""
-
-        self.context = None
-
-    def initialize(self, context):
-        """Initialize the module with a runtime context."""
-
-        self.context = context
-
-    def _logStartup(self, message: str | None = None):
-        """Emit one startup log line when the module has a logger."""
-
-        logger = getattr(self, "logger", None)
-        if logger:
-            logger.info(message or f"{self.metadata.name} module started.")
-
-    def shutdown(self):
-        """Release module resources."""
-
-    def getIntents(self):
-        """Return intent names or descriptors handled by the module."""
-
-        return []
-
-    def handleIntent(self, intent):
-        """Handle an intent routed to this module."""
-
-        raise NotImplementedError(f"{self.metadata.name} does not handle intents.")
-
-    def canHandle(self, intent):
-        """Return whether this module can handle the supplied intent."""
-
-        intent_name = getattr(intent, "name", intent)
-        return intent_name in self.getIntents()
-
-    def handle(self, intent):
-        """Compatibility wrapper for the existing IntentRouter API."""
-
-        return self.handleIntent(intent)
+from core.modules.base.auraModule import AuraModule
+from core.modules.base.moduleMetadata import ModuleMetadata
 
 
 class ServiceModule(AuraModule):
@@ -100,8 +18,6 @@ class ServiceModule(AuraModule):
         context_attribute: str | None = None,
         intents: Iterable[str] = (),
     ):
-        """Create a service adapter module."""
-
         super().__init__()
         self.metadata = metadata
         self.service_factory = service_factory
@@ -120,7 +36,8 @@ class ServiceModule(AuraModule):
         self._registerContextModule(context, self.metadata.name, self)
         if self.context_attribute != self.metadata.name:
             self._registerContextModule(context, self.context_attribute, self.service)
-        self._logStartup(f"{self.metadata.name} service started as {self.context_attribute}.")
+        if self.logger:
+            self.logger.info(f"{self.metadata.name} service started as {self.context_attribute}.")
 
     def shutdown(self):
         """Shutdown the wrapped service if it exposes a shutdown method."""
@@ -152,4 +69,3 @@ class ServiceModule(AuraModule):
         if not hasattr(context, "modules") or getattr(context, "modules") is None:
             context.modules = {}
         context.modules[name] = module
-

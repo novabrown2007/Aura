@@ -94,6 +94,9 @@ class RuntimeContext:
             module instance
         """
 
+        self.moduleManager = None
+        """Central module framework manager and registry coordinator."""
+
         self.moduleLoader = None
         """Dynamic module loader and plugin registry."""
 

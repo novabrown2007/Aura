@@ -8,7 +8,7 @@ and managing the application lifecycle.
 
 from core.runtime.runtimeContext import RuntimeContext
 from core.runtime.datetimeUtils import DateTimeUtils
-from core.runtime.moduleLoader import ModuleLoader
+from core.modules.moduleManager import ModuleManager
 
 from core.threading.threadingManager import ThreadingManager
 from core.threading.events.eventManager import EventManager
@@ -167,8 +167,9 @@ def buildRuntimeContext():
     context.intentRouter = IntentRouter(context)
 
     # Module Loader
-    loader = ModuleLoader(context)
-    loader.loadModules()
+    context.moduleManager = ModuleManager(context)
+    context.moduleLoader = context.moduleManager
+    context.moduleManager.loadModules()
 
     # Engine
     context.engine = Engine(context)
