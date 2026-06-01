@@ -1,5 +1,7 @@
 """Shared test doubles for interface testing.tests."""
 
+from types import SimpleNamespace
+
 from modules.home_automation.models import BridgeState, CameraDevice, LightDevice
 from testing.tests.support.fakes import TestContext
 
@@ -18,32 +20,6 @@ class FakeRouter:
         return f"handled {intent['text']}"
 
 
-class FakeReminders:
-    """Reminder backend stub for interface route testing.tests."""
-
-    def __init__(self):
-        self.rows = [{"id": 1, "title": "Standup", "reminder_at": "2026-05-20 09:00:00"}]
-        self.deleted = []
-
-    def listReminders(self):
-        return list(self.rows)
-
-    def createReminder(self, title, content, module_of_origin, reminder_at=None):
-        self.rows.append(
-            {
-                "id": 2,
-                "title": title,
-                "content": content,
-                "module_of_origin": module_of_origin,
-                "reminder_at": reminder_at,
-            }
-        )
-        return 2
-
-    def deleteReminder(self, reminder_id):
-        self.deleted.append(reminder_id)
-
-
 class FakeNotifications:
     """Notification backend stub for interface route testing.tests."""
 
@@ -58,88 +34,119 @@ class FakeNotifications:
         self.deleted.append(notification_id)
 
 
-class FakeCalendar:
-    """Calendar backend stub for interface route testing.tests."""
+class FakePersonalSchedule:
+    """Unified personal schedule backend stub for interface route testing.tests."""
 
     def __init__(self):
-        self.created_events = []
-        self.created_tasks = []
-        self.created_reminders = []
-        self.created_calendars = []
+        self.rows = [
+            {
+                "itemId": "1",
+                "title": "Standup",
+                "description": "Morning check-in",
+                "type": "REMINDER",
+                "dueTime": "2026-05-20T09:00:00",
+                "priority": "NORMAL",
+                "state": "PENDING",
+                "tags": ["work"],
+                "metadata": {},
+            }
+        ]
+        self.deleted = []
 
-    def listCalendars(self):
-        return [{"id": 7, "name": "Aura"}]
+    def listScheduleItems(self, itemType=None, state=None):
+        rows = list(self.rows)
+        if itemType:
+            rows = [row for row in rows if row["type"] == str(itemType).upper()]
+        if state:
+            rows = [row for row in rows if row["state"] == str(state).upper()]
+        return [SimpleNamespace(**row) for row in rows]
 
-    def createCalendar(self, **fields):
-        self.created_calendars.append(fields)
+    def getTodaysSchedule(self):
+        return {"title": "Today", "count": len(self.rows), "items": list(self.rows)}
 
-    def buildDayView(self, day, calendar_id=None):
+    def getUpcomingSchedule(self, limit=10):
+        return {"title": "Upcoming", "count": len(self.rows[:limit]), "items": list(self.rows[:limit])}
+
+    def buildDayView(self, day):
         return {
             "day": day,
-            "events": [{"id": 1, "title": "Event", "start_at": f"{day} 10:00:00"}],
+            "summary": "1 item(s)",
+            "items": list(self.rows),
+            "events": [],
             "tasks": [],
-            "reminders": [],
+            "reminders": list(self.rows),
+            "timers": [],
+            "bills": [],
+            "routines": [],
+            "deadlines": [],
         }
 
-    def buildWeekView(self, day, calendar_id=None):
-        return {"week_start": day, "week_end": day, "events": [], "tasks": [], "reminders": []}
+    def buildWeekView(self, day):
+        return {
+            "week_start": day,
+            "week_end": day,
+            "days": [],
+            "events": [],
+            "tasks": [],
+            "reminders": [],
+            "timers": [],
+            "bills": [],
+            "routines": [],
+            "deadlines": [],
+        }
 
-    def buildMonthView(self, month_value, calendar_id=None):
-        return {"month": str(month_value)[:7], "events": [], "tasks": [], "reminders": []}
+    def buildMonthView(self, month_value):
+        return {
+            "month": str(month_value)[:7],
+            "days": [],
+            "events": [],
+            "tasks": [],
+            "reminders": [],
+            "timers": [],
+            "bills": [],
+            "routines": [],
+            "deadlines": [],
+        }
 
-    def _normalizeDateValue(self, value):
-        return value
+    def searchSchedule(self, query, limit=20):
+        return {"title": f"Search: {query}", "count": len(self.rows), "items": list(self.rows[:limit])}
 
-    def createEvent(self, **fields):
-        self.created_events.append(fields)
-        return 10
+    def createScheduleItem(self, **fields):
+        item = {
+            "itemId": "2",
+            "title": fields.get("title", ""),
+            "description": fields.get("description", ""),
+            "type": str(fields.get("type") or "EVENT").upper(),
+            "startTime": fields.get("startTime", ""),
+            "endTime": fields.get("endTime", ""),
+            "dueTime": fields.get("dueTime", ""),
+            "priority": fields.get("priority", "NORMAL"),
+            "state": "PENDING",
+            "tags": list(fields.get("tags") or []),
+            "metadata": dict(fields.get("metadata") or {}),
+        }
+        self.rows.append(item)
+        return SimpleNamespace(**item)
 
-    def getEvent(self, event_id):
-        return {"id": event_id}
+    def updateScheduleItem(self, item_id, **fields):
+        for row in self.rows:
+            if str(row["itemId"]) == str(item_id):
+                row.update(fields)
+                return SimpleNamespace(**row)
+        return SimpleNamespace(itemId=str(item_id))
 
-    def updateEvent(self, event_id, **fields):
-        self.updated_event = (event_id, fields)
-
-    def deleteEvent(self, event_id):
-        self.deleted_event = event_id
-
-    def createTask(self, **fields):
-        self.created_tasks.append(fields)
-        return 20
-
-    def getTask(self, task_id):
-        return {"id": task_id}
-
-    def updateTask(self, task_id, **fields):
-        self.updated_task = (task_id, fields)
-
-    def deleteTask(self, task_id):
-        self.deleted_task = task_id
+    def deleteScheduleItem(self, item_id):
+        self.deleted.append(item_id)
+        self.rows = [row for row in self.rows if str(row["itemId"]) != str(item_id)]
 
     def createReminder(self, **fields):
-        self.created_reminders.append(fields)
-        return 30
+        return self.createScheduleItem(type="REMINDER", **fields)
 
-    def getReminder(self, reminder_id):
-        return {"id": reminder_id}
+    def createTask(self, **fields):
+        return self.createScheduleItem(type="TASK", **fields)
 
-    def updateReminder(self, reminder_id, **fields):
-        self.updated_reminder = (reminder_id, fields)
-
-    def deleteReminder(self, reminder_id):
-        self.deleted_reminder = reminder_id
-
-    def searchEvents(self, query=None, calendar_id=None):
-        return [{"id": 1, "title": query or "Event"}]
-
-    def searchTasks(self, query=None, calendar_id=None):
-        return []
-
-    def searchReminders(self, query=None, calendar_id=None):
-        return []
-
-    def detectConflicts(self, start_at, end_at, calendar_id=None, exclude_event_id=None):
-        return [{"id": 1, "start_at": start_at, "end_at": end_at}]
+    def createTimer(self, **fields):
+        return self.createScheduleItem(type="TIMER", **fields)
 
 
 class FakeHomeAutomation:
@@ -221,8 +228,7 @@ def makeInterfaceContext():
     context.should_exit = False
     context.interpreter = FakeInterpreter()
     context.intentRouter = FakeRouter()
-    context.reminders = FakeReminders()
     context.notifications = FakeNotifications()
-    context.calendar = FakeCalendar()
+    context.personalSchedule = FakePersonalSchedule()
     context.homeAutomation = FakeHomeAutomation()
     return context

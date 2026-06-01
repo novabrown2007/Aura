@@ -278,7 +278,7 @@ class DeveloperUITests(unittest.TestCase):
 
         tracer.install()
         try:
-            self.context.eventManager.emit("task_completed", {"task": "schedule_calendar_poll_due_reminders"})
+            self.context.eventManager.emit("task_completed", {"task": "personal_schedule_tick"})
             self.context.eventManager.emit("voice.capture.started", {"source": "unit"})
         finally:
             tracer.uninstall()

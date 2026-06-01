@@ -69,24 +69,24 @@ class IntentPipelineTests(unittest.TestCase):
         context = make_llm_context()
         context.llmManager = StubIntentManager(
             {
-                "intent": "calendar.createEvent",
-                "arguments": {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+                "intent": "schedule.createItem",
+                "arguments": {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
                 "confidence": 0.96,
                 "response": "Added it.",
             },
-            finalText="Added it to your calendar.",
+            finalText="Added it to your schedule.",
         )
-        context.calendar = SimpleNamespace(
-            createEvent=lambda **kwargs: calls.append(kwargs) or 42
+        context.personalSchedule = SimpleNamespace(
+            createScheduleItem=lambda **kwargs: calls.append(kwargs) or 42
         )
 
         handler = LLMHandler(context)
         reply = handler.generateResponse("Add dentist tomorrow at 9")
 
-        self.assertEqual(reply, "Added it to your calendar.")
+        self.assertEqual(reply, "Added it to your schedule.")
         self.assertEqual(
             calls,
-            [{"title": "Dentist", "start_at": "2026-05-21 09:00:00"}],
+            [{"title": "Dentist", "dueTime": "2026-05-21 09:00:00"}],
         )
 
     def test_low_confidence_intent_asks_for_clarification(self):
@@ -96,17 +96,17 @@ class IntentPipelineTests(unittest.TestCase):
         context = make_llm_context()
         context.llmManager = StubIntentManager(
             {
-                "intent": "calendar.createEvent",
-                "arguments": {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+                "intent": "schedule.createItem",
+                "arguments": {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
                 "confidence": 0.4,
             }
         )
-        context.calendar = SimpleNamespace(
-            createEvent=lambda **kwargs: calls.append(kwargs) or 42
+        context.personalSchedule = SimpleNamespace(
+            createScheduleItem=lambda **kwargs: calls.append(kwargs) or 42
         )
 
         handler = LLMHandler(context)
-        reply = handler.generateResponse("Maybe put something on my calendar")
+        reply = handler.generateResponse("Maybe put something on my schedule")
 
         self.assertIn("understood correctly", reply)
         self.assertEqual(calls, [])

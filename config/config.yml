@@ -73,6 +73,14 @@ notifications:
   quietHoursEnabled: false
   quietHoursActive: false
 
+personalSchedule:
+  personalScheduleEnabled: true
+  scheduleNotificationsEnabled: true
+  allowRecurringSchedules: true
+  persistScheduleData: true
+  scheduleTickIntervalSeconds: 1
+  defaultReminderPriority: NORMAL
+
 safety:
   safetyLayerEnabled: true
   requireConfirmationForHighRisk: true
@@ -116,8 +124,7 @@ modules:
   database: enabled
   home_automation: enabled
   llm: enabled
-  calendar: enabled
-  reminders: enabled
+  personalSchedule: enabled
   notifications: enabled
   weather: enabled
   spotify: enabled

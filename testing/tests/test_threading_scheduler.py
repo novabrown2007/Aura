@@ -68,7 +68,7 @@ class ThreadingSchedulerTests(unittest.TestCase):
         calls = []
         scheduler.addSchedule(
             Schedule(
-                name="calendar_poll_due_reminders",
+                name="personal_schedule_tick",
                 target=lambda: calls.append("poll"),
                 interval=0.0,
             )
@@ -76,7 +76,7 @@ class ThreadingSchedulerTests(unittest.TestCase):
 
         scheduler._tick()
         self.waitForTaskManagerIdle(context)
-        self.waitForThreadStopped(context, "task_schedule_calendar_poll_due_reminders")
+        self.waitForThreadStopped(context, "task_schedule_personal_schedule_tick")
         scheduler._tick()
         self.waitForTaskManagerIdle(context)
 

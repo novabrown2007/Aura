@@ -21,16 +21,16 @@ class ToolSystemTests(unittest.TestCase):
         self.context.toolRegistry = ToolRegistry(self.context)
         self.context.toolExecutor = ToolExecutor(self.context)
         self.context.toolOrchestrator = ToolOrchestrator(self.context)
-        self.context.calendar = SimpleNamespace(
-            createEvent=lambda **kwargs: self.calls.append(kwargs) or 7
+        self.context.personalSchedule = SimpleNamespace(
+            createScheduleItem=lambda **kwargs: self.calls.append(kwargs) or 7
         )
         self.tool = Tool(
-            name="calendar.createEvent",
-            description="Create a calendar event.",
-            parameters={"title": {"type": "string"}, "start_at": {"type": "string"}},
-            requiredParameters=("title", "start_at"),
-            module="calendar",
-            method="createEvent",
+            name="schedule.createItem",
+            description="Create a schedule item.",
+            parameters={"title": {"type": "string"}, "dueTime": {"type": "string"}},
+            requiredParameters=("title",),
+            module="personalSchedule",
+            method="createScheduleItem",
             offlineAllowed=False,
         )
 
@@ -41,7 +41,7 @@ class ToolSystemTests(unittest.TestCase):
 
         schemas = self.context.toolRegistry.exportSchemas()
 
-        self.assertEqual(schemas[0]["name"], "calendar.createEvent")
+        self.assertEqual(schemas[0]["name"], "schedule.createItem")
         self.assertIn("parameters", schemas[0])
 
     def test_executor_validates_and_executes_tool(self):
@@ -50,8 +50,8 @@ class ToolSystemTests(unittest.TestCase):
         self.context.toolRegistry.registerTool(self.tool)
 
         result = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+            "schedule.createItem",
+            {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
         )
 
         self.assertTrue(result["success"])
@@ -63,8 +63,8 @@ class ToolSystemTests(unittest.TestCase):
         self.context.toolRegistry.registerTool(self.tool)
 
         result = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+            "schedule.createItem",
+            {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
             offlineMode=True,
         )
 
@@ -77,8 +77,8 @@ class ToolSystemTests(unittest.TestCase):
         self.context.toolRegistry.registerTool(self.tool)
 
         result = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist"},
+            "schedule.createItem",
+            {},
         )
 
         self.assertFalse(result["success"])
@@ -91,7 +91,7 @@ class ToolSystemTests(unittest.TestCase):
 
         schemas = self.context.toolOrchestrator.exportSchemas()
 
-        self.assertEqual(schemas[0]["name"], "calendar.createEvent")
+        self.assertEqual(schemas[0]["name"], "schedule.createItem")
         self.assertIn("intents", ToolOrchestrator.TOOL_INTENT_SCHEMA["properties"])
         self.assertIn("toolCalls", ToolOrchestrator.TOOL_CALL_ENVELOPE_SCHEMA["properties"])
 
@@ -101,8 +101,8 @@ class ToolSystemTests(unittest.TestCase):
         self.context.toolRegistry.registerTool(self.tool)
         envelope = (
             '{"response": "Scheduled.", "toolCalls": ['
-            '{"toolName": "calendar.createEvent", '
-            '"arguments": {"title": "Dentist", "start_at": "2026-05-21 09:00:00"}}'
+            '{"toolName": "schedule.createItem", '
+            '"arguments": {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"}}'
             "]}"
         )
 

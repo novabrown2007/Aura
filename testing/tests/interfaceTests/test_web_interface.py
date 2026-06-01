@@ -19,7 +19,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.context = makeInterfaceContext()
         self.handler = AuraWebRequestHandler.__new__(AuraWebRequestHandler)
         self.handler.aura_context = self.context
-        self.handler.aura_app = SimpleNamespace(selectedCalendarId=None)
+        self.handler.aura_app = SimpleNamespace(selectedScheduleId=None)
 
     def test_web_package_exports_app(self):
         self.assertEqual(AuraWebApp.__name__, "AuraWebApp")
@@ -74,20 +74,23 @@ class WebInterfaceTests(unittest.TestCase):
         )
         self.assertEqual(response, {"response": "handled hello"})
 
-    def test_reminder_routes_call_backend(self):
-        rows = self.handler._dispatchApi("GET", "/api/reminders", {}, {})
+    def test_schedule_routes_call_backend(self):
+        rows = self.handler._dispatchApi("GET", "/api/schedule/items", {}, {})
         self.assertEqual(rows[0]["title"], "Standup")
+
+        today = self.handler._dispatchApi("GET", "/api/schedule/today", {}, {})
+        self.assertEqual(today["title"], "Today")
 
         created = self.handler._dispatchApi(
             "POST",
-            "/api/reminders",
+            "/api/schedule/items",
             {},
-            {"title": "Ship", "content": "Release", "reminder_at": "2026-05-20 12:00"},
+            {"title": "Ship", "description": "Release", "type": "REMINDER", "dueTime": "2026-05-20T12:00:00"},
         )
-        self.assertEqual(created, {"id": 2})
+        self.assertEqual(created["id"], "2")
 
-        self.handler._dispatchApi("DELETE", "/api/reminders/2", {}, {})
-        self.assertEqual(self.context.reminders.deleted, [2])
+        self.handler._dispatchApi("DELETE", "/api/schedule/items/2", {}, {})
+        self.assertEqual(self.context.personalSchedule.deleted, ["2"])
 
     def test_notification_routes_call_backend(self):
         rows = self.handler._dispatchApi("GET", "/api/notifications", {"limit": ["1"]}, {})
@@ -96,50 +99,31 @@ class WebInterfaceTests(unittest.TestCase):
         self.handler._dispatchApi("DELETE", "/api/notifications/4", {}, {})
         self.assertEqual(self.context.notifications.deleted, [4])
 
-    def test_calendar_routes_call_backend(self):
-        calendars = self.handler._dispatchApi("GET", "/api/calendar/calendars", {}, {})
-        self.assertEqual(calendars["calendars"][0]["name"], "Aura")
-
+    def test_schedule_view_routes_call_backend(self):
         view = self.handler._dispatchApi(
             "GET",
-            "/api/calendar/view",
+            "/api/schedule/view",
             {"view": ["day"], "date": ["2026-05-20"]},
             {},
         )
-        self.assertEqual(view["events"][0]["title"], "Event")
+        self.assertEqual(view["events"], [])
+        self.assertEqual(view["reminders"][0]["title"], "Standup")
 
-        event = self.handler._dispatchApi(
-            "POST",
-            "/api/calendar/events",
+        week = self.handler._dispatchApi(
+            "GET",
+            "/api/schedule/view",
+            {"view": ["week"], "date": ["2026-05-20"]},
             {},
-            {"title": "Planning", "start_at": "2026-05-20 10:00", "calendar_id": "7"},
         )
-        self.assertEqual(event, {"id": 10})
-        self.assertEqual(self.context.calendar.created_events[0]["calendar_id"], 7)
+        self.assertEqual(week["week_start"], "2026-05-20")
 
-        task = self.handler._dispatchApi(
+        search = self.handler._dispatchApi(
             "POST",
-            "/api/calendar/tasks",
+            "/api/schedule/search",
             {},
-            {"title": "Follow up", "linked_event_id": "10"},
+            {"query": "Standup"},
         )
-        self.assertEqual(task, {"id": 20})
-        self.assertEqual(self.context.calendar.created_tasks[0]["linked_event_id"], 10)
-
-        reminder = self.handler._dispatchApi(
-            "POST",
-            "/api/calendar/reminders",
-            {},
-            {
-                "title": "Leave",
-                "remind_at": "2026-05-20 15:00",
-                "linked_event_id": "10",
-                "content": "Pack laptop",
-            },
-        )
-        self.assertEqual(reminder, {"id": 30})
-        self.assertEqual(self.context.calendar.created_reminders[0]["event_id"], 10)
-        self.assertEqual(self.context.calendar.created_reminders[0]["notes"], "Pack laptop")
+        self.assertEqual(search["items"][0]["title"], "Standup")
 
     def test_home_automation_routes_call_backend(self):
         state = self.handler._dispatchApi("GET", "/api/home-automation/state", {}, {})

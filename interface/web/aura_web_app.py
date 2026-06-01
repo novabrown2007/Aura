@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import mimetypes
 from dataclasses import asdict, is_dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,7 +25,7 @@ class AuraWebApp:
         self.context = context
         self.host = host
         self.port = int(port)
-        self.selectedCalendarId = None
+        self.selectedScheduleId = None
         self.logger = context.logger.getChild("WebApp") if context.logger else None
         self._server = None
 
@@ -126,23 +126,8 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
             intent = interpreter.interpret(message)
             return {"response": str(router.route(intent))}
 
-        if method == "GET" and path == "/api/reminders":
-            return context.require("reminders").listReminders()
-
-        if method == "POST" and path == "/api/reminders":
-            return {
-                "id": context.require("reminders").createReminder(
-                    title=self._required(body, "title"),
-                    content=str(body.get("content", "")),
-                    module_of_origin="web",
-                    reminder_at=self._blankToNone(body.get("reminder_at")),
-                )
-            }
-
-        if method == "DELETE" and path.startswith("/api/reminders/"):
-            reminder_id = self._pathId(path, "/api/reminders/")
-            context.require("reminders").deleteReminder(reminder_id)
-            return {"id": reminder_id}
+        if path.startswith("/api/schedule/"):
+            return self._dispatchScheduleApi(method, path, query, body)
 
         if method == "GET" and path == "/api/notifications":
             status = self._single(query, "status")
@@ -153,9 +138,6 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
             notification_id = self._pathId(path, "/api/notifications/")
             context.require("notifications").deleteNotification(notification_id)
             return {"id": notification_id}
-
-        if path.startswith("/api/calendar/"):
-            return self._dispatchCalendarApi(method, path, query, body)
 
         if path.startswith("/api/home-automation/"):
             return self._dispatchHomeAutomationApi(method, path, query, body)
@@ -224,216 +206,66 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
 
         raise ValueError("Unsupported home automation API route.")
 
-    def _dispatchCalendarApi(self, method: str, path: str, query: dict, body: dict):
-        calendar = self.aura_context.require("calendar")
+    def _dispatchScheduleApi(self, method: str, path: str, query: dict, body: dict):
+        schedule = self.aura_context.require("personalSchedule")
 
-        if method == "GET" and path == "/api/calendar/calendars":
-            return {
-                "selected_calendar_id": self.aura_app.selectedCalendarId,
-                "calendars": calendar.listCalendars(),
-            }
+        if method == "GET" and path == "/api/schedule/items":
+            itemType = self._blankToNone(self._single(query, "type"))
+            state = self._blankToNone(self._single(query, "state"))
+            return [self._schedulePayload(item) for item in schedule.listScheduleItems(itemType=itemType, state=state)]
 
-        if method == "POST" and path == "/api/calendar/calendars":
-            calendar.createCalendar(
-                name=self._required(body, "name"),
-                description=self._blankToNone(body.get("description")),
-                color=self._blankToNone(body.get("color")),
-                timezone=str(body.get("timezone") or "UTC"),
-                visibility=str(body.get("visibility") or "private"),
-                is_default=bool(body.get("is_default")),
-            )
-            return calendar.listCalendars()
+        if method == "GET" and path == "/api/schedule/today":
+            return schedule.getTodaysSchedule()
 
-        if method == "POST" and path == "/api/calendar/select":
-            self.aura_app.selectedCalendarId = self._optionalInt(body.get("calendar_id"))
-            return {"selected_calendar_id": self.aura_app.selectedCalendarId}
+        if method == "GET" and path == "/api/schedule/upcoming":
+            limit = self._optionalInt(self._single(query, "limit")) or 10
+            return schedule.getUpcomingSchedule(limit=limit)
 
-        if method == "GET" and path == "/api/calendar/view":
+        if method == "GET" and path == "/api/schedule/view":
             view = self._single(query, "view") or "day"
             day_value = self._single(query, "date") or date.today().strftime("%Y-%m-%d")
-            calendar_id = self._optionalInt(self._single(query, "calendar_id"))
-            if calendar_id is None:
-                calendar_id = self.aura_app.selectedCalendarId
-            return self._buildCalendarView(calendar, view, day_value, calendar_id)
+            if view == "week":
+                return schedule.buildWeekView(day_value)
+            if view == "month":
+                return schedule.buildMonthView(day_value)
+            return schedule.buildDayView(day_value)
 
-        if method == "POST" and path == "/api/calendar/events":
-            return {"id": calendar.createEvent(**self._eventFields(body))}
+        if method == "POST" and path == "/api/schedule/items":
+            item = schedule.createScheduleItem(**self._cleanFields(body))
+            return {"id": getattr(item, "itemId", None), "item": self._schedulePayload(item)}
 
-        if method == "PUT" and path.startswith("/api/calendar/events/"):
-            event_id = self._pathId(path, "/api/calendar/events/")
-            calendar.updateEvent(event_id, **self._cleanFields(body))
-            return calendar.getEvent(event_id)
+        if method == "PUT" and path.startswith("/api/schedule/items/"):
+            item_id = self._pathIdString(path, "/api/schedule/items/")
+            item = schedule.updateScheduleItem(item_id, **self._cleanFields(body))
+            return self._schedulePayload(item)
 
-        if method == "DELETE" and path.startswith("/api/calendar/events/"):
-            event_id = self._pathId(path, "/api/calendar/events/")
-            calendar.deleteEvent(event_id)
-            return {"id": event_id}
+        if method == "DELETE" and path.startswith("/api/schedule/items/"):
+            item_id = self._pathIdString(path, "/api/schedule/items/")
+            schedule.deleteScheduleItem(item_id)
+            return {"id": item_id}
 
-        if method == "POST" and path == "/api/calendar/tasks":
-            return {"id": calendar.createTask(**self._taskFields(body))}
-
-        if method == "PUT" and path.startswith("/api/calendar/tasks/"):
-            task_id = self._pathId(path, "/api/calendar/tasks/")
-            calendar.updateTask(task_id, **self._cleanFields(body))
-            return calendar.getTask(task_id)
-
-        if method == "DELETE" and path.startswith("/api/calendar/tasks/"):
-            task_id = self._pathId(path, "/api/calendar/tasks/")
-            calendar.deleteTask(task_id)
-            return {"id": task_id}
-
-        if method == "POST" and path == "/api/calendar/reminders":
-            return {"id": calendar.createReminder(**self._calendarReminderFields(body))}
-
-        if method == "PUT" and path.startswith("/api/calendar/reminders/"):
-            reminder_id = self._pathId(path, "/api/calendar/reminders/")
-            calendar.updateReminder(reminder_id, **self._calendarReminderUpdateFields(body))
-            return calendar.getReminder(reminder_id)
-
-        if method == "DELETE" and path.startswith("/api/calendar/reminders/"):
-            reminder_id = self._pathId(path, "/api/calendar/reminders/")
-            calendar.deleteReminder(reminder_id)
-            return {"id": reminder_id}
-
-        if method == "POST" and path == "/api/calendar/search":
+        if method == "POST" and path == "/api/schedule/search":
             query_text = self._blankToNone(body.get("query"))
-            calendar_id = self._optionalInt(body.get("calendar_id"))
-            return {
-                "events": calendar.searchEvents(query=query_text, calendar_id=calendar_id),
-                "tasks": calendar.searchTasks(query=query_text, calendar_id=calendar_id),
-                "reminders": calendar.searchReminders(query=query_text, calendar_id=calendar_id),
-            }
+            return schedule.searchSchedule(query_text or "", limit=self._optionalInt(body.get("limit")) or 20)
 
-        if method == "POST" and path == "/api/calendar/conflicts":
-            return calendar.detectConflicts(
-                start_at=self._required(body, "start_at"),
-                end_at=self._required(body, "end_at"),
-                calendar_id=self._optionalInt(body.get("calendar_id")),
-                exclude_event_id=self._optionalInt(body.get("exclude_event_id")),
-            )
+        if method == "POST" and path == "/api/schedule/reminders":
+            item = schedule.createReminder(**self._cleanFields(body))
+            return {"id": getattr(item, "itemId", None), "item": self._schedulePayload(item)}
 
-        if method == "POST" and path == "/api/calendar/occurrences/update":
-            return self._updateOccurrence(calendar, body)
+        if method == "POST" and path == "/api/schedule/tasks":
+            item = schedule.createTask(**self._cleanFields(body))
+            return {"id": getattr(item, "itemId", None), "item": self._schedulePayload(item)}
 
-        if method == "POST" and path == "/api/calendar/occurrences/cancel":
-            return self._cancelOccurrence(calendar, body)
+        if method == "POST" and path == "/api/schedule/timers":
+            item = schedule.createTimer(**self._cleanFields(body))
+            return {"id": getattr(item, "itemId", None), "item": self._schedulePayload(item)}
 
-        if method == "POST" and path == "/api/calendar/series/update":
-            return self._updateSeries(calendar, body)
+        if method == "POST" and path == "/api/schedule/timers/complete":
+            item_id = self._required(body, "itemId")
+            item = schedule.completeTimer(item_id)
+            return {"id": getattr(item, "itemId", None), "item": self._schedulePayload(item)}
 
-        if method == "POST" and path == "/api/calendar/series/delete":
-            return self._deleteSeries(calendar, body)
-
-        raise ValueError("Unsupported calendar API route.")
-
-    def _buildCalendarView(self, calendar, view: str, day_value: str, calendar_id: int | None):
-        if view == "week":
-            return calendar.buildWeekView(day_value, calendar_id=calendar_id)
-        if view == "month":
-            return calendar.buildMonthView(day_value, calendar_id=calendar_id)
-        if view == "year":
-            start = datetime.strptime(calendar._normalizeDateValue(day_value), "%Y-%m-%d").date().replace(month=1, day=1)
-            return {
-                "year": start.year,
-                "months": [
-                    calendar.buildMonthView((start.replace(month=month)).strftime("%Y-%m-%d"), calendar_id=calendar_id)
-                    for month in range(1, 13)
-                ],
-            }
-        return calendar.buildDayView(day_value, calendar_id=calendar_id)
-
-    def _eventFields(self, body: dict):
-        fields = self._cleanFields(body)
-        fields["title"] = self._required(body, "title")
-        fields["start_at"] = self._required(body, "start_at")
-        fields["calendar_id"] = self._optionalInt(body.get("calendar_id"))
-        fields["linked_task_id"] = self._optionalInt(body.get("linked_task_id"))
-        fields["recurrence_interval"] = int(body.get("recurrence_interval") or 1)
-        fields["all_day"] = bool(body.get("all_day"))
-        return fields
-
-    def _taskFields(self, body: dict):
-        fields = self._cleanFields(body)
-        fields["title"] = self._required(body, "title")
-        fields["calendar_id"] = self._optionalInt(body.get("calendar_id"))
-        fields["linked_event_id"] = self._optionalInt(body.get("linked_event_id"))
-        fields["recurrence_interval"] = int(body.get("recurrence_interval") or 1)
-        return fields
-
-    def _calendarReminderFields(self, body: dict):
-        fields = self._cleanFields(body)
-        fields["title"] = self._required(body, "title")
-        fields["remind_at"] = self._required(body, "remind_at")
-        fields["calendar_id"] = self._optionalInt(body.get("calendar_id"))
-        fields["event_id"] = self._optionalInt(body.get("event_id") or body.get("linked_event_id"))
-        fields["task_id"] = self._optionalInt(body.get("task_id") or body.get("linked_task_id"))
-        if "content" in fields and "notes" not in fields:
-            fields["notes"] = fields.pop("content")
-        fields["recurrence_interval"] = int(body.get("recurrence_interval") or 1)
-        return fields
-
-    def _calendarReminderUpdateFields(self, body: dict):
-        fields = self._cleanFields(body)
-        if "content" in fields and "notes" not in fields:
-            fields["notes"] = fields.pop("content")
-        if "linked_event_id" in body and "event_id" not in fields:
-            fields["event_id"] = self._optionalInt(body.get("linked_event_id"))
-        if "linked_task_id" in body and "task_id" not in fields:
-            fields["task_id"] = self._optionalInt(body.get("linked_task_id"))
-        return fields
-
-    def _updateOccurrence(self, calendar, body: dict):
-        kind = self._required(body, "kind")
-        item_id = int(self._required(body, "id"))
-        fields = self._cleanFields(body.get("fields") or {})
-        if kind == "task":
-            calendar.updateTaskOccurrence(item_id, self._required(body, "occurrence_at"), **fields)
-            return calendar.getTask(item_id)
-        if kind == "reminder":
-            calendar.updateReminderOccurrence(item_id, self._required(body, "occurrence_at"), **fields)
-            return calendar.getReminder(item_id)
-        calendar.updateOccurrence(item_id, self._required(body, "occurrence_at"), **fields)
-        return calendar.getEvent(item_id)
-
-    def _cancelOccurrence(self, calendar, body: dict):
-        kind = self._required(body, "kind")
-        item_id = int(self._required(body, "id"))
-        occurrence_at = self._required(body, "occurrence_at")
-        if kind == "task":
-            calendar.cancelTaskOccurrence(item_id, occurrence_at)
-        elif kind == "reminder":
-            calendar.cancelReminderOccurrence(item_id, occurrence_at)
-        else:
-            calendar.cancelOccurrence(item_id, occurrence_at)
-        return {"id": item_id}
-
-    def _updateSeries(self, calendar, body: dict):
-        kind = self._required(body, "kind")
-        item_id = int(self._required(body, "id"))
-        scope = str(body.get("scope") or "all")
-        occurrence_at = self._blankToNone(body.get("occurrence_at"))
-        fields = self._cleanFields(body.get("fields") or {})
-        if kind == "task":
-            calendar.updateTaskSeries(item_id, scope=scope, occurrence_due_at=occurrence_at, **fields)
-            return calendar.getTask(item_id)
-        if kind == "reminder":
-            calendar.updateReminderSeries(item_id, scope=scope, occurrence_remind_at=occurrence_at, **fields)
-            return calendar.getReminder(item_id)
-        calendar.updateEventSeries(item_id, scope=scope, occurrence_start=occurrence_at, **fields)
-        return calendar.getEvent(item_id)
-
-    def _deleteSeries(self, calendar, body: dict):
-        kind = self._required(body, "kind")
-        item_id = int(self._required(body, "id"))
-        scope = str(body.get("scope") or "all")
-        occurrence_at = self._blankToNone(body.get("occurrence_at"))
-        if kind == "task":
-            calendar.deleteTaskSeries(item_id, scope=scope, occurrence_due_at=occurrence_at)
-        elif kind == "reminder":
-            calendar.deleteReminderSeries(item_id, scope=scope, occurrence_remind_at=occurrence_at)
-        else:
-            calendar.deleteEventSeries(item_id, scope=scope, occurrence_start=occurrence_at)
-        return {"id": item_id}
+        raise ValueError("Unsupported schedule API route.")
 
     def _serveStatic(self, path: str):
         relative = "index.html" if path in ("", "/") else path.lstrip("/")
@@ -511,13 +343,20 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
         return int(tail)
 
     @staticmethod
+    def _pathIdString(path: str, prefix: str) -> str:
+        tail = path.removeprefix(prefix).strip("/")
+        if "/" in tail or not tail:
+            raise ValueError("Invalid route ID.")
+        return tail
+
+    @staticmethod
     def _routeParts(path: str, prefix: str) -> list[str]:
         tail = path.removeprefix(prefix).strip("/")
         return [part for part in tail.split("/") if part]
 
     @classmethod
     def _cleanFields(cls, body: dict):
-        ignored = {"id", "kind", "fields", "occurrence_at", "scope", "linked_event_id", "linked_task_id"}
+        ignored = {"id", "itemId", "item_id", "kind", "fields", "occurrence_at", "scope"}
         return {
             key: cls._blankToNone(value)
             for key, value in body.items()
@@ -535,3 +374,16 @@ class AuraWebRequestHandler(SimpleHTTPRequestHandler):
         if isinstance(value, (datetime, date)):
             return value.isoformat()
         return value
+
+    @classmethod
+    def _schedulePayload(cls, item):
+        if item is None:
+            return None
+        as_dict = getattr(item, "asDict", None)
+        if callable(as_dict):
+            return cls._jsonSafe(as_dict())
+        if is_dataclass(item):
+            return cls._jsonSafe(asdict(item))
+        if hasattr(item, "__dict__"):
+            return cls._jsonSafe(dict(vars(item)))
+        return cls._jsonSafe(item)

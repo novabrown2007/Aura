@@ -18,6 +18,7 @@ from core.modules import (
     ModuleValidator,
 )
 from core.runtime.runtimeContext import RuntimeContext
+from modules.personalSchedule import PersonalScheduleModule
 from modules.smartHome import SmartHomeModule
 from modules.spotify import SpotifyModule
 from modules.weather import WeatherModule
@@ -256,7 +257,7 @@ class ModuleFrameworkTests(unittest.TestCase):
     def test_example_modules_expose_standard_contract(self):
         """The initial example modules should expose metadata, actions, and intents."""
 
-        for moduleClass in (WeatherModule, SpotifyModule, SmartHomeModule):
+        for moduleClass in (PersonalScheduleModule, WeatherModule, SpotifyModule, SmartHomeModule):
             with self.subTest(module=moduleClass.__name__):
                 module = moduleClass()
                 self.assertIsInstance(module.metadata, ModuleMetadata)
