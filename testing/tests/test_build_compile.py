@@ -2,6 +2,8 @@
 
 import py_compile
 from pathlib import Path
+import tempfile
+import os
 import unittest
 
 
@@ -16,10 +18,19 @@ class BuildCompileTests(unittest.TestCase):
         for py_file in root.rglob("*.py"):
             if any(part in excludes for part in py_file.parts):
                 continue
+            temp_pyc = None
             try:
-                py_compile.compile(str(py_file), doraise=True)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pyc") as handle:
+                    temp_pyc = handle.name
+                py_compile.compile(str(py_file), cfile=temp_pyc, doraise=True)
             except Exception as error:
                 failures.append(f"{py_file}: {error}")
+            finally:
+                if temp_pyc and os.path.exists(temp_pyc):
+                    try:
+                        os.remove(temp_pyc)
+                    except OSError:
+                        pass
 
         if failures:
             self.fail("Compilation failures:\n" + "\n".join(failures))

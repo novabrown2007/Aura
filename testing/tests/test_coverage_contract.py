@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import py_compile
 from pathlib import Path
+import os
+import tempfile
 import unittest
 
 import run_tests
@@ -240,10 +242,19 @@ class CoverageContractTests(unittest.TestCase):
 
         failures = []
         for path in self._productionPythonFiles():
+            temp_pyc = None
             try:
-                py_compile.compile(str(path), doraise=True)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pyc") as handle:
+                    temp_pyc = handle.name
+                py_compile.compile(str(path), cfile=temp_pyc, doraise=True)
             except Exception as error:
                 failures.append(f"{self._relative(path)}: {error}")
+            finally:
+                if temp_pyc and os.path.exists(temp_pyc):
+                    try:
+                        os.remove(temp_pyc)
+                    except OSError:
+                        pass
 
         self.assertEqual(failures, [])
 
