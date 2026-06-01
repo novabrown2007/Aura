@@ -341,6 +341,26 @@ spotify:
   # Cache file used for Spotify persistence.
   cachePath: spotify_cache.sqlite3
 
+email:
+  # Whether the unified email module is active.
+  emailEnabled: true
+  # Whether email inbox monitoring is enabled.
+  emailMonitoringEnabled: true
+  # Poll cadence for email sync and monitoring.
+  emailSyncIntervalSeconds: 60
+  # Whether email notifications are enabled.
+  emailNotificationsEnabled: true
+  # Default account id to prefer when one is available.
+  emailDefaultAccount:
+  # Whether email cache persistence is enabled.
+  emailCacheEnabled: true
+  # Whether sending an email requires confirmation.
+  emailRequireConfirmationToSend: true
+  # Whether deleting an email requires confirmation.
+  emailRequireConfirmationToDelete: true
+  # SQLite database used for email persistence and cache.
+  databasePath: aura_email.sqlite3
+
 safety:
   # Whether the execution governance layer is active.
   safetyLayerEnabled: true
