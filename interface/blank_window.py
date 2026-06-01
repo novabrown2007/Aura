@@ -9,13 +9,17 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Theme:
-    background: str = "#151515"
-    panel: str = "#181818"
-    border: str = "#444444"
-    chrome: str = "#1b1b1b"
-    text: str = "#d8d8d8"
-    placeholder: str = "#767676"
-    accent: str = "#8b8b8b"
+    background: str = "#163038"
+    panel: str = "#1D3A44"
+    hover: str = "#254652"
+    border: str = "#3B545F"
+    chrome: str = "#1D3A44"
+    text: str = "#E8EAF0"
+    placeholder: str = "#AAB6C3"
+    accent: str = "#9D4EDD"
+    secondary_accent: str = "#C77DFF"
+    soft_glow: str = "#7B2CBF"
+    shadow: str = "#0B1014"
 
 
 @dataclass(frozen=True)
@@ -199,10 +203,10 @@ class BlankWindowApp:
         self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=frame_height)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
-        self._rounded_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
+        self._shadow_round_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
 
     def _draw_title_bar(self, canvas, width: int):
-        self._rounded_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
+        self._shadow_round_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
         canvas.create_line(20, 80, width - 20, 80, fill=self.theme.border, width=1)
         self._draw_menu_icon(canvas, 32, 46, self._toggle_sidebar)
         self._draw_window_icon(canvas, width - 92, 46, self._noop)
@@ -226,9 +230,9 @@ class BlankWindowApp:
 
     def _draw_tile(self, canvas, x: int, y: int, title: str, tile_size: tuple[int, int], active: bool = False):
         width, height = tile_size
-        fill = self.theme.background if not active else "#202020"
-        outline = self.theme.accent if active else self.theme.border
-        self._rounded_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
+        fill = self.theme.panel if not active else self.theme.hover
+        outline = self.theme.secondary_accent if active else self.theme.border
+        self._shadow_round_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
         sprite = self._sprite_images.get(title)
         if sprite is not None:
             canvas.create_image(x + width / 2, y + height / 2 - 8, image=sprite, anchor="center")
@@ -251,7 +255,7 @@ class BlankWindowApp:
         bottom = height - self._content_bottom_margin
         x1 = 24
         x2 = x1 + self._sidebar_width
-        self._rounded_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
+        self._shadow_round_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
         canvas.create_text(x1 + 16, top + 16, anchor="nw", text="Menu", fill=self.theme.text, font=("Segoe UI", 13, "bold"))
         self._draw_sidebar_close_button(canvas, x2 - 20, top + 20)
         self._draw_sidebar_item(canvas, x1 + 16, top + 56, "Home", active=True)
@@ -273,7 +277,7 @@ class BlankWindowApp:
             center_y + 11,
             7,
             fill="",
-            outline="",
+            outline=self.theme.border,
             width=1,
             tags=(tag,),
         )
@@ -296,8 +300,8 @@ class BlankWindowApp:
             tags=(tag,),
         )
         canvas.tag_bind(tag, "<Button-1>", lambda _event: self._close_sidebar())
-        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
-        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=""))
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.secondary_accent))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
         canvas.tag_raise(tag)
         return button
 
@@ -308,7 +312,7 @@ class BlankWindowApp:
         self._draw_prompt_button(canvas, width - 78, height - 48)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
-        canvas.create_oval(x - 8, y - 8, x + 8, y + 8, fill=self.theme.accent, outline=self.theme.accent)
+        canvas.create_oval(x - 8, y - 8, x + 8, y + 8, fill=self.theme.soft_glow, outline=self.theme.secondary_accent)
 
     def _draw_menu_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="menu")
@@ -329,7 +333,7 @@ class BlankWindowApp:
             center_y + 18,
             10,
             fill="",
-            outline="",
+            outline=self.theme.secondary_accent,
             width=1,
             tags=(tag,),
         )
@@ -337,7 +341,7 @@ class BlankWindowApp:
             center_x,
             center_y - 7,
             text=">",
-            fill=self.theme.text,
+            fill=self.theme.secondary_accent,
             font=("Segoe UI", 28, "bold"),
             tags=(tag,),
         )
@@ -356,7 +360,7 @@ class BlankWindowApp:
             center_y + size // 2,
             10,
             fill="",
-            outline="",
+            outline=self.theme.secondary_accent,
             width=1,
             tags=(tag,),
         )
@@ -402,8 +406,8 @@ class BlankWindowApp:
             )
 
         canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
-        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
-        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=""))
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.soft_glow))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
         canvas.tag_raise(tag)
         return button
 
@@ -655,3 +659,29 @@ class BlankWindowApp:
             x1, y1,
         ]
         return canvas.create_polygon(points, smooth=True, splinesteps=36, **kwargs)
+
+    @staticmethod
+    def _shadow_round_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
+        shadow_offset = 3
+        shadow_points = [
+            x1 + radius + shadow_offset, y1 + shadow_offset,
+            x2 - radius + shadow_offset, y1 + shadow_offset,
+            x2 + shadow_offset, y1 + shadow_offset,
+            x2 + shadow_offset, y1 + radius + shadow_offset,
+            x2 + shadow_offset, y2 - radius + shadow_offset,
+            x2 + shadow_offset, y2 + shadow_offset,
+            x2 - radius + shadow_offset, y2 + shadow_offset,
+            x1 + radius + shadow_offset, y2 + shadow_offset,
+            x1 + shadow_offset, y2 + shadow_offset,
+            x1 + shadow_offset, y2 - radius + shadow_offset,
+            x1 + shadow_offset, y1 + radius + shadow_offset,
+            x1 + shadow_offset, y1 + shadow_offset,
+        ]
+        canvas.create_polygon(
+            shadow_points,
+            smooth=True,
+            splinesteps=36,
+            fill="#0B1014",
+            outline="#0B1014",
+        )
+        return BlankWindowApp._rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs)
