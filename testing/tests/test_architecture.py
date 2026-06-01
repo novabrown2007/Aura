@@ -27,6 +27,7 @@ class ArchitectureTests(unittest.TestCase):
         from assistant.conversation import ConversationHistory
         from assistant.personality import PersonalityManager
         from assistant.memory import MemoryManager
+        from assistant.responses import AssistantResponse, ResponseManager, ResponseAction, ResponseFollowup, ResponseMetadata, ResponseNotification, ResponsePipeline, ResponseRouter, ResponseValidator
         from providers.base import LLMProvider, ProviderCapabilities
         from providers.gemini import GeminiProvider
         from providers.ollama import OllamaProvider
@@ -48,6 +49,15 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIsNotNone(ConversationHistory)
         self.assertIsNotNone(PersonalityManager)
         self.assertIsNotNone(MemoryManager)
+        self.assertIsNotNone(AssistantResponse)
+        self.assertIsNotNone(ResponseManager)
+        self.assertIsNotNone(ResponseAction)
+        self.assertIsNotNone(ResponseFollowup)
+        self.assertIsNotNone(ResponseMetadata)
+        self.assertIsNotNone(ResponseNotification)
+        self.assertIsNotNone(ResponsePipeline)
+        self.assertIsNotNone(ResponseRouter)
+        self.assertIsNotNone(ResponseValidator)
         self.assertIsNotNone(CoreAuraModule)
         self.assertIsNotNone(ModuleAction)
         self.assertIsNotNone(ModuleCapability)
@@ -86,6 +96,7 @@ class ArchitectureTests(unittest.TestCase):
             "assistant/conversation",
             "assistant/personality",
             "assistant/memory",
+            "assistant/responses",
             "interface/voice/vad",
             "interface/voice/wakeWord",
             "providers",

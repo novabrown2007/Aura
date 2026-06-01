@@ -73,6 +73,14 @@ notifications:
   quietHoursEnabled: false
   quietHoursActive: false
 
+responses:
+  structuredResponsesEnabled: true
+  spokenResponseEnabled: true
+  uiResponseEnabled: true
+  responseMetadataEnabled: true
+  responseFollowupsEnabled: true
+  responseValidationEnabled: true
+
 interface:
   desktop:
     windows:

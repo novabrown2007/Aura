@@ -56,6 +56,7 @@ class ObservabilityManager:
             "scheduler": self.getSchedulerState(),
             "interruptions": self.getInterruptionState(),
             "conversation": self.getConversationState(),
+            "responses": self.getResponseState(),
             "vad": self.getVADState(),
             "personality": self.getPersonalityState(),
             "desktopOverlay": self.getDesktopOverlayState(),
@@ -216,6 +217,21 @@ class ObservabilityManager:
             snapshot["available"] = True
             return snapshot
         except Exception as error:
+            return {"available": False, "error": str(error)}
+
+    def getResponseState(self):
+        """Return structured assistant response diagnostics."""
+
+        manager = getattr(self.context, "responseManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False}
+        try:
+            snapshot = manager.snapshot()
+            snapshot["available"] = True
+            return snapshot
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Response snapshot failed: {error}")
             return {"available": False, "error": str(error)}
 
     def getVADState(self):

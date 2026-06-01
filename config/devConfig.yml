@@ -56,6 +56,20 @@ llm:
       # Embedding/retrieval provider.
       provider: local
 
+responses:
+  # Whether Aura emits structured multimodal assistant responses.
+  structuredResponsesEnabled: true
+  # Whether spoken text delivery is enabled.
+  spokenResponseEnabled: true
+  # Whether UI text delivery is enabled.
+  uiResponseEnabled: true
+  # Whether response metadata is generated.
+  responseMetadataEnabled: true
+  # Whether follow-up prompts are generated.
+  responseFollowupsEnabled: true
+  # Whether response validation is enforced.
+  responseValidationEnabled: true
+
 interface:
   desktop:
     windows:

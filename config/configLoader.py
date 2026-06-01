@@ -56,6 +56,14 @@ DEFAULT_USER_CONFIG = {
         "quietHoursEnabled": False,
         "quietHoursActive": False,
     },
+    "responses": {
+        "structuredResponsesEnabled": True,
+        "spokenResponseEnabled": True,
+        "uiResponseEnabled": True,
+        "responseMetadataEnabled": True,
+        "responseFollowupsEnabled": True,
+        "responseValidationEnabled": True,
+    },
     "interface": {
         "desktop": {
             "windows": {
@@ -230,6 +238,14 @@ DEFAULT_DEV_CONFIG = {
         "personalityStrength": 0.35,
         "verbosity": "normal",
     },
+    "responses": {
+        "structuredResponsesEnabled": True,
+        "spokenResponseEnabled": True,
+        "uiResponseEnabled": True,
+        "responseMetadataEnabled": True,
+        "responseFollowupsEnabled": True,
+        "responseValidationEnabled": True,
+    },
     "homeAutomationBridge": {
         "timeout": 5,
         "refreshSeconds": 5,
@@ -303,6 +319,12 @@ CONFIG_ALIASES = {
     "overlayCompactMode": "interface.desktop.windows.overlayCompactMode",
     "overlayStartMinimized": "interface.desktop.windows.overlayStartMinimized",
     "overlayBubbleDiameter": "interface.desktop.windows.overlayBubbleDiameter",
+    "structuredResponsesEnabled": "responses.structuredResponsesEnabled",
+    "spokenResponseEnabled": "responses.spokenResponseEnabled",
+    "uiResponseEnabled": "responses.uiResponseEnabled",
+    "responseMetadataEnabled": "responses.responseMetadataEnabled",
+    "responseFollowupsEnabled": "responses.responseFollowupsEnabled",
+    "responseValidationEnabled": "responses.responseValidationEnabled",
 }
 
 
