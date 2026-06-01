@@ -161,7 +161,8 @@ and keeps prompt injection lightweight and explainable.
 
 The first rebuilt surface is a blank desktop window that serves as the starting
 shell for the new presentation layer. It follows the current homepage mockup:
-custom top bar, four empty content tiles, and a bottom prompt strip.
+custom top bar, four draggable widget tiles, a toggleable sidebar, and a bottom
+test box.
 
 Launch it with:
 

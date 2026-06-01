@@ -16,6 +16,12 @@ class Theme:
     accent: str = "#8b8b8b"
 
 
+@dataclass(frozen=True)
+class TileSpec:
+    tile_id: int
+    title: str
+
+
 class BlankWindowApp:
     """Create and run the first Aura homepage shell."""
 
@@ -26,8 +32,29 @@ class BlankWindowApp:
         self.theme = Theme()
         self.root = None
         self.canvas = None
-        self.prompt_var = None
+        self.sidebar_frame = None
+        self.sidebar_visible = False
+        self.test_frame = None
+        self.test_var = None
         self._drag_offset = (0, 0)
+        self._active_tile_id: int | None = None
+        self._active_tile_offset = (0, 0)
+        self._drag_position: tuple[int, int] | None = None
+        self._tile_order = [0, 1, 2, 3]
+        self._tile_specs = [
+            TileSpec(0, "Tile 1"),
+            TileSpec(1, "Tile 2"),
+            TileSpec(2, "Tile 3"),
+            TileSpec(3, "Tile 4"),
+        ]
+        self._grid = (
+            (86, 130),
+            (354, 130),
+            (86, 394),
+            (354, 394),
+        )
+        self._tile_size = (230, 220)
+        self._sidebar_width = 220
         self._top_bar_height = 70
         self._prompt_bar_height = 62
 
@@ -51,12 +78,12 @@ class BlankWindowApp:
 
         self.root = root
         self.canvas = canvas
-        self.prompt_var = tk.StringVar(value="")
+        self.test_var = tk.StringVar(value="")
+        self._create_overlay_widgets(tk)
 
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
         root.bind("<Escape>", lambda _event: self.close())
-        self._bind_drag_targets(root, canvas)
 
         self._render()
         return root
@@ -79,6 +106,63 @@ class BlankWindowApp:
             self.root = None
             self.canvas = None
 
+    def _create_overlay_widgets(self, tk):
+        root = self.root
+        if root is None:
+            return
+
+        self.sidebar_frame = tk.Frame(
+            root,
+            bg=self.theme.panel,
+            highlightbackground=self.theme.border,
+            highlightthickness=1,
+        )
+        tk.Label(
+            self.sidebar_frame,
+            text="Sidebar",
+            bg=self.theme.panel,
+            fg=self.theme.text,
+            font=("Segoe UI", 13, "bold"),
+            anchor="w",
+        ).pack(fill="x", padx=14, pady=(14, 8))
+        for label in ("Home", "Widgets", "Tests"):
+            tk.Label(
+                self.sidebar_frame,
+                text=label,
+                bg=self.theme.panel,
+                fg=self.theme.placeholder,
+                font=("Segoe UI", 11),
+                anchor="w",
+            ).pack(fill="x", padx=14, pady=4)
+
+        self.test_frame = tk.Frame(
+            root,
+            bg=self.theme.panel,
+            highlightbackground=self.theme.border,
+            highlightthickness=1,
+        )
+        tk.Label(
+            self.test_frame,
+            text="Test box",
+            bg=self.theme.panel,
+            fg=self.theme.placeholder,
+            font=("Segoe UI", 10),
+            anchor="w",
+        ).pack(fill="x", padx=12, pady=(8, 2))
+        test_entry = tk.Entry(
+            self.test_frame,
+            textvariable=self.test_var,
+            font=("Segoe UI", 14),
+            bg=self.theme.background,
+            fg=self.theme.text,
+            insertbackground=self.theme.text,
+            relief="flat",
+            highlightthickness=0,
+            bd=0,
+        )
+        test_entry.pack(fill="x", padx=12, pady=(0, 10))
+        test_entry.bind("<Return>", self._submit_prompt)
+
     def _render(self, _event=None):
         canvas = self.canvas
         root = self.root
@@ -89,10 +173,22 @@ class BlankWindowApp:
         height = max(1, root.winfo_height())
         canvas.delete("all")
 
+        self._layout_overlay_widgets(width, height)
         self._draw_window_shell(canvas, width, height)
         self._draw_title_bar(canvas, width)
-        self._draw_tiles(canvas, width, height)
-        self._draw_prompt_bar(canvas, width, height)
+        self._draw_tiles(canvas)
+        self._draw_prompt_strip(canvas, width, height)
+        self._draw_sidebar(canvas, width, height)
+
+    def _layout_overlay_widgets(self, width: int, height: int):
+        if self.sidebar_frame is not None:
+            if self.sidebar_visible:
+                self.sidebar_frame.place(x=12, y=self._top_bar_height + 12, width=self._sidebar_width, height=height - self._top_bar_height - self._prompt_bar_height - 42)
+            else:
+                self.sidebar_frame.place_forget()
+
+        if self.test_frame is not None:
+            self.test_frame.place(x=72, y=height - 60, width=max(260, width - 176), height=36)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
         self._rounded_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
@@ -100,70 +196,45 @@ class BlankWindowApp:
     def _draw_title_bar(self, canvas, width: int):
         self._rounded_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
         canvas.create_line(20, 80, width - 20, 80, fill=self.theme.border, width=1)
-
-        self._draw_menu_icon(canvas, 32, 46, self._toggle_menu)
+        self._draw_menu_icon(canvas, 32, 46, self._toggle_sidebar)
         self._draw_window_icon(canvas, width - 92, 46, self._minimize_window)
         self._draw_close_icon(canvas, width - 48, 46, self.close)
 
-    def _draw_tiles(self, canvas, width: int, height: int):
-        tile_width = 230
-        tile_height = 220
-        gap_x = 38
-        gap_y = 44
-        left = 86
-        top = 130
+    def _draw_tiles(self, canvas):
+        for slot_index, (x, y) in enumerate(self._grid):
+            tile_id = self._tile_order[slot_index]
+            spec = self._tile_specs[tile_id]
+            if self._active_tile_id == tile_id and self._drag_position is not None:
+                draw_x, draw_y = self._drag_position
+                active = True
+            else:
+                draw_x, draw_y = x, y
+                active = False
+            self._draw_tile(canvas, draw_x, draw_y, spec.title, active=active)
 
-        for row in range(2):
-            for col in range(2):
-                x1 = left + col * (tile_width + gap_x)
-                y1 = top + row * (tile_height + gap_y)
-                x2 = x1 + tile_width
-                y2 = y1 + tile_height
-                self._rounded_rect(canvas, x1, y1, x2, y2, 16, fill=self.theme.background, outline=self.theme.border, width=2)
+    def _draw_tile(self, canvas, x: int, y: int, title: str, active: bool = False):
+        width, height = self._tile_size
+        fill = self.theme.background if not active else "#202020"
+        outline = self.theme.accent if active else self.theme.border
+        self._rounded_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
+        canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
 
-    def _draw_prompt_bar(self, canvas, width: int, height: int):
+    def _draw_prompt_strip(self, canvas, width: int, height: int):
         base_y = height - self._prompt_bar_height - 16
         canvas.create_line(20, base_y, width - 20, base_y, fill=self.theme.border, width=1)
-
         self._draw_status_dot(canvas, 40, height - 43)
         self._rounded_rect(canvas, 72, height - 60, width - 104, height - 24, 16, fill=self.theme.panel, outline=self.theme.border, width=2)
+        canvas.create_text(96, height - 42, anchor="w", text="Test box", fill=self.theme.placeholder, font=("Segoe UI", 16))
+        self._draw_prompt_button(canvas, width - 52, height - 42)
 
-        if self.root is None or self.prompt_var is None:
+    def _draw_sidebar(self, canvas, width: int, height: int):
+        if not self.sidebar_visible:
             return
-
-        import tkinter as tk
-
-        entry = tk.Entry(
-            self.root,
-            textvariable=self.prompt_var,
-            font=("Segoe UI", 14),
-            bg=self.theme.panel,
-            fg=self.theme.text,
-            insertbackground=self.theme.text,
-            relief="flat",
-            highlightthickness=0,
-            bd=0,
-        )
-        entry.insert(0, "")
-        entry.bind("<Return>", lambda _event: self._submit_prompt())
-        canvas.create_window(92, height - 42, anchor="w", window=entry, width=max(200, width - 220), height=28, tags=("prompt_entry",))
-
-        button = tk.Button(
-            self.root,
-            text=">",
-            command=self._submit_prompt,
-            font=("Segoe UI", 14, "bold"),
-            bg=self.theme.chrome,
-            fg=self.theme.text,
-            activebackground=self.theme.border,
-            activeforeground=self.theme.text,
-            relief="flat",
-            bd=0,
-            highlightthickness=0,
-            padx=10,
-            pady=2,
-        )
-        canvas.create_window(width - 52, height - 42, anchor="center", window=button, width=28, height=28, tags=("prompt_button",))
+        x1 = 12
+        y1 = self._top_bar_height + 12
+        x2 = x1 + self._sidebar_width
+        y2 = height - self._prompt_bar_height - 28
+        self._rounded_rect(canvas, x1, y1, x2, y2, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
         canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=self.theme.accent, outline=self.theme.accent)
@@ -176,6 +247,22 @@ class BlankWindowApp:
 
     def _draw_close_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="close")
+
+    def _draw_prompt_button(self, canvas, center_x: int, center_y: int):
+        button = self._rounded_rect(
+            canvas,
+            center_x - 16,
+            center_y - 16,
+            center_x + 16,
+            center_y + 16,
+            9,
+            fill=self.theme.chrome,
+            outline=self.theme.chrome,
+            width=1,
+        )
+        canvas.create_text(center_x, center_y - 1, text=">", fill=self.theme.text, font=("Segoe UI", 16, "bold"))
+        canvas.tag_bind(button, "<Button-1>", lambda _event: self._submit_prompt())
+        return button
 
     def _draw_bar_button(self, canvas, center_x: int, center_y: int, callback, kind: str):
         size = 32
@@ -204,33 +291,82 @@ class BlankWindowApp:
         canvas.tag_bind(button, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.chrome))
         return button
 
-    def _toggle_menu(self):
-        return None
+    def _toggle_sidebar(self):
+        self.sidebar_visible = not self.sidebar_visible
+        self._render()
 
     def _minimize_window(self):
-        root = self.root
-        if root is not None:
-            root.iconify()
+        return None
 
-    def _submit_prompt(self):
+    def _submit_prompt(self, _event=None):
         return None
 
     def _bind_drag_targets(self, root, canvas):
-        def start_drag(event):
-            self._drag_offset = (event.x_root, event.y_root)
+        canvas.bind("<ButtonPress-1>", self._on_canvas_press)
+        canvas.bind("<B1-Motion>", self._on_canvas_drag)
+        canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
 
-        def drag(event):
-            offset_x, offset_y = self._drag_offset
-            delta_x = event.x_root - offset_x
-            delta_y = event.y_root - offset_y
-            if delta_x == 0 and delta_y == 0:
-                return
-            root.geometry(f"+{root.winfo_x() + delta_x}+{root.winfo_y() + delta_y}")
-            self._drag_offset = (event.x_root, event.y_root)
+    def _on_canvas_press(self, event):
+        tile_id = self._hit_test_tile(event.x, event.y)
+        if tile_id is None:
+            return
+        slot_index = self._slot_index_for_tile(tile_id)
+        tile_x, tile_y = self._grid[slot_index]
+        self._active_tile_id = tile_id
+        self._active_tile_offset = (event.x - tile_x, event.y - tile_y)
+        self._drag_position = (tile_x, tile_y)
+        self._render()
 
-        for target in (root, canvas):
-            target.bind("<ButtonPress-1>", start_drag)
-            target.bind("<B1-Motion>", drag)
+    def _on_canvas_drag(self, event):
+        if self._active_tile_id is None:
+            return
+        offset_x, offset_y = self._active_tile_offset
+        self._drag_position = (event.x - offset_x, event.y - offset_y)
+        self._render()
+
+    def _on_canvas_release(self, event):
+        if self._active_tile_id is None:
+            return
+
+        tile_x, tile_y = self._drag_position or (0, 0)
+        tile_w, tile_h = self._tile_size
+        center_x = tile_x + tile_w / 2
+        center_y = tile_y + tile_h / 2
+        target_slot = self._nearest_slot(center_x, center_y)
+        current_slot = self._slot_index_for_tile(self._active_tile_id)
+
+        if target_slot != current_slot:
+            tile_id = self._tile_order.pop(current_slot)
+            self._tile_order.insert(target_slot, tile_id)
+
+        self._active_tile_id = None
+        self._drag_position = None
+        self._render()
+
+    def _hit_test_tile(self, x: int, y: int) -> int | None:
+        for slot_index, (tile_x, tile_y) in enumerate(self._grid):
+            tile_id = self._tile_order[slot_index]
+            if tile_x <= x <= tile_x + self._tile_size[0] and tile_y <= y <= tile_y + self._tile_size[1]:
+                return tile_id
+        return None
+
+    def _slot_index_for_tile(self, tile_id: int) -> int:
+        for index, current in enumerate(self._tile_order):
+            if current == tile_id:
+                return index
+        return 0
+
+    def _nearest_slot(self, center_x: float, center_y: float) -> int:
+        best_index = 0
+        best_distance = float("inf")
+        for index, (slot_x, slot_y) in enumerate(self._grid):
+            slot_center_x = slot_x + self._tile_size[0] / 2
+            slot_center_y = slot_y + self._tile_size[1] / 2
+            distance = (center_x - slot_center_x) ** 2 + (center_y - slot_center_y) ** 2
+            if distance < best_distance:
+                best_distance = distance
+                best_index = index
+        return best_index
 
     @staticmethod
     def _rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
