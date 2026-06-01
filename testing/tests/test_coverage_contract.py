@@ -19,6 +19,7 @@ class CoverageContractTests(unittest.TestCase):
     testedFeatureAreas = {
         "bridge": ("testing/tests/test_bridge_protocol.py",),
         "assistant": ("testing/tests/test_architecture.py",),
+        "assistant/safety": ("testing/tests/test_safety_layer.py",),
         "assistant/memory": ("testing/tests/test_semantic_memory.py",),
         "assistant/notifications": ("testing/tests/test_notification_priority.py",),
         "config": ("testing/tests/test_config_loader.py",),

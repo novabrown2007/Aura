@@ -22,6 +22,7 @@ from assistant.personality import PersonalityManager
 from assistant.personality.handlers import PersonalityEventHandler
 from assistant.notifications import NotificationManager
 from assistant.responses import ResponseManager
+from assistant.safety import SafetyManager
 from interface.voice.wakeWord import WakeWordManager
 from interface.voice.vad import VADManager
 from assistant.conversation import ConversationManager
@@ -96,6 +97,9 @@ def shutdown(context):
     if getattr(context, "responseManager", None) and hasattr(context.responseManager, "shutdown"):
         context.responseManager.shutdown()
 
+    if getattr(context, "safetyManager", None) and hasattr(context.safetyManager, "shutdown"):
+        context.safetyManager.shutdown()
+
     if getattr(context, "wakeWordManager", None):
         context.wakeWordManager.shutdown()
 
@@ -142,6 +146,7 @@ def buildRuntimeContext():
     context.observability = ObservabilityManager(context)
     context.autonomousTasks = AutonomousTaskManager(context)
     context.contextAwareness = ContextAwarenessManager(context)
+    context.safetyManager = SafetyManager(context)
 
     # Bridge Protocol
     context.bridgeClient = AuraBridgeClient(context)

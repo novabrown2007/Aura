@@ -73,6 +73,17 @@ notifications:
   quietHoursEnabled: false
   quietHoursActive: false
 
+safety:
+  safetyLayerEnabled: true
+  requireConfirmationForHighRisk: true
+  allowAutomationWithoutConfirmation: false
+  executionRateLimitEnabled: true
+  maxExecutionsPerMinute: 20
+  auditLoggingEnabled: true
+  confirmationTimeoutSeconds: 60
+  denyCriticalAutomation: true
+  grantedPermissions: []
+
 responses:
   structuredResponsesEnabled: true
   spokenResponseEnabled: true

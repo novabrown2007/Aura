@@ -20,6 +20,12 @@ class UISubscriptionManager:
         "response.routed",
         "response.delivered",
         "response.failed",
+        "execution.allowed",
+        "execution.denied",
+        "execution.confirmation.required",
+        "execution.rate_limited",
+        "execution.completed",
+        "execution.failed",
         "tts.started",
         "tts.finished",
         "voice.loop.completed",
@@ -133,6 +139,7 @@ class UISubscriptionManager:
                 )
                 self.state.updateProviders(snapshot.get("providers", {}))
                 self.state.updateInterruptions(snapshot.get("interruptions", {}))
+                self.state.updateSafety(snapshot.get("safety", {}))
                 self.state.updateConversation(snapshot.get("conversation", {}))
                 self.state.updateVADState(snapshot.get("vad", {}))
                 self.state.updateNotifications(snapshot.get("notifications", {}))

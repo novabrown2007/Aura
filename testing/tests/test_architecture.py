@@ -28,6 +28,7 @@ class ArchitectureTests(unittest.TestCase):
         from assistant.personality import PersonalityManager
         from assistant.memory import MemoryManager
         from assistant.responses import AssistantResponse, ResponseManager, ResponseAction, ResponseFollowup, ResponseMetadata, ResponseNotification, ResponsePipeline, ResponseRouter, ResponseValidator
+        from assistant.safety import ActionValidator, ConfirmationManager, ExecutionAuditLogger, ExecutionDecision, ExecutionGuard, ExecutionPolicyEngine, ExecutionRequest, ExecutionRisk, PermissionManager, RateLimitManager, SafetyEventHandler, SafetyManager, TrustEvaluator
         from providers.base import LLMProvider, ProviderCapabilities
         from providers.gemini import GeminiProvider
         from providers.ollama import OllamaProvider
@@ -58,6 +59,19 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIsNotNone(ResponsePipeline)
         self.assertIsNotNone(ResponseRouter)
         self.assertIsNotNone(ResponseValidator)
+        self.assertIsNotNone(ActionValidator)
+        self.assertIsNotNone(ConfirmationManager)
+        self.assertIsNotNone(ExecutionAuditLogger)
+        self.assertIsNotNone(ExecutionDecision)
+        self.assertIsNotNone(ExecutionGuard)
+        self.assertIsNotNone(ExecutionPolicyEngine)
+        self.assertIsNotNone(ExecutionRequest)
+        self.assertIsNotNone(ExecutionRisk)
+        self.assertIsNotNone(PermissionManager)
+        self.assertIsNotNone(RateLimitManager)
+        self.assertIsNotNone(SafetyEventHandler)
+        self.assertIsNotNone(SafetyManager)
+        self.assertIsNotNone(TrustEvaluator)
         self.assertIsNotNone(CoreAuraModule)
         self.assertIsNotNone(ModuleAction)
         self.assertIsNotNone(ModuleCapability)
@@ -97,6 +111,7 @@ class ArchitectureTests(unittest.TestCase):
             "assistant/personality",
             "assistant/memory",
             "assistant/responses",
+            "assistant/safety",
             "interface/voice/vad",
             "interface/voice/wakeWord",
             "providers",

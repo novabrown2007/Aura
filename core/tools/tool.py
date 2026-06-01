@@ -31,6 +31,8 @@ class Tool:
     offlineAllowed: bool = False
     confirmRequired: bool = False
     category: str = ToolCategory.SAFE
+    requiredPermissions: tuple[str, ...] = field(default_factory=tuple)
+    riskLevel: str = "LOW"
 
     def validateArguments(self, arguments: dict[str, Any] | None) -> tuple[bool, str | None]:
         """Validate required arguments and simple parameter types."""
@@ -65,6 +67,8 @@ class Tool:
             "offlineAllowed": self.offlineAllowed,
             "confirmRequired": self.confirmRequired,
             "category": self.category,
+            "requiredPermissions": list(self.requiredPermissions),
+            "riskLevel": self.riskLevel,
             "parameters": {
                 "type": "object",
                 "properties": self.parameters,
@@ -86,6 +90,8 @@ class Tool:
             "offlineAllowed": self.offlineAllowed,
             "confirmRequired": self.confirmRequired,
             "category": self.category,
+            "requiredPermissions": list(self.requiredPermissions),
+            "riskLevel": self.riskLevel,
         }
 
     @staticmethod

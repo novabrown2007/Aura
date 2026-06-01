@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.tools.tool import ToolCategory
+from assistant.safety.models import ExecutionContext, ExecutionRequest
 
 
 class ToolExecutor:
@@ -41,6 +42,35 @@ class ToolExecutor:
             result = self._failure(toolName, f"Unknown tool: {toolName}")
             self._recordToolTrace(observability, toolName, result)
             return result
+
+        request = ExecutionRequest(
+            source="tool",
+            module=str(tool.module or ""),
+            action=str(tool.name or toolName),
+            parameters=dict(arguments or {}),
+            executionContext=ExecutionContext(
+                interface={"offlineMode": bool(offlineMode)},
+                metadata={"tool": tool.asDict() if hasattr(tool, "asDict") else {}},
+            ),
+            requestedBy="assistant",
+            priority="NORMAL",
+            metadata={"confirmed": bool(confirmed), "allowAdmin": bool(allowAdmin)},
+        )
+
+        safetyGate = getattr(self.context, "executionGuard", None) or getattr(self.context, "safetyManager", None)
+        if safetyGate is not None and hasattr(safetyGate, "canExecute"):
+            decision = safetyGate.canExecute(request, tool=tool, confirmed=confirmed, allowAdmin=allowAdmin)
+            if not decision.canExecute():
+                result = self._failure(
+                    toolName,
+                    decision.reason or f"Execution blocked: {decision.decision}",
+                    decision=decision.asDict() if hasattr(decision, "asDict") else {},
+                    requiresConfirmation=bool(getattr(decision, "requiresConfirmation", False)),
+                    cooldownRemaining=float(getattr(decision, "cooldownRemaining", 0.0) or 0.0),
+                )
+                self._recordToolTrace(observability, toolName, result)
+                return result
+
         if offlineMode and not tool.offlineAllowed:
             result = self._failure(toolName, f"Tool is not available in offline mode: {toolName}")
             self._recordToolTrace(observability, toolName, result)
@@ -77,11 +107,23 @@ class ToolExecutor:
                 self.logger.warning(f"Tool execution failed: {toolName}: {error}")
             result = self._failure(toolName, str(error))
             self._recordToolTrace(observability, toolName, result)
+            safetyManager = getattr(self.context, "safetyManager", None)
+            if safetyManager is not None and hasattr(safetyManager, "_emit"):
+                try:
+                    safetyManager._emit("execution.failed", {"toolName": toolName, "error": str(error)})
+                except Exception:
+                    pass
             return result
 
         if self.logger:
             self.logger.info(f"Executed tool: {toolName}")
         result = {"success": True, "toolName": toolName, "result": result}
+        safetyManager = getattr(self.context, "safetyManager", None)
+        if safetyManager is not None and hasattr(safetyManager, "_emit"):
+            try:
+                safetyManager._emit("execution.completed", {"toolName": toolName, "result": result})
+            except Exception:
+                pass
         self._recordToolTrace(observability, toolName, result)
         return result
 

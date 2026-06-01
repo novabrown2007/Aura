@@ -109,6 +109,24 @@ class RuntimeContext:
         self.toolOrchestrator = None
         """Core tool schema, validation, and execution orchestration service."""
 
+        self.safetyManager = None
+        """Central assistant execution validation and governance layer."""
+
+        self.permissionManager = None
+        """Permission evaluator used by the safety layer."""
+
+        self.executionGuard = None
+        """Final execution gate that all module actions must pass through."""
+
+        self.confirmationManager = None
+        """Pending confirmation tracker for dangerous actions."""
+
+        self.rateLimitManager = None
+        """Action rate limiter used by the safety layer."""
+
+        self.executionAuditLogger = None
+        """Audit trail logger for action approvals and denials."""
+
         self.bridgeClient = None
         """Aura Protocol client used to communicate with the home automation bridge."""
 
