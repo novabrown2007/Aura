@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import queue
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class Theme:
 class TileSpec:
     tile_id: int
     title: str
+    sprite_name: str | None = None
 
 
 class BlankWindowApp:
@@ -39,24 +41,26 @@ class BlankWindowApp:
         self.sidebar_visible = False
         self._tray = None
         self._tray_commands: queue.Queue[str] = queue.Queue()
+        self._sprite_images: dict[str, object] = {}
+        self._asset_dir = Path(__file__).resolve().parents[1] / "assets"
         self._drag_offset = (0, 0)
         self._active_tile_id: int | None = None
         self._active_tile_offset = (0, 0)
         self._drag_position: tuple[int, int] | None = None
         self._tile_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self._tile_specs = [
-            TileSpec(0, "Tile 1"),
-            TileSpec(1, "Tile 2"),
-            TileSpec(2, "Tile 3"),
-            TileSpec(3, "Tile 4"),
-            TileSpec(4, "Tile 5"),
-            TileSpec(5, "Tile 6"),
-            TileSpec(6, "Tile 7"),
-            TileSpec(7, "Tile 8"),
-            TileSpec(8, "Tile 9"),
-            TileSpec(9, "Tile 10"),
-            TileSpec(10, "Tile 11"),
-            TileSpec(11, "Tile 12"),
+            TileSpec(0, "Sidebar", "Sidebar icon.png"),
+            TileSpec(1, "Close", "Close icon.png"),
+            TileSpec(2, "Notifications On", "Active Notification icon.png"),
+            TileSpec(3, "Notifications Off", "Inactive Notification icon.png"),
+            TileSpec(4, "Widget 5"),
+            TileSpec(5, "Widget 6"),
+            TileSpec(6, "Widget 7"),
+            TileSpec(7, "Widget 8"),
+            TileSpec(8, "Widget 9"),
+            TileSpec(9, "Widget 10"),
+            TileSpec(10, "Widget 11"),
+            TileSpec(11, "Widget 12"),
         ]
         self._tile_size = (320, 180)
         self._tile_columns = 4
@@ -92,12 +96,11 @@ class BlankWindowApp:
         self.root = root
         self.canvas = canvas
         self.test_var = tk.StringVar(value="")
+        self._load_sprite_images(tk)
         self._create_test_box(tk)
 
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
-        root.bind("<Escape>", lambda _event: self.close())
-
         self._bind_drag_targets(canvas)
         self._render()
         return root
@@ -226,7 +229,19 @@ class BlankWindowApp:
         fill = self.theme.background if not active else "#202020"
         outline = self.theme.accent if active else self.theme.border
         self._rounded_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
-        canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
+        sprite = self._sprite_images.get(title)
+        if sprite is not None:
+            canvas.create_image(x + width / 2, y + height / 2 - 8, image=sprite, anchor="center")
+            canvas.create_text(
+                x + width / 2,
+                y + height - 20,
+                anchor="s",
+                text=title,
+                fill=self.theme.placeholder,
+                font=("Segoe UI", 11),
+            )
+        else:
+            canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
 
     def _draw_sidebar(self, canvas, width: int, height: int):
         if not self.sidebar_visible:
@@ -409,6 +424,24 @@ class BlankWindowApp:
         if self.test_var is not None:
             self.test_value = str(self.test_var.get() or "").strip()
         return None
+
+    def _load_sprite_images(self, tk):
+        self._sprite_images = {}
+        target_size = 84
+        for spec in self._tile_specs:
+            if not spec.sprite_name:
+                continue
+            sprite_path = self._asset_dir / spec.sprite_name
+            if not sprite_path.exists():
+                continue
+            try:
+                image = tk.PhotoImage(file=str(sprite_path))
+                scale = max(1, int(-(-max(image.width(), image.height()) // target_size)))
+                if scale > 1:
+                    image = image.subsample(scale, scale)
+                self._sprite_images[spec.title] = image
+            except Exception:
+                continue
 
     def _clear_test_placeholder(self, event=None):
         widget = getattr(event, "widget", None)
