@@ -14,6 +14,7 @@ class ModuleAction:
     method: str = ""
     parameters: dict[str, object] = field(default_factory=dict)
     requiredParameters: tuple[str, ...] = ()
+    validationRequirements: tuple[str, ...] = ()
     permissions: tuple[str, ...] = ()
     capabilities: tuple[str, ...] = ()
     safe: bool = True
@@ -28,6 +29,7 @@ class ModuleAction:
             "method": str(self.method or ""),
             "parameters": dict(self.parameters or {}),
             "requiredParameters": list(self.requiredParameters or ()),
+            "validationRequirements": list(self.validationRequirements or ()),
             "permissions": list(self.permissions or ()),
             "capabilities": list(self.capabilities or ()),
             "safe": bool(self.safe),

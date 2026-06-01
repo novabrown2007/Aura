@@ -8,6 +8,7 @@ from typing import Any
 from core.modules.base.moduleAction import ModuleAction
 from core.modules.base.moduleIntent import ModuleIntent
 from core.modules.base.moduleMetadata import ModuleMetadata
+from core.modules.base.moduleSubscription import ModuleSubscription
 from core.modules.lifecycle.moduleState import ModuleState
 from core.modules.modulePermissions import ModulePermissions
 
@@ -23,7 +24,7 @@ class ModuleRegistryEntry:
     state: ModuleState = ModuleState.UNLOADED
     intents: list[ModuleIntent] = field(default_factory=list)
     actions: list[ModuleAction] = field(default_factory=list)
-    subscriptions: list[str] = field(default_factory=list)
+    subscriptions: list[ModuleSubscription] = field(default_factory=list)
 
 
 class ModuleRegistry:
@@ -87,7 +88,7 @@ class ModuleRegistry:
         entry.actions = [action if isinstance(action, ModuleAction) else ModuleAction(name=str(action)) for action in actions]
         return entry.actions
 
-    def registerSubscriptions(self, name: str, subscriptions: list[str]):
+    def registerSubscriptions(self, name: str, subscriptions: list[ModuleSubscription | str]):
         """Store event subscriptions requested by a module."""
 
         entry = self.entries.setdefault(
@@ -98,7 +99,10 @@ class ModuleRegistry:
                 metadata=ModuleMetadata(name=name),
             ),
         )
-        entry.subscriptions = [str(subscription) for subscription in subscriptions]
+        entry.subscriptions = [
+            subscription if isinstance(subscription, ModuleSubscription) else ModuleSubscription(eventName=str(subscription))
+            for subscription in subscriptions
+        ]
         return entry.subscriptions
 
     def setState(self, name: str, state: ModuleState | str):
@@ -166,6 +170,14 @@ class ModuleRegistry:
 
         return {
             name: [action.asDict() for action in entry.actions]
+            for name, entry in sorted(self.entries.items())
+        }
+
+    def listSubscriptions(self):
+        """Return registered subscriptions by module."""
+
+        return {
+            name: [subscription.asDict() for subscription in entry.subscriptions]
             for name, entry in sorted(self.entries.items())
         }
 

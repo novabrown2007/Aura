@@ -21,7 +21,7 @@ class ArchitectureTests(unittest.TestCase):
 
     def test_canonical_layer_packages_import(self):
         from core.modules import AuraModule as CoreAuraModule
-        from core.modules import ModuleAction, ModuleCapability, ModuleContext, ModuleIntent, ModuleManager, ModuleMetadata, ModulePermissions, ModuleRegistry, ModuleState
+        from core.modules import ModuleAction, ModuleCapability, ModuleContext, ModuleIntent, ModuleManager, ModuleMetadata, ModulePermissions, ModuleRegistry, ModuleState, ModuleSubscription, ModuleValidationReport, ModuleValidator
         from core.modules.moduleLoader import ModuleLoader as FrameworkModuleLoader
         from assistant.conversation import ConversationManager
         from assistant.conversation import ConversationHistory
@@ -58,6 +58,9 @@ class ArchitectureTests(unittest.TestCase):
         self.assertIsNotNone(ModulePermissions)
         self.assertIsNotNone(ModuleRegistry)
         self.assertIsNotNone(ModuleState)
+        self.assertIsNotNone(ModuleSubscription)
+        self.assertIsNotNone(ModuleValidationReport)
+        self.assertIsNotNone(ModuleValidator)
         self.assertIsNotNone(FrameworkModuleLoader)
         self.assertIsNotNone(ConversationStateManager)
         self.assertIsNotNone(CanonicalPersonalityManager)

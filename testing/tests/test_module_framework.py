@@ -9,7 +9,14 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from core.modules import ModuleManager, ModuleMetadata, ModulePermissions, ModuleState
+from core.modules import (
+    ModuleManager,
+    ModuleMetadata,
+    ModulePermissions,
+    ModuleState,
+    ModuleSubscription,
+    ModuleValidator,
+)
 from core.runtime.runtimeContext import RuntimeContext
 from modules.smartHome import SmartHomeModule
 from modules.spotify import SpotifyModule
@@ -149,6 +156,102 @@ class ModuleFrameworkTests(unittest.TestCase):
         from core.runtime.moduleLoader import ModuleLoader
 
         self.assertTrue(issubclass(ModuleLoader, ModuleManager))
+
+    def test_module_contract_models_round_trip(self):
+        """The core module contract models should serialize cleanly."""
+
+        metadata = ModuleMetadata(
+            name="contract",
+            version="2.1.0",
+            author="Aura",
+            description="Test module",
+            dependencies=("alpha",),
+            requiredPermissions=("spotify.control",),
+            capabilities=("music.playback",),
+            website="https://example.invalid/module",
+        )
+        intent = importlib.import_module("core.modules.base.moduleIntent").ModuleIntent(
+            name="contract.intent",
+            description="Contract intent",
+            arguments={"track": "string"},
+            target="runContract",
+            requiredArguments=("track",),
+            validationRequirements=("track",),
+        )
+        action = importlib.import_module("core.modules.base.moduleAction").ModuleAction(
+            name="contract.action",
+            description="Contract action",
+            method="runContract",
+            parameters={"track": "string"},
+            requiredParameters=("track",),
+            validationRequirements=("track",),
+            permissions=("spotify.control",),
+            capabilities=("music.playback",),
+        )
+        subscription = ModuleSubscription(
+            eventName="contract.event",
+            handler="handleContractEvent",
+            description="Contract subscription",
+            target="handleContractEvent",
+        )
+
+        self.assertEqual(metadata.asDict()["requiredPermissions"], ["spotify.control"])
+        self.assertEqual(metadata.asDict()["permissions"], ["spotify.control"])
+        self.assertEqual(metadata.asDict()["website"], "https://example.invalid/module")
+        self.assertEqual(intent.asDict()["validationRequirements"], ["track"])
+        self.assertEqual(action.asDict()["validationRequirements"], ["track"])
+        self.assertEqual(subscription.asDict()["handler"], "handleContractEvent")
+
+    def test_module_validator_rejects_invalid_package(self):
+        """The module validator should reject packages that do not expose the contract."""
+
+        validator = ModuleValidator(self._makeContext())
+        report = validator.validatePackage(object())
+
+        self.assertFalse(report.valid)
+        self.assertGreaterEqual(len(report.errors), 1)
+
+    def test_module_manager_registers_subscription_handlers(self):
+        """Module event subscriptions should register and bind to declared handlers."""
+
+        self._writePlugin(
+            "gamma",
+            """
+            from core.modules.base import AuraModule, ModuleMetadata, ModuleSubscription
+
+            MODULE_METADATA = ModuleMetadata(name="gamma")
+
+            def createModule(context=None):
+                return Gamma()
+
+            class Gamma(AuraModule):
+                metadata = MODULE_METADATA
+
+                def __init__(self):
+                    super().__init__()
+                    self.received = []
+
+                def getSubscriptions(self):
+                    return [ModuleSubscription(eventName="gamma.event", handler="handleGammaEvent")]
+
+                def handleGammaEvent(self, event):
+                    self.received.append(event)
+                    return event
+            """,
+        )
+
+        context = self._makeContext()
+        manager = ModuleManager(context, packageName=self.package_name)
+        manager.loadModules()
+
+        self.assertIn("gamma.event", context.eventManager.subscriptions)
+        handler = context.eventManager.subscriptions["gamma.event"][0]
+        self.assertTrue(callable(handler))
+
+        payload = {"name": "gamma.event", "data": {"value": 1}}
+        handler(payload)
+        gamma = manager.loadedModules["gamma"]
+        self.assertEqual(gamma.received, [payload])
 
     def test_example_modules_expose_standard_contract(self):
         """The initial example modules should expose metadata, actions, and intents."""

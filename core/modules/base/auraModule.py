@@ -7,6 +7,7 @@ from typing import Any, Iterable
 from core.modules.base.moduleAction import ModuleAction
 from core.modules.base.moduleIntent import ModuleIntent
 from core.modules.base.moduleMetadata import ModuleMetadata
+from core.modules.base.moduleSubscription import ModuleSubscription
 from core.modules.moduleContext import ModuleContext
 from core.modules.modulePermissions import ModulePermissions
 
@@ -51,6 +52,9 @@ class AuraModule:
     def shutdown(self):
         """Release module resources."""
 
+    def reload(self):
+        """Reload module state after configuration or package changes."""
+
     def _logStartup(self, message: str | None = None):
         """Emit one startup log line when the module has a logger."""
 
@@ -78,8 +82,8 @@ class AuraModule:
 
         return []
 
-    def getSubscriptions(self) -> list[str]:
-        """Return event names the module would like to subscribe to."""
+    def getSubscriptions(self) -> list[str | ModuleSubscription]:
+        """Return event subscriptions the module would like to register."""
 
         return []
 

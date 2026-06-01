@@ -5,6 +5,7 @@ from core.modules.base.moduleAction import ModuleAction
 from core.modules.base.moduleCapability import ModuleCapability
 from core.modules.base.moduleIntent import ModuleIntent
 from core.modules.base.moduleMetadata import ModuleMetadata
+from core.modules.base.moduleSubscription import ModuleSubscription
 
 __all__ = [
     "AuraModule",
@@ -12,4 +13,5 @@ __all__ = [
     "ModuleCapability",
     "ModuleIntent",
     "ModuleMetadata",
+    "ModuleSubscription",
 ]
