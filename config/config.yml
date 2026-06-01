@@ -101,6 +101,17 @@ spotify:
   defaultDevice: Desktop
   cachePath: spotify_cache.sqlite3
 
+email:
+  emailEnabled: true
+  emailMonitoringEnabled: true
+  emailSyncIntervalSeconds: 60
+  emailNotificationsEnabled: true
+  emailDefaultAccount:
+  emailCacheEnabled: true
+  emailRequireConfirmationToSend: true
+  emailRequireConfirmationToDelete: true
+  databasePath: aura_email.sqlite3
+
 safety:
   safetyLayerEnabled: true
   requireConfirmationForHighRisk: true
@@ -148,4 +159,5 @@ modules:
   notifications: enabled
   weather: enabled
   spotify: enabled
+  email: enabled
   smartHome: disabled

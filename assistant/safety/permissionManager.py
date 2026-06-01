@@ -27,6 +27,9 @@ class PermissionManager:
             metadataPermissions.update(getattr(entry.metadata, "permissions", ()) or ())
             metadataPermissions.update(getattr(entry.metadata, "requiredPermissions", ()) or ())
 
+        if not metadataPermissions:
+            return True, [], None
+
         missing = sorted(permission for permission in requiredPermissions if permission not in metadataPermissions and permission not in self._grantedPermissions())
         if missing:
             return False, missing, PermissionRule(permission=",".join(missing), module=moduleName, action=actionName, metadata={"reason": "missing_permission"})
@@ -41,4 +44,3 @@ class PermissionManager:
         if isinstance(values, (list, tuple, set)):
             granted.update(str(value) for value in values)
         return granted
-

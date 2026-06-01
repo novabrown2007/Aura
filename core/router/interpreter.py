@@ -32,6 +32,9 @@ class Interpreter:
         if self._isSpotifyCommand(normalized):
             intent_name = self._resolveSpotifyIntent(normalized)
             return Intent(name=intent_name, raw=text, data=self._extractSpotifyData(text, intent_name))
+        if self._isEmailCommand(normalized):
+            intent_name = self._resolveEmailIntent(normalized)
+            return Intent(name=intent_name, raw=text, data=self._extractEmailData(text, intent_name))
         if "weather" in normalized:
             intent_name = "weather.current"
             if any(term in normalized for term in ("forecast", "tomorrow", "today", "week", "hour", "rain", "snow", "will it", "chance")):
@@ -84,6 +87,26 @@ class Interpreter:
         )
 
     @staticmethod
+    def _isEmailCommand(normalized: str) -> bool:
+        return any(
+            term in normalized
+            for term in (
+                "email",
+                "mail",
+                "inbox",
+                "draft",
+                "subject",
+                "sender",
+                "recipient",
+                "archive",
+                "label",
+                "tag",
+                "unread",
+                "newsletter",
+            )
+        )
+
+    @staticmethod
     def _resolveSpotifyIntent(normalized: str) -> str:
         if any(term in normalized for term in ("pause", "stop music", "pause music")):
             return "spotify.pause"
@@ -106,6 +129,52 @@ class Interpreter:
         if "search" in normalized:
             return "spotify.search"
         return "spotify.play"
+
+    @staticmethod
+    def _resolveEmailIntent(normalized: str) -> str:
+        if any(term in normalized for term in ("draft", "compose", "write email")):
+            return "email.createDraft"
+        if any(term in normalized for term in ("send", "deliver", "email it")):
+            return "email.sendEmail"
+        if any(term in normalized for term in ("schedule", "later", "tomorrow morning", "tomorrow", "next week")):
+            return "email.scheduleEmail"
+        if any(term in normalized for term in ("delete", "remove email", "trash")):
+            return "email.deleteEmail"
+        if any(term in normalized for term in ("archive",)):
+            return "email.archiveEmail"
+        if any(term in normalized for term in ("label", "tag")):
+            return "email.applyLabel"
+        if any(term in normalized for term in ("unread", "new emails", "inbox", "show me my emails", "show emails")):
+            return "email.listInbox"
+        if "account" in normalized:
+            return "email.listAccounts"
+        if any(term in normalized for term in ("search", "find", "look up")):
+            return "email.searchEmails"
+        if any(term in normalized for term in ("drafts", "saved drafts")):
+            return "email.listDrafts"
+        return "email.listInbox"
+
+    @staticmethod
+    def _extractEmailData(text: str, intentName: str) -> dict:
+        lowered = str(text or "").strip()
+        data: dict[str, object] = {}
+        if intentName in {"email.searchEmails", "email.createDraft", "email.sendEmail", "email.scheduleEmail"}:
+            data["query"] = lowered
+        if intentName in {"email.readEmail", "email.deleteEmail", "email.archiveEmail", "email.applyLabel"}:
+            import re
+
+            match = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)", lowered)
+            if match:
+                data["accountId"] = match.group(1).split("@", 1)[0].lower()
+        if intentName == "email.scheduleEmail":
+            if any(term in lowered.lower() for term in ("tomorrow", "morning")):
+                data["sendAt"] = "tomorrow"
+        if intentName == "email.applyLabel":
+            for marker in ("as ", "tag as ", "label as "):
+                if marker in lowered.lower():
+                    data["label"] = lowered.lower().split(marker, 1)[1].strip(" .!")
+                    break
+        return data
 
     @staticmethod
     def _extractSpotifyData(text: str, intentName: str) -> dict:
