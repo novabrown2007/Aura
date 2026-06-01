@@ -381,6 +381,18 @@ safety:
   # Manually granted permissions for trusted actions.
   grantedPermissions: []
 
+execution:
+  # Whether Aura routes actions through the unified execution pipeline.
+  executionPipelineEnabled: true
+  # Whether execution-time validation is enforced.
+  executionValidationEnabled: true
+  # Whether execution audit logging is enabled.
+  executionAuditLoggingEnabled: true
+  # Whether async execution support is enabled.
+  allowAsyncExecution: true
+  # Default execution timeout in seconds.
+  executionTimeoutSeconds: 30
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

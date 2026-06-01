@@ -15,7 +15,10 @@ class TrustEvaluator:
         score = 0.8
         requestedBy = str(getattr(request, "requestedBy", "") or "").lower()
         source = str(getattr(request, "source", "") or "").lower()
-        confidence = float((getattr(request, "metadata", {}) or {}).get("confidence", 0.0) or 0.0)
+        metadata = getattr(request, "metadata", {}) or {}
+        if hasattr(metadata, "asDict"):
+            metadata = metadata.asDict()
+        confidence = float((metadata or {}).get("confidence", 0.0) or 0.0)
 
         if requestedBy in {"automation", "system"} or source in {"automation", "automation_composer"}:
             score = min(score, 0.45)
@@ -24,4 +27,3 @@ class TrustEvaluator:
         if confidence:
             score = min(1.0, (score + confidence) / 2.0)
         return score
-

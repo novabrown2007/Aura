@@ -47,6 +47,10 @@ class SafetyManager:
         if not self.enabled:
             return self.policyEngine.apply(request, tool=tool, confirmed=True)
 
+        requestMetadata = getattr(request, "metadata", {}) or {}
+        if hasattr(requestMetadata, "asDict"):
+            requestMetadata = requestMetadata.asDict()
+
         self._emit("action.requested", request.asDict() if hasattr(request, "asDict") else dict(request or {}))
 
         valid, error = self.actionValidator.validate(request, tool=tool)
@@ -57,6 +61,16 @@ class SafetyManager:
                 error or "Invalid action.",
                 tool=tool,
                 metadata={"error": error},
+            )
+            return decision
+
+        if tool is not None and getattr(tool, "category", "") == "ADMIN_ONLY" and not allowAdmin:
+            decision = self._deny(
+                request,
+                "DENIED",
+                "Tool requires admin permission.",
+                tool=tool,
+                metadata={"adminOnly": True},
             )
             return decision
 
@@ -97,7 +111,7 @@ class SafetyManager:
             trustScore=trustScore,
             rateLimited=False,
             cooldownRemaining=0.0,
-            confirmed=confirmed or bool((getattr(request, "metadata", {}) or {}).get("confirmed", False)),
+            confirmed=confirmed or bool((requestMetadata or {}).get("confirmed", False)),
         )
 
         if decision.decision == "REQUIRES_CONFIRMATION":
@@ -219,7 +233,7 @@ class SafetyManager:
 
         executionContext = values.get("executionContext") or {}
         if not isinstance(executionContext, ExecutionContext):
-            executionContext = ExecutionContext(**dict(executionContext))
+            executionContext = SafetyManager._executionContextFromValue(executionContext)
         return ExecutionRequest(
             requestId=str(values.get("requestId") or ""),
             source=str(values.get("source") or ""),
@@ -231,6 +245,29 @@ class SafetyManager:
             requestedBy=str(values.get("requestedBy") or ""),
             priority=str(values.get("priority") or "NORMAL"),
             metadata=dict(values.get("metadata") or {}),
+        )
+
+    @staticmethod
+    def _executionContextFromValue(value):
+        from assistant.safety.models import ExecutionContext
+
+        data = dict(value or {})
+        if "conversationContext" in data or "moduleContext" in data or "runtimeContext" in data:
+            return ExecutionContext(
+                conversation=dict(data.get("conversationContext") or {}),
+                memory=dict(data.get("moduleContext") or {}),
+                interface=dict(data.get("runtimeContext") or {}),
+                automation=dict(data.get("userContext") or {}),
+                trust=dict(data.get("permissionState") or {}),
+                metadata=dict(data.get("metadata") or {}),
+            )
+        return ExecutionContext(
+            conversation=dict(data.get("conversation") or {}),
+            memory=dict(data.get("memory") or {}),
+            interface=dict(data.get("interface") or {}),
+            automation=dict(data.get("automation") or {}),
+            trust=dict(data.get("trust") or {}),
+            metadata=dict(data.get("metadata") or {}),
         )
 
     def shutdown(self):

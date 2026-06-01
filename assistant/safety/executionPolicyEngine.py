@@ -44,7 +44,10 @@ class ExecutionPolicyEngine:
 
         risk = self._riskFor(tool, request)
         source = str(getattr(request, "source", "") or "").lower()
-        automation = source in {"automation", "automation_composer"} or bool((getattr(request, "metadata", {}) or {}).get("automation", False))
+        metadata = getattr(request, "metadata", {}) or {}
+        if hasattr(metadata, "asDict"):
+            metadata = metadata.asDict()
+        automation = source in {"automation", "automation_composer"} or bool((metadata or {}).get("automation", False))
         config = getattr(self.context, "config", None)
         requireHighRiskConfirmation = self._configBool(config, "safety.requireConfirmationForHighRisk", True)
         allowAutomationWithoutConfirmation = self._configBool(config, "safety.allowAutomationWithoutConfirmation", False)
@@ -52,6 +55,9 @@ class ExecutionPolicyEngine:
 
         if not permissionsOk:
             return ExecutionDecision(decision="DENIED", reason="Missing required permission.", riskLevel=risk)
+
+        if bool(getattr(tool, "confirmRequired", False)) and not confirmed:
+            return ExecutionDecision(decision="REQUIRES_CONFIRMATION", reason="Action requires confirmation.", requiresConfirmation=True, riskLevel=risk)
 
         if risk == ExecutionRisk.CRITICAL and automation and denyCriticalAutomation and not confirmed:
             return ExecutionDecision(decision="DENIED", reason="Critical automation is not allowed.", riskLevel=risk)
@@ -92,4 +98,3 @@ class ExecutionPolicyEngine:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
-

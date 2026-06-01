@@ -106,6 +106,9 @@ class RuntimeContext:
         self.toolExecutor = None
         """Executor responsible for validating and running registered tools."""
 
+        self.executionManager = None
+        """Unified assistant execution coordinator and action pipeline."""
+
         self.toolOrchestrator = None
         """Core tool schema, validation, and execution orchestration service."""
 

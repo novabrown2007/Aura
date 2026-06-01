@@ -31,6 +31,29 @@ class ToolExecutor:
         if observability is not None:
             observability.recordTrace("tool", toolName, status="started")
 
+        executionManager = getattr(self.context, "executionManager", None)
+        if executionManager is None:
+            try:
+                from assistant.execution import ExecutionManager
+
+                executionManager = ExecutionManager(self.context)
+            except Exception:
+                executionManager = None
+        if executionManager is not None and hasattr(executionManager, "executeToolCall"):
+            try:
+                result = executionManager.executeToolCall(
+                    toolName,
+                    arguments or {},
+                    offlineMode=offlineMode,
+                    confirmed=confirmed,
+                    allowAdmin=allowAdmin,
+                )
+                self._recordToolTrace(observability, toolName, result)
+                return result
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Execution manager failed for {toolName}: {error}")
+
         registry = getattr(self.context, "toolRegistry", None)
         if registry is None:
             result = self._failure(toolName, "Tool registry is unavailable.")

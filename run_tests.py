@@ -1,8 +1,13 @@
 """Core implementation for `run_tests` in the Aura assistant project."""
 
 import argparse
+from pathlib import Path
 import sys
 import unittest
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 SUITES = {
@@ -33,6 +38,7 @@ SUITES = {
     ),
     "semantic_memory": "testing.tests.test_semantic_memory",
     "architecture": "testing.tests.test_architecture",
+    "execution": "testing.tests.test_execution_pipeline",
     "module_framework": "testing.tests.test_module_framework",
     "observability": "testing.tests.test_observability",
     "events": "testing.tests.test_events",
@@ -97,7 +103,7 @@ def buildSuite(suiteName: str):
 
     loader = unittest.TestLoader()
     if suiteName == "all":
-        return loader.discover("testing/tests")
+        return loader.discover("testing/tests", top_level_dir=str(ROOT))
 
     suite = unittest.TestSuite()
     for target in _suiteTargets(SUITES[suiteName]):
