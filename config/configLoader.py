@@ -121,6 +121,14 @@ DEFAULT_USER_CONFIG = {
         "responseFollowupsEnabled": True,
         "responseValidationEnabled": True,
     },
+    "clarification": {
+        "clarificationEnabled": True,
+        "clarificationTimeoutSeconds": 60,
+        "allowMultipleClarificationAttempts": True,
+        "maxClarificationAttempts": 3,
+        "clarificationUiEnabled": True,
+        "clarificationVoiceEnabled": True,
+    },
     "interface": {
         "desktop": {
             "windows": {
@@ -283,6 +291,14 @@ DEFAULT_DEV_CONFIG = {
     },
     "conversation": {
         "conversationTimeoutSeconds": 300,
+    },
+    "clarification": {
+        "clarificationEnabled": True,
+        "clarificationTimeoutSeconds": 60,
+        "allowMultipleClarificationAttempts": True,
+        "maxClarificationAttempts": 3,
+        "clarificationUiEnabled": True,
+        "clarificationVoiceEnabled": True,
     },
     "personality": {
         "personalityEnabled": True,
@@ -618,6 +634,12 @@ class ConfigLoader:
             "developerUIMaxEvents": "DEVELOPER_UI_MAX_EVENTS",
             "developerUIVerboseLogging": "DEVELOPER_UI_VERBOSE_LOGGING",
             "developerUITraceEvents": "DEVELOPER_UI_TRACE_EVENTS",
+            "clarificationEnabled": "clarification.clarificationEnabled",
+            "clarificationTimeoutSeconds": "clarification.clarificationTimeoutSeconds",
+            "allowMultipleClarificationAttempts": "clarification.allowMultipleClarificationAttempts",
+            "maxClarificationAttempts": "clarification.maxClarificationAttempts",
+            "clarificationUiEnabled": "clarification.clarificationUiEnabled",
+            "clarificationVoiceEnabled": "clarification.clarificationVoiceEnabled",
             "personality.personalityEnabled": "PERSONALITY_ENABLED",
             "personality.humorEnabled": "PERSONALITY_HUMOR_ENABLED",
             "personality.suggestionsEnabled": "PERSONALITY_SUGGESTIONS_ENABLED",

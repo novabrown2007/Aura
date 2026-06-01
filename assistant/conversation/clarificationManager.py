@@ -1,6 +1,5 @@
 """Compatibility alias for Aura clarification management."""
 
-from core.conversation import ClarificationManager
+from assistant.clarification import ClarificationManager
 
 __all__ = ["ClarificationManager"]
-

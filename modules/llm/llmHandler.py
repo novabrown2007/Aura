@@ -154,6 +154,9 @@ class LLMHandler(AuraModule):
         self._logConversation(userInput, cleaned)
         if self.responseManager is not None:
             try:
+                clarification = None
+                if self.intentPipeline is not None:
+                    clarification = getattr(self.intentPipeline, "lastClarification", None)
                 structured = self.responseManager.createResponse(
                     userInput,
                     providerResponse=providerResponse,
@@ -162,6 +165,7 @@ class LLMHandler(AuraModule):
                     metadata={
                         "provider": getattr(providerResponse, "provider", "") if providerResponse is not None else "",
                         "confidence": float(getattr(providerResponse, "confidence", 0.0) or 0.0),
+                        "clarification": clarification,
                     },
                 )
                 self.lastStructuredResponse = structured

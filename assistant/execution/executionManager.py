@@ -61,6 +61,22 @@ class ExecutionManager:
         )
         if offlineMode:
             request.executionContext.runtimeContext["offlineMode"] = True
+        if tool is not None and self._toolCategory(tool) == "ADMIN_ONLY" and not allowAdmin:
+            denied = self.pipeline.resultHandler.normalize(
+                request,
+                result=None,
+                status="DENIED",
+                errors=[f"Tool requires admin permission: {toolName}"],
+            )
+            result = denied.asDict() if hasattr(denied, "asDict") else dict(denied or {})
+            legacy = {
+                "success": False,
+                "toolName": toolName,
+                "status": result.get("status", "DENIED"),
+                "result": result.get("result"),
+                "error": result.get("errors", ["Execution denied."])[0],
+            }
+            return legacy
         execution = self.execute(request, confirmed=confirmed, allowAdmin=allowAdmin, offlineMode=offlineMode, tool=tool)
         result = execution.asDict()
         legacy = {
@@ -132,3 +148,10 @@ class ExecutionManager:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def _toolCategory(tool) -> str:
+        category = getattr(tool, "category", "")
+        if hasattr(category, "value"):
+            category = category.value
+        return str(category or "").upper()

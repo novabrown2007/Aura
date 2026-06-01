@@ -1,5 +1,23 @@
 """Assistant cognition and behavior layer for Aura."""
 
+from assistant.clarification import (
+    AmbiguityDetector,
+    AmbiguityResult,
+    ClarificationContextManager,
+    ClarificationEngine,
+    ClarificationEventHandler,
+    ClarificationManager,
+    ClarificationOption,
+    ClarificationRequest,
+    ClarificationResolver,
+    ClarificationResponseBuilder,
+    ClarificationSession,
+    ClarificationSessionManager,
+    ClarificationState,
+    ClarificationState as ClarificationSessionState,
+    ClarificationTimeoutManager,
+    ClarificationType,
+)
 from assistant.responses import (
     AssistantResponse,
     ResponseAction,
@@ -54,8 +72,24 @@ from assistant.safety import (
 
 __all__ = [
     "AssistantResponse",
+    "AmbiguityDetector",
+    "AmbiguityResult",
     "DeliveryStrategyManager",
     "EscalationManager",
+    "ClarificationContextManager",
+    "ClarificationEngine",
+    "ClarificationEventHandler",
+    "ClarificationManager",
+    "ClarificationOption",
+    "ClarificationRequest",
+    "ClarificationResolver",
+    "ClarificationResponseBuilder",
+    "ClarificationSession",
+    "ClarificationSessionManager",
+    "ClarificationState",
+    "ClarificationSessionState",
+    "ClarificationTimeoutManager",
+    "ClarificationType",
     "ResponseAction",
     "ResponseBuilder",
     "ResponseContext",

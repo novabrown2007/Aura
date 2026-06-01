@@ -98,11 +98,11 @@ class ToolExecutor:
             result = self._failure(toolName, f"Tool is not available in offline mode: {toolName}")
             self._recordToolTrace(observability, toolName, result)
             return result
-        if tool.category == ToolCategory.ADMIN_ONLY and not allowAdmin:
+        if self._toolCategory(tool) == "ADMIN_ONLY" and not allowAdmin:
             result = self._failure(toolName, f"Tool requires admin permission: {toolName}", adminOnly=True)
             self._recordToolTrace(observability, toolName, result)
             return result
-        if (tool.confirmRequired or tool.category == ToolCategory.CONFIRM_REQUIRED) and not confirmed:
+        if (tool.confirmRequired or self._toolCategory(tool) == "CONFIRM_REQUIRED") and not confirmed:
             result = self._failure(toolName, f"Tool requires confirmation: {toolName}", confirmRequired=True)
             self._recordToolTrace(observability, toolName, result)
             return result
@@ -196,9 +196,9 @@ class ToolExecutor:
             return False, f"Unknown tool: {toolName}"
         if offlineMode and not tool.offlineAllowed:
             return False, f"Tool is not available in offline mode: {toolName}"
-        if tool.category == ToolCategory.ADMIN_ONLY and not allowAdmin:
+        if self._toolCategory(tool) == "ADMIN_ONLY" and not allowAdmin:
             return False, f"Tool requires admin permission: {toolName}"
-        if (tool.confirmRequired or tool.category == ToolCategory.CONFIRM_REQUIRED) and not confirmed:
+        if (tool.confirmRequired or self._toolCategory(tool) == "CONFIRM_REQUIRED") and not confirmed:
             return False, f"Tool requires confirmation: {toolName}"
         return tool.validateArguments(arguments or {})
 
@@ -231,3 +231,10 @@ class ToolExecutor:
         result = {"success": False, "toolName": toolName, "error": error}
         result.update(extra)
         return result
+
+    @staticmethod
+    def _toolCategory(tool) -> str:
+        category = getattr(tool, "category", "")
+        if hasattr(category, "value"):
+            category = category.value
+        return str(category or "").upper()

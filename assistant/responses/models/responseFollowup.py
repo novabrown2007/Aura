@@ -13,6 +13,7 @@ class ResponseFollowup:
     prompt: str = ""
     kind: str = "clarification"
     required: bool = False
+    options: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def asDict(self) -> dict[str, Any]:
@@ -20,5 +21,6 @@ class ResponseFollowup:
             "prompt": self.prompt,
             "kind": self.kind,
             "required": bool(self.required),
+            "options": list(self.options or []),
             "metadata": dict(self.metadata or {}),
         }

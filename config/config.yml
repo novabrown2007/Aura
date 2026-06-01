@@ -73,6 +73,14 @@ notifications:
   quietHoursEnabled: false
   quietHoursActive: false
 
+clarification:
+  clarificationEnabled: true
+  clarificationTimeoutSeconds: 60
+  allowMultipleClarificationAttempts: true
+  maxClarificationAttempts: 3
+  clarificationUiEnabled: true
+  clarificationVoiceEnabled: true
+
 personalSchedule:
   personalScheduleEnabled: true
   scheduleNotificationsEnabled: true

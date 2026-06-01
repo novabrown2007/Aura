@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.conversation.clarificationManager import ClarificationManager
+from assistant.clarification import ClarificationManager
 from core.conversation.conversationContext import ConversationContext
 from core.conversation.conversationTracker import ConversationTracker
 from core.conversation.events import ConversationEvents
@@ -27,12 +27,13 @@ class ConversationManager:
         self.context = ConversationContext(timeoutSeconds=self.timeoutSeconds)
         self.tracker = ConversationTracker(self.context)
         self.followups = FollowupResolver()
-        self.clarifications = ClarificationManager(self.context)
+        self.clarifications = ClarificationManager(self.runtimeContext, conversationContext=self.context)
         self.actions = ActionTracker()
         self.entities = EntityTracker()
         self.topics = TopicTracker()
         if context is not None:
             context.conversationManager = self
+            context.clarificationManager = self.clarifications
 
     def preprocessInput(self, userInput: str, sessionId: str = "default") -> str:
         """Resolve references before the provider or intent pipeline sees text."""
@@ -73,12 +74,26 @@ class ConversationManager:
             self.logger.info(f"Tracked conversational action: {intent}")
 
     def startClarification(self, question: str, pendingIntent: dict[str, Any], missingField: str = ""):
-        self.clarifications.start(question, pendingIntent, missingField)
-        self._emit(ConversationEvents.CLARIFICATION_STARTED, self.context.state.pendingClarification.asDict())
+        self.context.setClarification(question, pendingIntent, missingField)
+        result = self.clarifications.start(question, pendingIntent, missingField, conversationId=self.context.state.sessionId)
+        session = result.get("session") if isinstance(result, dict) else None
+        payload = session.asDict() if hasattr(session, "asDict") else (session if isinstance(session, dict) else self.context.state.pendingClarification.asDict())
+        self._emit(ConversationEvents.CLARIFICATION_STARTED, payload)
+        return result
 
     def completeClarification(self):
         details = self.context.state.pendingClarification.asDict()
-        self.clarifications.complete()
+        if not details.get("active"):
+            lastRequest = getattr(self.clarifications, "lastRequest", None)
+            if lastRequest is not None and hasattr(lastRequest, "asDict"):
+                details = lastRequest.asDict()
+        active = self.clarifications.getPending(self.context.state.sessionId)
+        sessionId = str(active.get("sessionId") or "")
+        if not sessionId:
+            sessionId = str(getattr(self.clarifications, "lastSessionId", "") or "")
+        if sessionId:
+            self.clarifications.complete(sessionId)
+        self.context.clearClarification()
         self._emit(ConversationEvents.CLARIFICATION_COMPLETED, details)
 
     def reset(self, reason: str = "manual"):
@@ -92,6 +107,7 @@ class ConversationManager:
         data["activeTopic"] = activeTopic.asDict() if activeTopic else {}
         data["activeEntity"] = activeEntity.asDict() if activeEntity else {}
         data["followupChainLength"] = len(self.context.state.followupChains)
+        data["clarification"] = self.clarifications.snapshot()
         return data
 
     def _expireIfNeeded(self):
@@ -117,4 +133,3 @@ class ConversationManager:
         if config is None:
             return default
         return config.get(key, default)
-

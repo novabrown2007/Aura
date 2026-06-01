@@ -19,6 +19,7 @@ class ResponseContextManager:
         memory = self._snapshot("memoryManager")
         interface = self._snapshot("desktopOverlayManager")
         interruption = self._snapshot("interruptionManager")
+        clarification = self._snapshot("clarificationManager")
         sessionId = ""
         session = getattr(self.context, "sessionManager", None)
         if session is not None and hasattr(session, "currentSessionId"):
@@ -29,6 +30,7 @@ class ResponseContextManager:
             memory=memory,
             interface=interface,
             interruption=interruption,
+            clarification=clarification,
             sessionId=sessionId,
             userInput=str(userInput or ""),
         )
@@ -46,6 +48,9 @@ class ResponseContextManager:
         if eventName.startswith("conversation."):
             self.lastContext.conversation["lastEvent"] = eventName
             self.lastContext.conversation["lastPayload"] = payload
+        if eventName.startswith("clarification."):
+            self.lastContext.clarification["lastEvent"] = eventName
+            self.lastContext.clarification["lastPayload"] = payload
         return self.lastContext
 
     def snapshot(self) -> dict:

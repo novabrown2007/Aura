@@ -17,6 +17,7 @@ SUITES = {
     "threading_scheduler": "testing.tests.test_threading_scheduler",
     "context_awareness": "testing.tests.test_context_awareness",
     "conversation_continuity": "testing.tests.test_conversation_continuity",
+    "clarification": "testing.tests.test_clarification",
     "personality": "testing.tests.test_personality",
     "notification_priority": "testing.tests.test_notification_priority",
     "weather": "testing.tests.test_weather_module",

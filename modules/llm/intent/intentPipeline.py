@@ -26,6 +26,8 @@ class IntentPipeline:
         self.recentToolContext: list[dict[str, Any]] = []
         self.contextWindow = int(self._getConfigValue("llm.intent.contextWindow", 6))
         self.pendingClarification: dict[str, Any] | None = None
+        self.lastClarification: dict[str, Any] | None = None
+        self.clarificationManager = self._clarificationManager()
 
     def handleUserInput(
         self,
@@ -58,6 +60,7 @@ class IntentPipeline:
         if lowConfidence:
             lowest = min(lowConfidence, key=lambda item: item.confidence)
             self._logStage("VALIDATION", f"Confidence below threshold: {lowest.confidence}")
+            self._storePendingClarification(lowest, f"Low confidence: {lowest.confidence}")
             return self.askClarification(lowest)
 
         if all(self.tools.isConversationIntent(intent.intent) for intent in intents):
@@ -133,14 +136,64 @@ class IntentPipeline:
 
         if self._isCancellation(userInput):
             self.pendingClarification = None
+            self.lastClarification = None
             self._completeConversationClarification()
             self._logStage("CLARIFICATION", "Cancelled pending intent")
             return "Okay, I won't worry about that for now."
 
         missingParameter = self.pendingClarification.get("missingParameter")
         pendingIntent = self.pendingClarification.get("intent")
+        sessionId = str(self.pendingClarification.get("sessionId") or "")
+
+        if self.clarificationManager is not None and sessionId:
+            try:
+                resolution = self.clarificationManager.resolveResponse(
+                    userInput,
+                    conversationId=self._clarificationConversationId(),
+                    sessionId=sessionId,
+                )
+            except Exception as error:
+                resolution = {"resolved": False, "reason": str(error)}
+
+            if resolution.get("resolved"):
+                resolvedValue = resolution.get("result", {}).get("value")
+                if resolvedValue is None and missingParameter:
+                    resolvedValue = self._extractClarificationValue(userInput, missingParameter, allowBare=True)
+                if missingParameter and isinstance(pendingIntent, StructuredIntent):
+                    completedIntent = self._withUpdatedArgument(pendingIntent, missingParameter, resolvedValue)
+                    validation = self.validateIntents([completedIntent])
+                    if not validation["success"]:
+                        self._storePendingClarification(completedIntent, validation["error"])
+                        return self.askClarification(completedIntent, validation["error"])
+
+                    self.pendingClarification = None
+                    self.lastClarification = None
+                    self._completeConversationClarification()
+                    self._logStage("CLARIFICATION", f"Resolved {missingParameter}")
+                    return self._executeValidatedIntents(
+                        baseSystemPrompt,
+                        userInput,
+                        [completedIntent],
+                        conversationHistory,
+                        confirmed=confirmed,
+                    )
+
+                self.pendingClarification = None
+                self.lastClarification = None
+                self._completeConversationClarification()
+                self._logStage("CLARIFICATION", "Resolved clarification")
+                return None
+
+            if resolution.get("cancelled") or resolution.get("timedOut"):
+                self.pendingClarification = None
+                self.lastClarification = None
+                self._completeConversationClarification()
+                self._logStage("CLARIFICATION", "Stale clarification cleared")
+                return None
+
         if not missingParameter or not isinstance(pendingIntent, StructuredIntent):
             self.pendingClarification = None
+            self.lastClarification = None
             self._completeConversationClarification()
             return None
 
@@ -148,6 +201,7 @@ class IntentPipeline:
         if value is None:
             if self._looksLikeNewConversation(userInput):
                 self.pendingClarification = None
+                self.lastClarification = None
                 self._completeConversationClarification()
                 self._logStage("CLARIFICATION", "Cleared stale pending intent")
                 return None
@@ -160,6 +214,7 @@ class IntentPipeline:
             return self.askClarification(completedIntent, validation["error"])
 
         self.pendingClarification = None
+        self.lastClarification = None
         self._completeConversationClarification()
         self._logStage("CLARIFICATION", f"Resolved {missingParameter}")
         return self._executeValidatedIntents(
@@ -194,21 +249,63 @@ class IntentPipeline:
         """Remember one incomplete tool intent so the next short reply can finish it."""
 
         missingParameter = self._missingRequiredParameter(reason)
-        if not missingParameter:
-            self.pendingClarification = None
-            return
-        self.pendingClarification = {
-            "intent": intent,
-            "missingParameter": missingParameter,
-            "reason": reason,
-        }
+        clarificationManager = self._clarificationManager()
+        question = self.askClarification(intent, reason)
+        conversationId = self._clarificationConversationId()
+        stored = None
+        if clarificationManager is not None and hasattr(clarificationManager, "requestClarification"):
+            try:
+                stored = clarificationManager.requestClarification(
+                    intent.asDict(),
+                    question=question,
+                    clarificationType=self._clarificationTypeForReason(reason, missingParameter),
+                    requiredParameter=missingParameter,
+                    conversationId=conversationId,
+                    metadata={"reason": reason, "missingParameter": missingParameter},
+                )
+            except Exception as error:
+                if self.logger:
+                    self.logger.debug(f"Clarification manager request failed: {error}")
+
+        if stored is not None:
+            session = stored.get("session") if isinstance(stored, dict) else None
+            request = stored.get("request") if isinstance(stored, dict) else None
+            self.lastClarification = request.asDict() if hasattr(request, "asDict") else dict(request or {})
+            self.pendingClarification = {
+                "intent": intent,
+                "missingParameter": missingParameter,
+                "reason": reason,
+                "sessionId": self._sessionIdFromValue(session if session is not None else stored.get("session")),
+                "requestId": self.lastClarification.get("requestId", ""),
+                "question": self.lastClarification.get("question", question),
+                "clarificationType": self.lastClarification.get("clarificationType", self._clarificationTypeForReason(reason, missingParameter).value),
+            }
+        else:
+            if not missingParameter:
+                self.pendingClarification = None
+                self.lastClarification = None
+                return
+            self.pendingClarification = {
+                "intent": intent,
+                "missingParameter": missingParameter,
+                "reason": reason,
+                "question": question,
+                "clarificationType": self._clarificationTypeForReason(reason, missingParameter).value,
+            }
         conversationManager = getattr(self.context, "conversationManager", None)
-        if conversationManager is not None and hasattr(conversationManager, "startClarification"):
-            conversationManager.startClarification(
-                self.askClarification(intent, reason),
+        if conversationManager is not None and hasattr(conversationManager, "startClarification") and stored is None:
+            stored = conversationManager.startClarification(
+                question,
                 intent.asDict(),
                 missingField=missingParameter,
             )
+            session = stored.get("session") if isinstance(stored, dict) else None
+            request = stored.get("request") if isinstance(stored, dict) else None
+            self.lastClarification = request.asDict() if hasattr(request, "asDict") else dict(request or {})
+            self.pendingClarification["sessionId"] = self._sessionIdFromValue(session if session is not None else stored.get("session"))
+            self.pendingClarification["requestId"] = self.lastClarification.get("requestId", "")
+            self.pendingClarification["question"] = self.lastClarification.get("question", question)
+            self.pendingClarification["clarificationType"] = self.lastClarification.get("clarificationType", self._clarificationTypeForReason(reason, missingParameter).value)
         self._logStage("CLARIFICATION", f"Waiting for {missingParameter}")
 
     def _completeConversationClarification(self):
@@ -488,6 +585,49 @@ class IntentPipeline:
         if reason:
             return f"I need one more detail before I can do that: {reason}"
         return "I want to make sure I understood correctly. What exactly should I do?"
+
+    def _clarificationManager(self):
+        manager = getattr(self.context, "clarificationManager", None)
+        if manager is not None:
+            return manager
+        conversationManager = getattr(self.context, "conversationManager", None)
+        if conversationManager is not None:
+            return getattr(conversationManager, "clarifications", None)
+        return None
+
+    def _clarificationConversationId(self) -> str:
+        conversationManager = getattr(self.context, "conversationManager", None)
+        if conversationManager is not None:
+            state = getattr(getattr(conversationManager, "context", None), "state", None)
+            return str(getattr(state, "sessionId", "") or "")
+        session = getattr(self.context, "sessionManager", None)
+        if session is not None and hasattr(session, "currentSessionId"):
+            return str(getattr(session, "currentSessionId", "") or "")
+        return "default"
+
+    @staticmethod
+    def _clarificationTypeForReason(reason: str | None, missingParameter: str | None = None):
+        from assistant.clarification.models import ClarificationType
+
+        if missingParameter:
+            if missingParameter in {"time", "start_time", "due_time"}:
+                return ClarificationType.TIME_SELECTION
+            if missingParameter in {"location", "room", "place"}:
+                return ClarificationType.LOCATION_SELECTION
+            if missingParameter in {"account", "email_account"}:
+                return ClarificationType.ACCOUNT_SELECTION
+            return ClarificationType.MISSING_PARAMETER
+        if reason and "confidence" in reason.lower():
+            return ClarificationType.LOW_CONFIDENCE
+        return ClarificationType.MULTIPLE_OPTIONS if reason and "multiple" in reason.lower() else ClarificationType.MISSING_PARAMETER
+
+    @staticmethod
+    def _sessionIdFromValue(value) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            return str(value.get("sessionId") or "")
+        return str(getattr(value, "sessionId", "") or "")
 
     def _generateConversationReply(
         self,
