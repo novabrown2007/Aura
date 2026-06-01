@@ -93,6 +93,20 @@ class DeveloperUIState:
             "history": {},
             "lastUpdated": "",
         }
+        self.desktopOverlay = {
+            "available": False,
+            "enabled": False,
+            "visible": False,
+            "trayActive": False,
+            "bubbleVisible": False,
+            "quickInteractionVisible": False,
+            "assistantStatus": {},
+            "overlayPosition": {},
+            "notificationCount": 0,
+            "lastEvent": "",
+            "lastUpdated": "",
+            "error": "",
+        }
         self.errors = deque(maxlen=200)
         self.system = {}
         self.conversation = {"available": False}
@@ -151,6 +165,14 @@ class DeveloperUIState:
             state = dict(self.notificationCenter or {})
             state.update(dict(notificationState or {}))
             self.notificationCenter = state
+
+    def updateDesktopOverlay(self, overlayState: dict[str, Any]):
+        """Update the Windows desktop overlay state."""
+
+        with self._lock:
+            state = dict(self.desktopOverlay or {})
+            state.update(dict(overlayState or {}))
+            self.desktopOverlay = state
 
     def updateMemoryDebug(self, debugOutput: str):
         """Parse and store memory retrieval debug output."""
@@ -254,6 +276,7 @@ class DeveloperUIState:
                 bridge=dict(self.bridge),
                 notifications=list(self.notifications),
                 notificationCenter=dict(self.notificationCenter),
+                desktopOverlay=dict(self.desktopOverlay),
                 errors=list(self.errors),
                 system=system,
                 performance=dict(self.performance),
@@ -315,6 +338,9 @@ class DeveloperUIState:
         elif name.startswith("notification") or "notification" in name:
             self.notifications.append({"timestamp": event.timestamp, "name": name, "payload": payload})
             self._applyNotificationEvent(name, payload, event.timestamp)
+        elif name.startswith("desktop.overlay") or name.startswith("overlay"):
+            if isinstance(payload, dict):
+                self.updateDesktopOverlay(payload)
         if event.error or "error" in name or payload.get("error") or payload.get("errorMessage"):
             self.errors.append({"timestamp": event.timestamp, "name": name, "payload": payload, "error": event.error or payload.get("error") or payload.get("errorMessage")})
 

@@ -131,6 +131,7 @@ class UISubscriptionManager:
                 self.state.updateConversation(snapshot.get("conversation", {}))
                 self.state.updateVADState(snapshot.get("vad", {}))
                 self.state.updateNotifications(snapshot.get("notifications", {}))
+                self.state.updateDesktopOverlay(snapshot.get("desktopOverlay", {}))
                 memoryState = snapshot.get("memory", {}) or {}
                 if isinstance(memoryState, dict) and memoryState.get("semantic"):
                     self.state.updateSemanticMemory(memoryState.get("semantic", {}))

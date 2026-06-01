@@ -101,6 +101,9 @@ def shutdown(context):
     if getattr(context, "notificationManager", None):
         context.notificationManager.shutdown()
 
+    if getattr(context, "desktopOverlayManager", None):
+        context.desktopOverlayManager.shutdownUi()
+
     if context.database:
         context.database.close()
 

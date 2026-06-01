@@ -56,6 +56,23 @@ DEFAULT_USER_CONFIG = {
         "quietHoursEnabled": False,
         "quietHoursActive": False,
     },
+    "interface": {
+        "desktop": {
+            "windows": {
+                "desktopOverlayEnabled": True,
+                "assistantBubbleEnabled": True,
+                "systemTrayEnabled": True,
+                "minimizeToTrayOnClose": True,
+                "overlayAlwaysOnTop": True,
+                "overlayOpacity": 0.84,
+                "overlayAnimationsEnabled": True,
+                "overlayNotificationsEnabled": True,
+                "overlayCompactMode": True,
+                "overlayStartMinimized": False,
+                "overlayBubbleDiameter": 56,
+            },
+        },
+    },
     "modules": {
         "llm": "enabled",
         "calendar": "enabled",
@@ -275,6 +292,17 @@ CONFIG_ALIASES = {
     "vadMinSpeechDuration": "voice.vad.vadMinSpeechDuration",
     "vadMaxRecordingDuration": "voice.vad.vadMaxRecordingDuration",
     "vadDebugLogging": "voice.vad.vadDebugLogging",
+    "desktopOverlayEnabled": "interface.desktop.windows.desktopOverlayEnabled",
+    "assistantBubbleEnabled": "interface.desktop.windows.assistantBubbleEnabled",
+    "systemTrayEnabled": "interface.desktop.windows.systemTrayEnabled",
+    "minimizeToTrayOnClose": "interface.desktop.windows.minimizeToTrayOnClose",
+    "overlayAlwaysOnTop": "interface.desktop.windows.overlayAlwaysOnTop",
+    "overlayOpacity": "interface.desktop.windows.overlayOpacity",
+    "overlayAnimationsEnabled": "interface.desktop.windows.overlayAnimationsEnabled",
+    "overlayNotificationsEnabled": "interface.desktop.windows.overlayNotificationsEnabled",
+    "overlayCompactMode": "interface.desktop.windows.overlayCompactMode",
+    "overlayStartMinimized": "interface.desktop.windows.overlayStartMinimized",
+    "overlayBubbleDiameter": "interface.desktop.windows.overlayBubbleDiameter",
 }
 
 
