@@ -159,9 +159,15 @@ and keeps prompt injection lightweight and explainable.
 
 ## Interfaces
 
-The legacy interface packages were removed in this reset. The backend now emits
-presentation, notification, and execution events, and the new surfaces will read
-those streams instead of being controlled directly from backend modules.
+The first rebuilt surface is a blank desktop window that serves as the starting
+shell for the new presentation layer. It does not render runtime state yet; it
+just opens an empty window.
+
+Launch it with:
+
+```powershell
+python scripts/run_blank_window.py
+```
 
 ## Home Automation
 
