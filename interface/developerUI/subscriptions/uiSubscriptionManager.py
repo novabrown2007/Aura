@@ -76,6 +76,11 @@ class UISubscriptionManager:
         "conversation.context.expired",
         "conversation.clarification.started",
         "conversation.clarification.completed",
+        "clarification.requested",
+        "clarification.resolved",
+        "clarification.timed_out",
+        "clarification.cancelled",
+        "clarification.failed",
         "personality.suggestion.generated",
         "error",
     )

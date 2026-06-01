@@ -19,6 +19,7 @@ class ResponseMetadata:
     interruptionFlags: dict[str, Any] = field(default_factory=dict)
     streamingEnabled: bool = False
     deliveryResults: dict[str, Any] = field(default_factory=dict)
+    notes: dict[str, Any] = field(default_factory=dict)
 
     def asDict(self) -> dict[str, Any]:
         return {
@@ -31,4 +32,5 @@ class ResponseMetadata:
             "interruptionFlags": dict(self.interruptionFlags or {}),
             "streamingEnabled": bool(self.streamingEnabled),
             "deliveryResults": dict(self.deliveryResults or {}),
+            "notes": dict(self.notes or {}),
         }

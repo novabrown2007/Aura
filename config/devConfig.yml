@@ -257,6 +257,20 @@ conversation:
   # Seconds of inactivity before short-term conversational context resets.
   conversationTimeoutSeconds: 300
 
+clarification:
+  # Whether Aura asks natural follow-up clarifications when inputs are ambiguous.
+  clarificationEnabled: true
+  # How long a clarification stays pending before timing out.
+  clarificationTimeoutSeconds: 60
+  # Whether multiple clarification turns are allowed for one request.
+  allowMultipleClarificationAttempts: true
+  # Maximum clarification replies before a request is cancelled.
+  maxClarificationAttempts: 3
+  # Whether clarification prompts should be shown in the UI.
+  clarificationUiEnabled: true
+  # Whether clarification prompts should be spoken.
+  clarificationVoiceEnabled: true
+
 personality:
   # Controlled conversational style layer. This never overrides valid commands.
   personalityEnabled: true

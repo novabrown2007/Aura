@@ -32,6 +32,10 @@ class ResponseBuilder:
 
         providerPayload = self._providerPayload(providerResponse)
         structured = providerPayload if isinstance(providerPayload, dict) else {}
+        metadataPayload = dict(metadata or {})
+        clarificationPayload = metadataPayload.get("clarification")
+        if clarificationPayload is None and isinstance(structured.get("metadata"), dict):
+            clarificationPayload = structured.get("metadata", {}).get("clarification")
         responseText = (
             spokenText
             or uiText
@@ -43,8 +47,8 @@ class ResponseBuilder:
             uiText=str(structured.get("uiText") or responseText),
             notifications=self._buildNotifications(structured.get("notifications")),
             actions=self._buildActions(structured.get("actions")),
-            metadata=self._buildMetadata(providerResponse, structured, metadata),
-            followups=self._buildFollowups(structured.get("followups")),
+            metadata=self._buildMetadata(providerResponse, structured, metadataPayload, clarificationPayload),
+            followups=self._buildFollowups(structured.get("followups"), clarificationPayload),
             context=self._buildContext(userInput),
             timestamp=str(structured.get("timestamp") or datetime.utcnow().isoformat(timespec="seconds")),
             priority=str(structured.get("priority") or "NORMAL"),
@@ -118,7 +122,7 @@ class ResponseBuilder:
             )
         return items
 
-    def _buildFollowups(self, values) -> list[ResponseFollowup]:
+    def _buildFollowups(self, values, clarificationPayload: dict[str, Any] | None = None) -> list[ResponseFollowup]:
         if not self._configEnabled("responses.responseFollowupsEnabled", True):
             return []
         items = []
@@ -132,12 +136,24 @@ class ResponseBuilder:
                     prompt=str(payload.get("prompt") or payload.get("question") or ""),
                     kind=str(payload.get("kind") or "clarification"),
                     required=bool(payload.get("required", False)),
+                    options=list(payload.get("options") or []),
                     metadata=dict(payload.get("metadata") or {}),
+                )
+            )
+        if clarificationPayload and not items:
+            clarificationPayload = dict(clarificationPayload or {})
+            items.append(
+                ResponseFollowup(
+                    prompt=str(clarificationPayload.get("question") or clarificationPayload.get("prompt") or ""),
+                    kind="clarification",
+                    required=bool(clarificationPayload.get("required", True)),
+                    options=list(clarificationPayload.get("options") or []),
+                    metadata=dict(clarificationPayload),
                 )
             )
         return items
 
-    def _buildMetadata(self, providerResponse, structured: dict[str, Any], metadata: dict | None = None) -> ResponseMetadata:
+    def _buildMetadata(self, providerResponse, structured: dict[str, Any], metadata: dict | None = None, clarificationPayload: dict[str, Any] | None = None) -> ResponseMetadata:
         if not self._configEnabled("responses.responseMetadataEnabled", True):
             return ResponseMetadata()
         providerName = str(getattr(providerResponse, "provider", "") or structured.get("provider") or "")
@@ -156,6 +172,9 @@ class ResponseBuilder:
         interruptionFlags = dict((metadata or {}).get("interruptionFlags") or structured.get("interruptionFlags") or nestedMetadata.get("interruptionFlags") or {})
         streamingEnabled = bool((metadata or {}).get("streamingEnabled", structured.get("streamingEnabled", nestedMetadata.get("streamingEnabled", False))))
         deliveryResults = dict((metadata or {}).get("deliveryResults") or structured.get("deliveryResults") or nestedMetadata.get("deliveryResults") or {})
+        notes = dict((metadata or {}).get("notes") or structured.get("notes") or nestedMetadata.get("notes") or {})
+        if clarificationPayload:
+            notes.setdefault("clarification", dict(clarificationPayload or {}))
         generationTime = getattr(providerResponse, "latency", None)
         if generationTime is None:
             generationTime = time()
@@ -169,6 +188,7 @@ class ResponseBuilder:
             interruptionFlags=interruptionFlags,
             streamingEnabled=streamingEnabled,
             deliveryResults=deliveryResults,
+            notes=notes,
         )
 
     def _configEnabled(self, key: str, default: bool = True) -> bool:

@@ -1,35 +1,29 @@
-"""Event bus bridge for structured assistant responses."""
+"""Event bridge for clarification state."""
 
 from __future__ import annotations
 
 
-class ResponseEventHandler:
-    """Track response-adjacent events and update cached context."""
+class ClarificationEventHandler:
+    """Track clarification-adjacent runtime events."""
 
     eventNames = (
-        "intent.generated",
-        "intent.executed",
-        "notification.created",
+        "intent.resolved",
+        "execution.validation.failed",
+        "execution.pending",
         "conversation.updated",
-        "memory.retrieved",
         "clarification.requested",
         "clarification.resolved",
         "clarification.timed_out",
         "clarification.cancelled",
         "clarification.failed",
-        "response.created",
-        "response.validated",
-        "response.routed",
-        "response.delivered",
-        "response.failed",
     )
 
     def __init__(self, context=None, manager=None):
         self.context = context
-        self.manager = manager or getattr(context, "responseManager", None)
+        self.manager = manager or getattr(context, "clarificationManager", None)
         self._subscribed = False
         logger = getattr(context, "logger", None)
-        self.logger = logger.getChild("Responses.Events") if logger else None
+        self.logger = logger.getChild("Clarification.Events") if logger else None
 
     def subscribe(self):
         if self._subscribed:
@@ -42,7 +36,7 @@ class ResponseEventHandler:
                 eventManager.subscribe(eventName, self.handleEvent)
             except Exception as error:
                 if self.logger:
-                    self.logger.warning(f"Response event subscription failed for {eventName}: {error}")
+                    self.logger.warning(f"Clarification event subscription failed for {eventName}: {error}")
         self._subscribed = True
 
     def unsubscribe(self):
@@ -61,11 +55,14 @@ class ResponseEventHandler:
     def handleEvent(self, event):
         payload = getattr(event, "data", {}) or {}
         name = getattr(event, "name", "")
-        manager = self.manager or getattr(self.context, "responseManager", None)
-        if manager is None or not hasattr(manager, "contextManager"):
+        manager = self.manager or getattr(self.context, "clarificationManager", None)
+        if manager is None:
+            return
+        contextManager = getattr(manager, "contextManager", None)
+        if contextManager is None or not hasattr(contextManager, "updateFromEvent"):
             return
         try:
-            manager.contextManager.updateFromEvent(name, payload)
+            contextManager.updateFromEvent(name, payload)
         except Exception as error:
             if self.logger:
-                self.logger.warning(f"Response event handling failed for {name}: {error}")
+                self.logger.warning(f"Clarification event handling failed for {name}: {error}")
