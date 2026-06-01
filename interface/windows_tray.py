@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 from ctypes import wintypes
+import os
 import sys
 import threading
 
@@ -109,10 +110,11 @@ class WindowsTrayIcon:
 
     def start(self):
         if self._thread is not None:
-            return
+            return True
         self._thread = threading.Thread(target=self._run, name="AuraTray", daemon=True)
         self._thread.start()
         self._ready.wait(timeout=5)
+        return self._hwnd is not None and self._nid is not None
 
     def stop(self):
         self._stop_event.set()
@@ -169,7 +171,7 @@ class WindowsTrayIcon:
             return
 
         self._hwnd = hwnd
-        self._icon = shell32.ExtractIconW(None, sys.executable, 0)
+        self._icon = self._load_icon()
         if not self._icon:
             self._ready.set()
             return
@@ -209,6 +211,15 @@ class WindowsTrayIcon:
         if self._hwnd:
             user32.DestroyWindow(self._hwnd)
             self._hwnd = None
+
+    def _load_icon(self):
+        system_dir = ctypes.create_unicode_buffer(260)
+        if kernel32.GetSystemDirectoryW(system_dir, len(system_dir)):
+            icon_path = os.path.join(system_dir.value, "shell32.dll")
+            icon = shell32.ExtractIconW(None, icon_path, 3)
+            if icon:
+                return icon
+        return shell32.ExtractIconW(None, sys.executable, 0)
 
     def _wnd_proc(self, hwnd, msg, wparam, lparam):
         if msg == WM_TRAY:

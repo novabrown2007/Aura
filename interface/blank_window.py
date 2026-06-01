@@ -67,7 +67,7 @@ class BlankWindowApp:
         self._sidebar_width = 210
         self._content_top = 102
         self._content_bottom_margin = 138
-        self._prompt_height = 58
+        self._prompt_height = 78
 
     def build(self, start_hidden: bool = False):
         """Create the Tk root window and lay out the mock homepage."""
@@ -81,8 +81,8 @@ class BlankWindowApp:
         root.title(self.title)
         root.geometry(f"{self.width}x{self.height}")
         root.minsize(760, 640)
+        root.resizable(True, True)
         root.configure(bg=self.theme.background)
-        root.overrideredirect(True)
         if start_hidden:
             root.withdraw()
 
@@ -111,10 +111,13 @@ class BlankWindowApp:
     def run_in_tray(self):
         """Start the window hidden and expose it through a tray icon."""
 
-        root = self.root or self.build(start_hidden=True)
+        root = self.root or self.build(start_hidden=False)
+        tray_started = False
         if self._tray is None:
-            self._start_tray()
-        root.after(100, self._poll_tray_commands)
+            tray_started = self._start_tray()
+        if tray_started:
+            root.withdraw()
+            root.after(100, self._poll_tray_commands)
         root.mainloop()
 
     def close(self):
@@ -185,10 +188,12 @@ class BlankWindowApp:
     def _layout_test_box(self, width: int, height: int):
         if self.test_frame is None:
             return
-        frame_width = min(720, max(280, width - 240))
-        frame_x = 72
-        frame_y = height - 54
-        self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=32)
+        frame_width = min(900, max(420, width - 120))
+        frame_height = min(88, max(56, height // 10))
+        frame_x = max(36, (width - frame_width) // 2)
+        prompt_top = height - self._prompt_height - 12
+        frame_y = max(84, prompt_top - frame_height - 2)
+        self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=frame_height)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
         self._rounded_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
@@ -284,8 +289,8 @@ class BlankWindowApp:
     def _draw_prompt_strip(self, canvas, width: int, height: int):
         top = height - self._prompt_height - 12
         canvas.create_line(20, top, width - 20, top, fill=self.theme.border, width=1)
-        self._draw_status_dot(canvas, 40, height - 42)
-        self._draw_prompt_button(canvas, width - 52, height - 39)
+        self._draw_status_dot(canvas, 40, height - 48)
+        self._draw_prompt_button(canvas, width - 52, height - 45)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
         canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=self.theme.accent, outline=self.theme.accent)
@@ -425,18 +430,20 @@ class BlankWindowApp:
         try:
             from .windows_tray import WindowsTrayIcon
         except Exception:
-            return
+            return False
 
         def request_show():
             self._tray_commands.put("show")
 
         try:
             self._tray = WindowsTrayIcon(self.title, request_show)
-            self._tray.start()
+            if not self._tray.start():
+                self._tray = None
+                return False
         except Exception:
             self._tray = None
-            if self.root is not None:
-                self.root.deiconify()
+            return False
+        return True
 
     def _poll_tray_commands(self):
         root = self.root
