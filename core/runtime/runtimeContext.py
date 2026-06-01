@@ -166,6 +166,27 @@ class RuntimeContext:
         self.notificationQueue = None
         """Priority notification queue."""
 
+        self.desktopOverlayManager = None
+        """Windows desktop overlay, tray, bubble, and quick interaction manager."""
+
+        self.systemTrayManager = None
+        """Windows system tray controller for the desktop overlay."""
+
+        self.desktopNotificationManager = None
+        """Windows desktop notification popup manager."""
+
+        self.overlayStateManager = None
+        """State tracker for the Windows desktop overlay."""
+
+        self.assistantBubble = None
+        """Floating assistant bubble for Windows."""
+
+        self.windowLifecycleManager = None
+        """Windows desktop window lifecycle coordinator."""
+
+        self.shutdownManager = None
+        """Windows desktop shutdown coordinator."""
+
         # ----------------------------
         # Database
         # ----------------------------

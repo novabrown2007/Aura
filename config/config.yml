@@ -73,6 +73,21 @@ notifications:
   quietHoursEnabled: false
   quietHoursActive: false
 
+interface:
+  desktop:
+    windows:
+      desktopOverlayEnabled: true
+      assistantBubbleEnabled: true
+      systemTrayEnabled: true
+      minimizeToTrayOnClose: true
+      overlayAlwaysOnTop: true
+      overlayOpacity: 0.84
+      overlayAnimationsEnabled: true
+      overlayNotificationsEnabled: true
+      overlayCompactMode: true
+      overlayStartMinimized: true
+      overlayBubbleDiameter: 56
+
 # List of modules and their status
 # Valid status values: enabled, disabled.
 # Loadable module keys can use package names like home_automation or module names like homeAutomation.

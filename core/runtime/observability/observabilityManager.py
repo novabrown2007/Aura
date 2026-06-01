@@ -58,6 +58,7 @@ class ObservabilityManager:
             "conversation": self.getConversationState(),
             "vad": self.getVADState(),
             "personality": self.getPersonalityState(),
+            "desktopOverlay": self.getDesktopOverlayState(),
         }
 
     def getThreads(self):
@@ -254,6 +255,19 @@ class ObservabilityManager:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Notification snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
+
+    def getDesktopOverlayState(self):
+        """Return Windows desktop overlay diagnostics."""
+
+        manager = getattr(self.context, "desktopOverlayManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            return manager.snapshot()
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Desktop overlay snapshot failed: {error}")
             return {"available": False, "enabled": False, "error": str(error)}
 
     def getModuleHealth(self):

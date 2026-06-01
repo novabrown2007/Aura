@@ -44,6 +44,7 @@ class CoverageContractTests(unittest.TestCase):
         "core/voice/wakeWord": ("testing/tests/test_wake_word.py",),
         "core/version.py": ("testing/tests/test_runtime_smoke.py",),
         "interface/android": ("testing/tests/interfaceTests/test_android_interface.py",),
+        "interface/desktop/windows": ("testing/tests/test_desktop_overlay.py",),
         "interface/developerUI": ("testing/tests/test_developer_ui.py",),
         "interface/inputProcessing": ("testing/tests/test_voice.py",),
         "interface/model_status.py": ("testing/tests/interfaceTests/test_android_interface.py",),

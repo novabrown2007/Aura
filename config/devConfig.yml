@@ -56,6 +56,30 @@ llm:
       # Embedding/retrieval provider.
       provider: local
 
+interface:
+  desktop:
+    windows:
+      # Whether the Windows overlay presence layer is enabled.
+      desktopOverlayEnabled: true
+      # Whether the floating assistant bubble is enabled.
+      assistantBubbleEnabled: true
+      # Whether Aura should create a Windows system tray icon.
+      systemTrayEnabled: true
+      # Whether the main window minimizes to tray when closed with X.
+      minimizeToTrayOnClose: true
+      # Keep the overlay above other windows.
+      overlayAlwaysOnTop: true
+      # Overlay transparency for the main shell and bubble.
+      overlayOpacity: 0.92
+      # Whether subtle overlay animations are enabled.
+      overlayAnimationsEnabled: true
+      # Whether desktop notification popups are enabled.
+      overlayNotificationsEnabled: true
+      # Whether the overlay starts in compact mode.
+      overlayCompactMode: true
+      # Whether Aura starts hidden to tray.
+      overlayStartMinimized: false
+
   logging:
     # Whether LLM request/response logging is enabled.
     enabled: true

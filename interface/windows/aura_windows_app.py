@@ -11,6 +11,7 @@ from tkinter import BOTH, DISABLED, END, LEFT, NORMAL, TOP, X, Button, Entry, Fr
 from tkinter.scrolledtext import ScrolledText
 
 from interface.model_status import format_current_model_label
+from interface.desktop.windows import OverlayManager
 from interface.windows.error_dialog import showErrorPopup
 
 WINDOW_BG = "#0b0f14"
@@ -61,6 +62,9 @@ class AuraWindowsApp:
         self.root.protocol("WM_DELETE_WINDOW", self._closeWindow)
 
         self._buildLayout()
+        self.overlayManager = OverlayManager(context, root=self.root, app=self)
+        self.overlayManager.setQuickSubmitCallback(self._handleOverlayQuickSubmit)
+        self.overlayManager.start()
         self._subscribeWakeWordEvents()
         self._appendTranscript("Aura", "Windows interface initialized.")
 
@@ -3265,12 +3269,47 @@ class AuraWindowsApp:
                 self.logger.error(f"Error popup failed: {error}")
 
     def _closeWindow(self):
-        """Destroy the root window safely."""
+        """Minimize to tray or exit cleanly when the window close button is used."""
+
+        if self.isClosing:
+            return
+        overlayManager = getattr(self, "overlayManager", None)
+        if overlayManager is not None and overlayManager.handleWindowCloseRequest():
+            return
+        self.requestExit()
+
+    def requestExit(self):
+        """Fully terminate the desktop shell and request runtime shutdown."""
 
         if self.isClosing:
             return
         self.isClosing = True
         self._unsubscribeWakeWordEvents()
         self.context.should_exit = True
+        overlayManager = getattr(self, "overlayManager", None)
+        if overlayManager is not None:
+            try:
+                overlayManager.shutdownUi()
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Overlay shutdown failed: {error}")
         if self.root.winfo_exists():
-            self.root.destroy()
+            try:
+                self.root.quit()
+            except Exception:
+                pass
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
+
+    def _handleOverlayQuickSubmit(self, user_input: str):
+        """Process quick-interaction input from the desktop bubble."""
+
+        user_input = str(user_input or "").strip()
+        if not user_input:
+            return
+        self._appendTranscript("You", user_input)
+        self._setBusyState(True)
+        worker = Thread(target=self._processInputInWorker, args=(user_input,), daemon=True)
+        worker.start()

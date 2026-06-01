@@ -20,6 +20,7 @@ class SystemPanel(TextPanel):
         system = snapshot.system
         modules = system.get("modules", {})
         providers = snapshot.providers or {}
+        overlay = snapshot.desktopOverlay or {}
         activeProvider = providers.get("activeProvider") or "Unavailable"
         activeModel = providers.get("activeModel") or "Unavailable"
         voiceProviders = providers.get("voice", {}) or {}
@@ -40,6 +41,8 @@ class SystemPanel(TextPanel):
             "Subsystems:",
             f"Voice: {'Online' if snapshot.voice else 'Unavailable'}",
             f"Memory: {'Online' if snapshot.memory else 'Unavailable'}",
+            f"Desktop Overlay: {'Online' if overlay.get('available') else 'Unavailable'}",
+            f"Tray: {overlay.get('trayActive', False)} Bubble: {overlay.get('bubbleVisible', False)}",
             f"Bridge: {'Connected' if snapshot.bridge.get('connected') else 'Disconnected'}",
             f"Providers: {'Available' if snapshot.providers.get('available') else 'Unavailable'}",
             f"Active LLM: {activeProvider} ({activeModel})",

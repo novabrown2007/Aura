@@ -34,6 +34,7 @@ SUITES = {
     "calendar": "testing.tests.test_calendar",
     "interfaces": ("testing.tests.interfaceTests", "testing.tests.test_developer_ui"),
     "developer_ui": "testing.tests.test_developer_ui",
+    "desktop_overlay": "testing.tests.test_desktop_overlay",
     "home_automation": "testing.tests.test_home_automation",
     "module_loader": "testing.tests.test_module_loader",
     "tools": "testing.tests.test_tool_system",
