@@ -163,7 +163,7 @@ The first rebuilt surface is a blank desktop window that serves as the starting
 shell for the new presentation layer. It follows the current homepage mockup:
 custom top bar, a 4x3 grid of smaller draggable widget tiles, a toggleable sidebar that closes on outside clicks, and a lower bottom
 text field placed in the footer band. The sidebar currently exposes Home, Chat,
-and a Settings area anchored at the bottom. The top-bar controls are transparent hit targets layered above the chrome. The window is taller so the footer field stays fully visible. On Windows, the launcher starts in the system tray and opens the window when you click the tray icon.
+and a Settings area anchored at the bottom. The top-bar controls are transparent hit targets layered above the chrome. The sidebar also has an `X` button in its top-right corner to close it. The window is taller so the footer field stays fully visible. On Windows, the launcher starts in the system tray and opens the window when you click the tray icon.
 
 Launch it with:
 
