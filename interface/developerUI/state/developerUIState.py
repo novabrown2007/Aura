@@ -119,6 +119,14 @@ class DeveloperUIState:
             "cancelledOperations": [],
             "failedOperations": [],
         }
+        self.safety = {
+            "available": False,
+            "enabled": False,
+            "pendingConfirmations": [],
+            "rateLimit": {},
+            "confirmation": {},
+            "audit": {},
+        }
         self._lock = RLock()
 
     def recordEvent(self, event: ConsoleEvent):
@@ -145,6 +153,12 @@ class DeveloperUIState:
 
         with self._lock:
             self.interruptions = dict(interruptions or {})
+
+    def updateSafety(self, safetyState: dict[str, Any]):
+        """Update execution governance state for the developer UI."""
+
+        with self._lock:
+            self.safety = dict(safetyState or {})
 
     def updateConversation(self, conversation: dict[str, Any]):
         """Update short-term conversational continuity state."""
@@ -281,6 +295,7 @@ class DeveloperUIState:
                 system=system,
                 performance=dict(self.performance),
                 interruptions=dict(self.interruptions),
+                safety=dict(self.safety),
                 conversation=dict(self.conversation),
             )
 

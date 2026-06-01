@@ -291,6 +291,26 @@ notifications:
   # Runtime quiet-hours flag managed by future time/window logic.
   quietHoursActive: false
 
+safety:
+  # Whether the execution governance layer is active.
+  safetyLayerEnabled: true
+  # Require confirmation for high-risk actions.
+  requireConfirmationForHighRisk: true
+  # Allow automation to bypass confirmation. This should remain false.
+  allowAutomationWithoutConfirmation: false
+  # Whether repeated executions are rate-limited.
+  executionRateLimitEnabled: true
+  # Maximum allowed executions per minute before throttling.
+  maxExecutionsPerMinute: 20
+  # Whether execution audit logs are written.
+  auditLoggingEnabled: true
+  # Confirmation timeout in seconds.
+  confirmationTimeoutSeconds: 60
+  # Whether critical automation is denied outright.
+  denyCriticalAutomation: true
+  # Manually granted permissions for trusted actions.
+  grantedPermissions: []
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

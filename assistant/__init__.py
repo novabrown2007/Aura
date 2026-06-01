@@ -36,6 +36,21 @@ from assistant.notifications import (
     NotificationRouter,
     NotificationSuppression,
 )
+from assistant.safety import (
+    ActionValidator,
+    ConfirmationManager,
+    ExecutionAuditLogger,
+    ExecutionDecision,
+    ExecutionGuard,
+    ExecutionPolicyEngine,
+    ExecutionRequest,
+    ExecutionRisk,
+    PermissionManager,
+    RateLimitManager,
+    SafetyEventHandler,
+    SafetyManager,
+    TrustEvaluator,
+)
 
 __all__ = [
     "AssistantResponse",
@@ -68,6 +83,19 @@ __all__ = [
     "NotificationRoute",
     "NotificationRouter",
     "NotificationSuppression",
+    "ActionValidator",
+    "ConfirmationManager",
+    "ExecutionAuditLogger",
+    "ExecutionDecision",
+    "ExecutionGuard",
+    "ExecutionPolicyEngine",
+    "ExecutionRequest",
+    "ExecutionRisk",
+    "PermissionManager",
+    "RateLimitManager",
+    "SafetyEventHandler",
+    "SafetyManager",
     "SpokenResponse",
     "UIResponse",
+    "TrustEvaluator",
 ]

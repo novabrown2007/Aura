@@ -57,6 +57,7 @@ class ObservabilityManager:
             "interruptions": self.getInterruptionState(),
             "conversation": self.getConversationState(),
             "responses": self.getResponseState(),
+            "safety": self.getSafetyState(),
             "vad": self.getVADState(),
             "personality": self.getPersonalityState(),
             "desktopOverlay": self.getDesktopOverlayState(),
@@ -258,6 +259,21 @@ class ObservabilityManager:
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Personality snapshot failed: {error}")
+            return {"available": False, "enabled": False, "error": str(error)}
+
+    def getSafetyState(self):
+        """Return execution governance diagnostics."""
+
+        manager = getattr(self.context, "safetyManager", None)
+        if manager is None or not hasattr(manager, "snapshot"):
+            return {"available": False, "enabled": False}
+        try:
+            snapshot = manager.snapshot()
+            snapshot["available"] = True
+            return snapshot
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Safety snapshot failed: {error}")
             return {"available": False, "enabled": False, "error": str(error)}
 
     def getNotificationState(self):

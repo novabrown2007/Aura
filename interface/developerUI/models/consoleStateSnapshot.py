@@ -24,6 +24,7 @@ class ConsoleStateSnapshot:
     system: dict[str, Any] = field(default_factory=dict)
     performance: dict[str, Any] = field(default_factory=dict)
     interruptions: dict[str, Any] = field(default_factory=dict)
+    safety: dict[str, Any] = field(default_factory=dict)
     conversation: dict[str, Any] = field(default_factory=dict)
 
     def asDict(self) -> dict[str, Any]:
@@ -44,5 +45,6 @@ class ConsoleStateSnapshot:
             "system": dict(self.system),
             "performance": dict(self.performance),
             "interruptions": dict(self.interruptions),
+            "safety": dict(self.safety),
             "conversation": dict(self.conversation),
         }
