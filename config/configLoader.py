@@ -106,6 +106,13 @@ DEFAULT_USER_CONFIG = {
         "denyCriticalAutomation": True,
         "grantedPermissions": [],
     },
+    "execution": {
+        "executionPipelineEnabled": True,
+        "executionValidationEnabled": True,
+        "executionAuditLoggingEnabled": True,
+        "allowAsyncExecution": True,
+        "executionTimeoutSeconds": 30,
+    },
     "responses": {
         "structuredResponsesEnabled": True,
         "spokenResponseEnabled": True,
@@ -353,6 +360,13 @@ DEFAULT_DEV_CONFIG = {
         "confirmationTimeoutSeconds": 60,
         "denyCriticalAutomation": True,
         "grantedPermissions": [],
+    },
+    "execution": {
+        "executionPipelineEnabled": True,
+        "executionValidationEnabled": True,
+        "executionAuditLoggingEnabled": True,
+        "allowAsyncExecution": True,
+        "executionTimeoutSeconds": 30,
     },
 }
 
@@ -629,6 +643,11 @@ class ConfigLoader:
             "confirmationTimeoutSeconds": "safety.confirmationTimeoutSeconds",
             "denyCriticalAutomation": "safety.denyCriticalAutomation",
             "grantedPermissions": "safety.grantedPermissions",
+            "executionPipelineEnabled": "execution.executionPipelineEnabled",
+            "executionValidationEnabled": "execution.executionValidationEnabled",
+            "executionAuditLoggingEnabled": "execution.executionAuditLoggingEnabled",
+            "allowAsyncExecution": "execution.allowAsyncExecution",
+            "executionTimeoutSeconds": "execution.executionTimeoutSeconds",
         }
 
         self.load()

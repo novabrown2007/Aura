@@ -26,6 +26,7 @@ from assistant.safety import SafetyManager
 from interface.voice.wakeWord import WakeWordManager
 from interface.voice.vad import VADManager
 from assistant.conversation import ConversationManager
+from assistant.execution import ExecutionManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -99,6 +100,9 @@ def shutdown(context):
 
     if getattr(context, "safetyManager", None) and hasattr(context.safetyManager, "shutdown"):
         context.safetyManager.shutdown()
+
+    if getattr(context, "executionManager", None) and hasattr(context.executionManager, "shutdown"):
+        context.executionManager.shutdown()
 
     if getattr(context, "wakeWordManager", None):
         context.wakeWordManager.shutdown()
@@ -187,6 +191,7 @@ def buildRuntimeContext():
     context.moduleManager = ModuleManager(context)
     context.moduleLoader = context.moduleManager
     context.moduleManager.loadModules()
+    context.executionManager = ExecutionManager(context)
     context.notificationManager = NotificationManager(context)
 
     # Engine

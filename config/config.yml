@@ -123,6 +123,13 @@ safety:
   denyCriticalAutomation: true
   grantedPermissions: []
 
+execution:
+  executionPipelineEnabled: true
+  executionValidationEnabled: true
+  executionAuditLoggingEnabled: true
+  allowAsyncExecution: true
+  executionTimeoutSeconds: 30
+
 responses:
   structuredResponsesEnabled: true
   spokenResponseEnabled: true

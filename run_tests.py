@@ -33,6 +33,7 @@ SUITES = {
     ),
     "semantic_memory": "testing.tests.test_semantic_memory",
     "architecture": "testing.tests.test_architecture",
+    "execution": "testing.tests.test_execution_pipeline",
     "module_framework": "testing.tests.test_module_framework",
     "observability": "testing.tests.test_observability",
     "events": "testing.tests.test_events",
