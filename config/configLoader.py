@@ -499,6 +499,8 @@ class ConfigLoader:
             "huggingFace.token": "HF_TOKEN",
             "huggingface.apiToken": "HF_TOKEN",
             "huggingface.token": "HF_TOKEN",
+            "spotify.api.clientSecret": "SPOTIFY_CLIENT_SECRET",
+            "spotify.clientSecret": "SPOTIFY_CLIENT_SECRET",
             "discord.webhook": "DISCORD_WEBHOOK_URL",
             "discord.webhook_url": "DISCORD_WEBHOOK_URL",
             "discord.webhookUrl": "DISCORD_WEBHOOK_URL",
