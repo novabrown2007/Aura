@@ -2,8 +2,14 @@
 
 
 class SpotifyEvents:
-    """Spotify module event constants."""
+    """Spotify runtime event constants."""
 
-    PLAYBACK_CHANGED = "spotify.playback.changed"
+    CONNECTED = "spotify.connected"
+    DISCONNECTED = "spotify.disconnected"
+    TRACK_CHANGED = "spotify.track.changed"
+    PLAYBACK_STARTED = "spotify.playback.started"
+    PLAYBACK_PAUSED = "spotify.playback.paused"
+    PLAYLIST_CHANGED = "spotify.playlist.changed"
+    DEVICE_CHANGED = "spotify.device.changed"
     SEARCHED = "spotify.search.performed"
     REQUESTED = "spotify.requested"

@@ -1,27 +1,9 @@
-"""Spotify module action definitions."""
+"""Compatibility exports for Spotify actions."""
 
-from core.modules.base.moduleAction import ModuleAction
+from modules.spotify.actions import SPOTIFY_ACTIONS, SPOTIFY_PLAYBACK_ACTIONS, SPOTIFY_PLAYLIST_ACTIONS
 
-SPOTIFY_ACTIONS = (
-    ModuleAction(
-        name="spotify.play",
-        description="Play a track or playlist.",
-        method="playSong",
-        parameters={"track": {"type": "string"}, "artist": {"type": "string"}},
-        capabilities=("music.playback",),
-    ),
-    ModuleAction(
-        name="spotify.pause",
-        description="Pause playback.",
-        method="pauseMusic",
-        capabilities=("music.playback",),
-    ),
-    ModuleAction(
-        name="spotify.search",
-        description="Search for tracks.",
-        method="searchTracks",
-        parameters={"query": {"type": "string"}},
-        requiredParameters=("query",),
-        capabilities=("music.search",),
-    ),
-)
+__all__ = [
+    "SPOTIFY_ACTIONS",
+    "SPOTIFY_PLAYBACK_ACTIONS",
+    "SPOTIFY_PLAYLIST_ACTIONS",
+]

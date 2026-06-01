@@ -323,6 +323,24 @@ weather:
   # Preferred external weather provider name.
   preferredWeatherProvider: openweathermap
 
+spotify:
+  # Whether the Spotify module is active.
+  spotifyEnabled: true
+  # Whether playback state monitoring is enabled.
+  spotifyPlaybackMonitoringEnabled: true
+  # Whether the Spotify overlay surface is enabled.
+  spotifyOverlayEnabled: true
+  # Whether Spotify cache persistence is enabled.
+  spotifyCacheEnabled: true
+  # Whether Aura should attempt reconnection after disconnects.
+  spotifyReconnectEnabled: true
+  # Playback polling cadence in seconds.
+  spotifyPollingIntervalSeconds: 2
+  # Default target device name.
+  defaultDevice: Desktop
+  # Cache file used for Spotify persistence.
+  cachePath: spotify_cache.sqlite3
+
 safety:
   # Whether the execution governance layer is active.
   safetyLayerEnabled: true

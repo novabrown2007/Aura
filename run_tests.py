@@ -20,6 +20,7 @@ SUITES = {
     "personality": "testing.tests.test_personality",
     "notification_priority": "testing.tests.test_notification_priority",
     "weather": "testing.tests.test_weather_module",
+    "spotify": "testing.tests.test_spotify_module",
     "semantic_memory": "testing.tests.test_semantic_memory",
     "architecture": "testing.tests.test_architecture",
     "module_framework": "testing.tests.test_module_framework",

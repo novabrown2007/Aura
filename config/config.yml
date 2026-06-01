@@ -91,6 +91,16 @@ weather:
   weatherRefreshIntervalMinutes: 15
   preferredWeatherProvider: openweathermap
 
+spotify:
+  spotifyEnabled: true
+  spotifyPlaybackMonitoringEnabled: true
+  spotifyOverlayEnabled: true
+  spotifyCacheEnabled: true
+  spotifyReconnectEnabled: true
+  spotifyPollingIntervalSeconds: 2
+  defaultDevice: Desktop
+  cachePath: spotify_cache.sqlite3
+
 safety:
   safetyLayerEnabled: true
   requireConfirmationForHighRisk: true
