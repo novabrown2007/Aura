@@ -30,10 +30,24 @@ class Interpreter:
         normalized = text.strip().lower()
 
         if "weather" in normalized:
-            return Intent(name="weather", raw=text)
+            intent_name = "weather.current"
+            if any(term in normalized for term in ("forecast", "tomorrow", "today", "week", "hour", "rain", "snow", "will it", "chance")):
+                intent_name = "weather.forecast"
+            if any(term in normalized for term in ("alert", "warning", "storm", "severe", "tornado", "flood", "heat", "cold")):
+                intent_name = "weather.alerts"
+            return Intent(name=intent_name, raw=text, data={"location": self._extractLocation(text)})
         if "remind" in normalized:
             return Intent(name="reminder", raw=text)
         if "time" in normalized:
             return Intent(name="time", raw=text)
 
         return Intent(name="llm", raw=text)
+
+    @staticmethod
+    def _extractLocation(text: str) -> str:
+        lowered = str(text or "").strip()
+        for marker in (" in ", " for ", " at ", " near "):
+            if marker in lowered.lower():
+                tail = lowered.lower().split(marker, 1)[1].strip(" ?.!")
+                return tail.title() if tail else ""
+        return ""

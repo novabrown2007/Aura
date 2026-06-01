@@ -1,4 +1,4 @@
-"""Compatibility wrapper for weather intents."""
+"""Weather intent definitions for Aura."""
 
 from modules.weather.intents.weatherIntents import WEATHER_INTENTS
 

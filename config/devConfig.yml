@@ -305,6 +305,24 @@ personalSchedule:
   # Default reminder priority.
   defaultReminderPriority: NORMAL
 
+weather:
+  # Whether the weather module is active.
+  weatherEnabled: true
+  # Whether live weather API requests are allowed.
+  weatherApiEnabled: true
+  # Whether bridge-connected local sensors are preferred when available.
+  localSensorWeatherEnabled: true
+  # Whether weather alerts are enabled.
+  weatherAlertsEnabled: true
+  # Whether threshold-based weather notifications are enabled.
+  weatherThresholdNotificationsEnabled: true
+  # Whether API weather responses are cached.
+  weatherForecastCacheEnabled: true
+  # Refresh cadence in minutes.
+  weatherRefreshIntervalMinutes: 15
+  # Preferred external weather provider name.
+  preferredWeatherProvider: openweathermap
+
 safety:
   # Whether the execution governance layer is active.
   safetyLayerEnabled: true

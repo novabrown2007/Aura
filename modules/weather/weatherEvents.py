@@ -1,7 +1,12 @@
 """Weather module event names."""
 
+
 class WeatherEvents:
-    """Weather module event constants."""
+    """Weather event constants."""
 
     REQUESTED = "weather.requested"
-    RESPONSE = "weather.response"
+    CURRENT_UPDATED = "weather.updated"
+    FORECAST_UPDATED = "weather.forecast.updated"
+    ALERT_RECEIVED = "weather.alert.received"
+    THRESHOLD_TRIGGERED = "weather.threshold.triggered"
+    SENSOR_UPDATED = "bridge.sensor.updated"
