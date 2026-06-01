@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -15,7 +16,11 @@ from interface import BlankWindowApp
 def main():
     """Start the blank window."""
 
-    BlankWindowApp().run()
+    app = BlankWindowApp()
+    if os.name == "nt":
+        app.run_in_tray()
+    else:
+        app.run()
 
 
 if __name__ == "__main__":

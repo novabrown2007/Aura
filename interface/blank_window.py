@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import queue
 from dataclasses import dataclass
 
 
@@ -25,7 +26,7 @@ class TileSpec:
 class BlankWindowApp:
     """Create and run the first Aura homepage shell."""
 
-    def __init__(self, title: str = "Aura", width: int = 960, height: int = 740):
+    def __init__(self, title: str = "Aura", width: int = 960, height: int = 820):
         self.title = str(title or "Aura")
         self.width = int(width or 960)
         self.height = int(height or 680)
@@ -36,6 +37,8 @@ class BlankWindowApp:
         self.test_var = None
         self.test_value = ""
         self.sidebar_visible = False
+        self._tray = None
+        self._tray_commands: queue.Queue[str] = queue.Queue()
         self._drag_offset = (0, 0)
         self._active_tile_id: int | None = None
         self._active_tile_offset = (0, 0)
@@ -66,7 +69,7 @@ class BlankWindowApp:
         self._content_bottom_margin = 138
         self._prompt_height = 58
 
-    def build(self):
+    def build(self, start_hidden: bool = False):
         """Create the Tk root window and lay out the mock homepage."""
 
         try:
@@ -77,9 +80,11 @@ class BlankWindowApp:
         root = tk.Tk()
         root.title(self.title)
         root.geometry(f"{self.width}x{self.height}")
-        root.minsize(760, 580)
+        root.minsize(760, 640)
         root.configure(bg=self.theme.background)
         root.overrideredirect(True)
+        if start_hidden:
+            root.withdraw()
 
         canvas = tk.Canvas(root, bg=self.theme.background, highlightthickness=0, bd=0)
         canvas.pack(fill="both", expand=True)
@@ -103,8 +108,22 @@ class BlankWindowApp:
         root = self.root or self.build()
         root.mainloop()
 
+    def run_in_tray(self):
+        """Start the window hidden and expose it through a tray icon."""
+
+        root = self.root or self.build(start_hidden=True)
+        if self._tray is None:
+            self._start_tray()
+        root.after(100, self._poll_tray_commands)
+        root.mainloop()
+
     def close(self):
         """Destroy the window if it exists."""
+
+        tray = self._tray
+        if tray is not None:
+            tray.stop()
+            self._tray = None
 
         root = self.root
         if root is None:
@@ -138,7 +157,7 @@ class BlankWindowApp:
             bd=0,
         )
         entry.pack(fill="both", expand=True, padx=12, pady=10)
-        entry.insert(0, "Test box")
+        entry.insert(0, "Ask Aura anything...")
         entry.bind("<FocusIn>", self._clear_test_placeholder)
         entry.bind("<FocusOut>", self._restore_test_placeholder)
         entry.bind("<Return>", self._submit_prompt)
@@ -149,9 +168,12 @@ class BlankWindowApp:
         if canvas is None or root is None:
             return
 
-        width = max(1, root.winfo_width())
-        height = max(1, root.winfo_height())
-        canvas.delete("all")
+        try:
+            width = max(1, root.winfo_width())
+            height = max(1, root.winfo_height())
+            canvas.delete("all")
+        except Exception:
+            return
 
         self._layout_test_box(width, height)
         self._draw_window_shell(canvas, width, height)
@@ -342,7 +364,7 @@ class BlankWindowApp:
         widget = getattr(event, "widget", None)
         if widget is None:
             return
-        if widget.get().strip() == "Test box":
+        if widget.get().strip() == "Ask Aura anything...":
             widget.delete(0, "end")
             widget.configure(fg=self.theme.text)
 
@@ -351,8 +373,50 @@ class BlankWindowApp:
         if widget is None:
             return
         if not widget.get().strip():
-            widget.insert(0, "Test box")
+            widget.insert(0, "Ask Aura anything...")
             widget.configure(fg=self.theme.placeholder)
+
+    def _start_tray(self):
+        try:
+            from .windows_tray import WindowsTrayIcon
+        except Exception:
+            return
+
+        def request_show():
+            self._tray_commands.put("show")
+
+        try:
+            self._tray = WindowsTrayIcon(self.title, request_show)
+            self._tray.start()
+        except Exception:
+            self._tray = None
+            if self.root is not None:
+                self.root.deiconify()
+
+    def _poll_tray_commands(self):
+        root = self.root
+        if root is None:
+            return
+
+        while True:
+            try:
+                command = self._tray_commands.get_nowait()
+            except queue.Empty:
+                break
+
+            if command == "show":
+                self._show_window()
+
+        root.after(100, self._poll_tray_commands)
+
+    def _show_window(self):
+        root = self.root
+        if root is None:
+            return
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+        self._render()
 
     def _bind_drag_targets(self, canvas):
         canvas.bind("<ButtonPress-1>", self._on_canvas_press)
