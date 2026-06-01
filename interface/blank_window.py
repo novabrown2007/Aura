@@ -39,19 +39,30 @@ class BlankWindowApp:
         self._active_tile_id: int | None = None
         self._active_tile_offset = (0, 0)
         self._drag_position: tuple[int, int] | None = None
-        self._tile_order = [0, 1, 2, 3]
+        self._tile_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self._tile_specs = [
             TileSpec(0, "Tile 1"),
             TileSpec(1, "Tile 2"),
             TileSpec(2, "Tile 3"),
             TileSpec(3, "Tile 4"),
+            TileSpec(4, "Tile 5"),
+            TileSpec(5, "Tile 6"),
+            TileSpec(6, "Tile 7"),
+            TileSpec(7, "Tile 8"),
+            TileSpec(8, "Tile 9"),
+            TileSpec(9, "Tile 10"),
+            TileSpec(10, "Tile 11"),
+            TileSpec(11, "Tile 12"),
         ]
-        self._tile_size = (230, 220)
+        self._tile_size = (130, 110)
+        self._tile_columns = 4
+        self._tile_rows = 3
+        self._tile_gap = (16, 18)
         self._top_bar_rect = (12, 12, 948, 80)
         self._shell_padding = 10
         self._sidebar_width = 210
         self._content_top = 102
-        self._content_bottom_margin = 96
+        self._content_bottom_margin = 138
         self._prompt_height = 58
 
     def build(self):
@@ -158,7 +169,7 @@ class BlankWindowApp:
             return
         frame_width = max(280, width - 160)
         frame_x = max(72, (width - frame_width) // 2)
-        frame_y = height - 68
+        frame_y = height - 122
         self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=44)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
@@ -343,30 +354,27 @@ class BlankWindowApp:
         tile_w_max, tile_h_max = self._tile_size
         avail_w = max(0, bounds["right"] - bounds["left"])
         avail_h = max(0, bounds["bottom"] - bounds["top"])
-        gap_x = 40
-        gap_y = 32
-        tile_w = min(tile_w_max, max(150, (avail_w - gap_x) // 2))
-        tile_h = min(tile_h_max, max(140, (avail_h - gap_y) // 2))
+        gap_x, gap_y = self._tile_gap
+        tile_w = min(tile_w_max, max(120, (avail_w - gap_x * (self._tile_columns - 1)) // self._tile_columns))
+        tile_h = min(tile_h_max, max(100, (avail_h - gap_y * (self._tile_rows - 1)) // self._tile_rows))
         return int(tile_w), int(tile_h)
 
     def _tile_positions(self, left: int, top: int, right: int, bottom: int, tile_size: tuple[int, int]) -> list[tuple[int, int]]:
         tile_w, tile_h = tile_size
-        gap_x = 40
-        gap_y = 32
+        gap_x, gap_y = self._tile_gap
         avail_w = max(tile_w, right - left)
         avail_h = max(tile_h, bottom - top)
-        grid_w = tile_w * 2 + gap_x
-        grid_h = tile_h * 2 + gap_y
+        grid_w = tile_w * self._tile_columns + gap_x * (self._tile_columns - 1)
+        grid_h = tile_h * self._tile_rows + gap_y * (self._tile_rows - 1)
         start_x = left + max(0, (avail_w - grid_w) // 2)
         start_y = top + max(0, (avail_h - grid_h) // 2)
         if self.sidebar_visible:
             start_x = left
-        return [
-            (start_x, start_y),
-            (start_x + tile_w + gap_x, start_y),
-            (start_x, start_y + tile_h + gap_y),
-            (start_x + tile_w + gap_x, start_y + tile_h + gap_y),
-        ]
+        positions = []
+        for row in range(self._tile_rows):
+            for col in range(self._tile_columns):
+                positions.append((start_x + col * (tile_w + gap_x), start_y + row * (tile_h + gap_y)))
+        return positions
 
     def _hit_test_tile(self, x: int, y: int) -> int | None:
         bounds = self._content_bounds(self.root.winfo_width(), self.root.winfo_height())
