@@ -360,7 +360,7 @@ class BlankWindowApp:
         canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
 
     def _on_canvas_press(self, event):
-        if self.sidebar_visible and not self._point_in_sidebar(event.x, event.y):
+        if self.sidebar_visible and not self._point_in_sidebar(event.x, event.y) and not self._point_in_title_bar_control(event.x, event.y):
             self.sidebar_visible = False
             self._render()
             return
@@ -412,6 +412,18 @@ class BlankWindowApp:
         right = left + self._sidebar_width
         bottom = bounds["bottom"]
         return left <= x <= right and top <= y <= bottom
+
+    def _point_in_title_bar_control(self, x: int, y: int) -> bool:
+        if self.root is None:
+            return False
+        width = self.root.winfo_width()
+        return (
+            16 <= x <= 48 and 30 <= y <= 62
+        ) or (
+            width - 108 <= x <= width - 76 and 30 <= y <= 62
+        ) or (
+            width - 64 <= x <= width - 32 and 30 <= y <= 62
+        )
 
     def _content_bounds(self, width: int, height: int) -> dict[str, int]:
         left = 86
