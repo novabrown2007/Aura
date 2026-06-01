@@ -160,8 +160,8 @@ and keeps prompt injection lightweight and explainable.
 ## Interfaces
 
 The first rebuilt surface is a blank desktop window that serves as the starting
-shell for the new presentation layer. It does not render runtime state yet; it
-just opens an empty window.
+shell for the new presentation layer. It follows the current homepage mockup:
+custom top bar, four empty content tiles, and a bottom prompt strip.
 
 Launch it with:
 
