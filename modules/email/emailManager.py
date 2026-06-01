@@ -277,34 +277,54 @@ class EmailManager:
         }
 
     def getInboxView(self, accountId: str | None = None, limit: int = 25):
-        from interface.desktop.windows.email.emailInboxView import EmailInboxView
-
-        return EmailInboxView(self.listInbox(accountId=accountId, limit=limit), self.listAccounts()).render()
+        messages = self.listInbox(accountId=accountId, limit=limit)
+        return {
+            "count": len(messages),
+            "accounts": self.listAccounts(),
+            "messages": messages,
+            "title": "Inbox",
+            "controls": ["search", "filter", "sort"],
+        }
 
     def getMessageView(self, accountId: str, messageId: str):
-        from interface.desktop.windows.email.emailMessageView import EmailMessageView
-
-        return EmailMessageView(self.readEmail(accountId, messageId)).render()
+        message = self.readEmail(accountId, messageId)
+        return {
+            "count": 1 if message else 0,
+            "message": message,
+            "body": (message or {}).get("body", ""),
+            "subject": (message or {}).get("subject", ""),
+            "sender": (message or {}).get("sender", ""),
+        }
 
     def getDraftView(self, accountId: str | None = None):
-        from interface.desktop.windows.email.emailDraftView import EmailDraftView
-
-        return EmailDraftView(self.listDrafts(accountId)).render()
+        drafts = self.listDrafts(accountId)
+        return {
+            "count": len(drafts),
+            "drafts": drafts,
+            "controls": ["create", "edit", "send"],
+        }
 
     def getAccountView(self):
-        from interface.desktop.windows.email.emailAccountView import EmailAccountView
-
-        return EmailAccountView(self.listAccounts()).render()
+        accounts = self.listAccounts()
+        return {
+            "count": len(accounts),
+            "accounts": accounts,
+            "controls": ["connect", "setDefault", "remove"],
+        }
 
     def getFilterView(self):
-        from interface.desktop.windows.email.emailFilterView import EmailFilterView
-
-        return EmailFilterView().render()
+        return {
+            "controls": ["unreadOnly", "keywords", "label", "dateRange"],
+            "filters": {},
+        }
 
     def getScheduleView(self):
-        from interface.desktop.windows.email.emailScheduleView import EmailScheduleView
-
-        return EmailScheduleView(self.listScheduledEmails()).render()
+        scheduled = self.listScheduledEmails()
+        return {
+            "count": len(scheduled),
+            "scheduled": scheduled,
+            "controls": ["scheduleNow", "cancel", "reschedule"],
+        }
 
     def _loadConfiguredAccounts(self):
         configured = self._configValue("email.accounts", [])

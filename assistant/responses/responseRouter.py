@@ -36,29 +36,12 @@ class ResponseRouter:
         return deliveryResults
 
     def _deliverVoice(self, text: str):
-        voice = getattr(self.context, "voiceManager", None)
-        if voice is None or not hasattr(voice, "speakResponse"):
-            return {"available": False, "text": text}
-        try:
-            result = voice.speakResponse(text)
-            return {"available": True, "result": result}
-        except Exception as error:
-            if self.logger:
-                self.logger.warning(f"Voice delivery failed: {error}")
-            return {"available": False, "error": str(error)}
+        event = self._emit("presentation.voice.requested", {"text": text, "source": "response"})
+        return {"available": bool(event is not None), "text": text, "event": "presentation.voice.requested"}
 
     def _deliverUi(self, text: str):
-        overlay = getattr(self.context, "desktopOverlayManager", None)
-        if overlay is None:
-            return {"available": False, "text": text}
-        try:
-            overlay.updateAssistant("RESPONDING", text)
-            overlay.showBubble()
-            return {"available": True}
-        except Exception as error:
-            if self.logger:
-                self.logger.warning(f"UI delivery failed: {error}")
-        return {"available": False, "error": str(error)}
+        event = self._emit("presentation.ui.requested", {"text": text, "source": "response"})
+        return {"available": bool(event is not None), "text": text, "event": "presentation.ui.requested"}
 
     def _deliverNotification(self, notification):
         manager = getattr(self.context, "notificationManager", None)
@@ -113,6 +96,17 @@ class ResponseRouter:
             if self.logger:
                 self.logger.warning(f"Action delivery failed: {error}")
             return {"available": False, "error": str(error), "action": payload}
+
+    def _emit(self, eventName: str, payload: dict):
+        eventManager = getattr(self.context, "eventManager", None)
+        if eventManager is None:
+            return None
+        try:
+            return eventManager.emit(eventName, payload)
+        except Exception as error:
+            if self.logger:
+                self.logger.warning(f"Response event emission failed for {eventName}: {error}")
+        return None
 
     def _configEnabled(self, key: str, default: bool = True) -> bool:
         config = getattr(self.context, "config", None)

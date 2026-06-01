@@ -108,9 +108,7 @@ class NotificationPriorityEngine:
         quietHoursEnabled = bool(self._getConfigValue(runtimeContext, "notifications.quietHoursEnabled", False))
         quietHoursActive = bool(self._getConfigValue(runtimeContext, "notifications.quietHoursActive", False))
         interfaceType = str(getattr(runtimeContext, "interfaceType", "") or "desktop")
-        if bool(self._getConfigValue(runtimeContext, "voice.pushToTalk.enabled", False)) and not bool(
-            self._getConfigValue(runtimeContext, "developerUI.enabled", False)
-        ):
+        if bool(self._getConfigValue(runtimeContext, "voice.pushToTalk.enabled", False)):
             interfaceType = "voice"
         return NotificationContext(
             interfaceType=interfaceType,

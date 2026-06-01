@@ -35,11 +35,8 @@ class NotificationRouter:
 
         if route.voice:
             try:
-                voiceManager = getattr(self.context, "voiceManager", None)
-                if voiceManager is None:
-                    raise RuntimeError("Voice manager is unavailable.")
-                voiceManager.speakResponse(notification.speechText())
-                delivered["voice"] = True
+                emitted = self._emit("presentation.voice.requested", {"text": notification.speechText(), "source": "notification", "notification": notification.asDict()})
+                delivered["voice"] = bool(emitted is not None)
             except Exception as error:
                 delivered["errors"].append(str(error))
                 if self.logger:

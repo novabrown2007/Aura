@@ -1,6 +1,0 @@
--r ../../requirements.txt
-
-# Android UI runtime.
-kivy>=2.3.0
-
-# Home automation controls use the shared backend requirements only.

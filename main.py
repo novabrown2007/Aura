@@ -23,8 +23,6 @@ from assistant.personality.handlers import PersonalityEventHandler
 from assistant.notifications import NotificationManager
 from assistant.responses import ResponseManager
 from assistant.safety import SafetyManager
-from interface.voice.wakeWord import WakeWordManager
-from interface.voice.vad import VADManager
 from assistant.conversation import ConversationManager
 from assistant.execution import ExecutionManager
 
@@ -37,7 +35,6 @@ from core.tools.toolRegistry import ToolRegistry
 from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.home_automation.config import buildHomeAutomationConfig
 from bridge import AuraBridgeClient
-from interface.voice import VoiceManager
 
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.llmHandler import LLMHandler
@@ -68,9 +65,6 @@ def startup(context):
 
     if context.scheduler:
         context.scheduler.start()
-
-    if getattr(context, "wakeWordManager", None):
-        context.wakeWordManager.initialize()
 
 
 # --------------------------------------------------
@@ -110,17 +104,8 @@ def shutdown(context):
     if getattr(context, "executionManager", None) and hasattr(context.executionManager, "shutdown"):
         context.executionManager.shutdown()
 
-    if getattr(context, "wakeWordManager", None):
-        context.wakeWordManager.shutdown()
-
-    if context.voiceManager:
-        context.voiceManager.shutdown()
-
     if getattr(context, "notificationManager", None):
         context.notificationManager.shutdown()
-
-    if getattr(context, "desktopOverlayManager", None):
-        context.desktopOverlayManager.shutdownUi()
 
     if context.database:
         context.database.close()
@@ -185,10 +170,6 @@ def buildRuntimeContext():
     context.responseManager = ResponseManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
-    context.vadManager = VADManager(context)
-    context.voiceManager = VoiceManager(context)
-    context.wakeWordManager = WakeWordManager(context)
-
     # Router
     context.interpreter = Interpreter(context)
     context.intentRouter = IntentRouter(context)
