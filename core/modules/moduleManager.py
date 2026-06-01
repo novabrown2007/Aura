@@ -9,12 +9,14 @@ from typing import Any
 
 from core.modules.base.auraModule import AuraModule
 from core.modules.base.moduleMetadata import ModuleMetadata
+from core.modules.base.moduleSubscription import ModuleSubscription
 from core.modules.discovery import ModuleDescriptor, ModuleDiscovery
 from core.modules.events.moduleEvents import ModuleEvents
 from core.modules.lifecycle import ModuleLifecycleManager, ModuleState
 from core.modules.moduleContext import ModuleContext
 from core.modules.modulePermissions import ModulePermissions
 from core.modules.moduleRegistry import ModuleRegistry
+from core.modules.validation import ModuleValidator
 
 
 class LegacyRegisteredModule(AuraModule):
@@ -43,6 +45,7 @@ class ModuleManager:
         self.discovery = ModuleDiscovery(context, packageName=self.packageName)
         self.registry = ModuleRegistry(context)
         self.lifecycle = ModuleLifecycleManager(context, self.registry)
+        self.validator = ModuleValidator(context)
         self.descriptors: dict[str, ModuleDescriptor] = {}
         self.loadedModules: dict[str, AuraModule] = {}
         self.disabledModules: set[str] = set()
@@ -102,10 +105,11 @@ class ModuleManager:
         moduleInstance = self._createModule(package, descriptor.metadata)
         moduleContext = ModuleContext(self.context, descriptor.metadata)
         modulePermissions = self._resolveModulePermissions(moduleInstance, descriptor.metadata)
+        self.validator.ensureValid(moduleInstance, descriptor.metadata)
         self.registry.registerModule(name, moduleInstance, descriptor.metadata, modulePermissions)
         self.registry.registerIntents(name, self._normalizeDescriptors(moduleInstance.getIntents() if hasattr(moduleInstance, "getIntents") else []))
         self.registry.registerActions(name, self._normalizeDescriptors(moduleInstance.getActions() if hasattr(moduleInstance, "getActions") else []))
-        self.registry.registerSubscriptions(name, self._normalizeStrings(moduleInstance.getSubscriptions() if hasattr(moduleInstance, "getSubscriptions") else []))
+        self.registry.registerSubscriptions(name, self._normalizeSubscriptions(moduleInstance.getSubscriptions() if hasattr(moduleInstance, "getSubscriptions") else []))
 
         moduleInstance = self.lifecycle.loadModule(name, moduleInstance, moduleContext)
         self.loadedModules[name] = moduleInstance
@@ -294,12 +298,13 @@ class ModuleManager:
         if eventBus is None or not callable(subscriptions):
             return
 
-        handler = getattr(module, "handleEvent", None) or getattr(module, "onEvent", None)
-        if handler is None:
-            return
-
-        for eventName in subscriptions() or []:
-            eventBus.subscribe(eventName, handler)
+        for subscription in self._normalizeSubscriptions(subscriptions() or []):
+            if not subscription.enabled:
+                continue
+            handler = self._resolveSubscriptionHandler(module, subscription)
+            if handler is None:
+                continue
+            eventBus.subscribe(subscription.eventName, handler)
 
     def _unsubscribeModuleEvents(self, module):
         """Unsubscribe declared module event listeners when possible."""
@@ -309,12 +314,11 @@ class ModuleManager:
         if eventBus is None or not callable(subscriptions):
             return
 
-        handler = getattr(module, "handleEvent", None) or getattr(module, "onEvent", None)
-        if handler is None:
-            return
-
-        for eventName in subscriptions() or []:
-            eventBus.unsubscribe(eventName, handler)
+        for subscription in self._normalizeSubscriptions(subscriptions() or []):
+            handler = self._resolveSubscriptionHandler(module, subscription)
+            if handler is None:
+                continue
+            eventBus.unsubscribe(subscription.eventName, handler)
 
     def _createModule(self, package: ModuleType, metadata: ModuleMetadata):
         """Create a module instance from a package."""
@@ -354,6 +358,30 @@ class ModuleManager:
         """Return a list of normalized string values."""
 
         return [str(value) for value in list(values or [])]
+
+    @staticmethod
+    def _normalizeSubscriptions(values):
+        """Return a list of normalized subscription descriptors."""
+
+        subscriptions = []
+        for value in list(values or []):
+            if isinstance(value, ModuleSubscription):
+                subscriptions.append(value)
+            else:
+                subscriptions.append(ModuleSubscription(eventName=str(value)))
+        return subscriptions
+
+    @staticmethod
+    def _resolveSubscriptionHandler(module, subscription: ModuleSubscription):
+        """Return the callable handler bound to one subscription descriptor."""
+
+        handlerName = str(subscription.handler or "").strip()
+        if handlerName:
+            handler = getattr(module, handlerName, None)
+            if callable(handler):
+                return handler
+        handler = getattr(module, "handleEvent", None) or getattr(module, "onEvent", None)
+        return handler if callable(handler) else None
 
     @staticmethod
     def _resolveModulePermissions(module, metadata: ModuleMetadata) -> ModulePermissions:

@@ -14,6 +14,7 @@ class ModuleIntent:
     arguments: dict[str, object] = field(default_factory=dict)
     target: str = ""
     requiredArguments: tuple[str, ...] = ()
+    validationRequirements: tuple[str, ...] = ()
 
     def asDict(self) -> dict[str, object]:
         """Return a serializable intent description."""
@@ -24,4 +25,5 @@ class ModuleIntent:
             "arguments": dict(self.arguments or {}),
             "target": str(self.target or ""),
             "requiredArguments": list(self.requiredArguments or ()),
+            "validationRequirements": list(self.validationRequirements or ()),
         }

@@ -11,6 +11,7 @@ from typing import Any
 
 from core.modules.base.auraModule import AuraModule
 from core.modules.base.moduleMetadata import ModuleMetadata
+from core.modules.validation import ModuleValidator
 
 
 @dataclass
@@ -34,6 +35,7 @@ class ModuleDiscovery:
         self.context = context
         self.packageName = packageName
         self.logger = context.logger.getChild("ModuleDiscovery") if getattr(context, "logger", None) else None
+        self.validator = ModuleValidator(context)
 
     def discoverModules(self) -> dict[str, ModuleDescriptor]:
         """Discover importable module packages and read their metadata."""
@@ -48,6 +50,11 @@ class ModuleDiscovery:
             if not self._isLoadablePackage(package):
                 continue
             metadata = self._readMetadata(moduleInfo.name, package)
+            packageValidation = self.validator.validatePackage(package)
+            if not packageValidation.valid:
+                if self.logger:
+                    self.logger.warning(f"Skipping module package {importPath}: {'; '.join(packageValidation.errors)}")
+                continue
             enabled = self._isEnabled(metadata.name)
             descriptors[metadata.name] = ModuleDescriptor(
                 package_name=moduleInfo.name,
