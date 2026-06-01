@@ -32,10 +32,9 @@ class BlankWindowApp:
         self.theme = Theme()
         self.root = None
         self.canvas = None
-        self.sidebar_frame = None
-        self.sidebar_visible = False
         self.test_frame = None
         self.test_var = None
+        self.sidebar_visible = False
         self._drag_offset = (0, 0)
         self._active_tile_id: int | None = None
         self._active_tile_offset = (0, 0)
@@ -47,16 +46,13 @@ class BlankWindowApp:
             TileSpec(2, "Tile 3"),
             TileSpec(3, "Tile 4"),
         ]
-        self._grid = (
-            (86, 130),
-            (354, 130),
-            (86, 394),
-            (354, 394),
-        )
         self._tile_size = (230, 220)
-        self._sidebar_width = 220
-        self._top_bar_height = 70
-        self._prompt_bar_height = 62
+        self._top_bar_rect = (12, 12, 948, 80)
+        self._shell_padding = 10
+        self._sidebar_width = 210
+        self._content_top = 102
+        self._content_bottom_margin = 96
+        self._prompt_height = 58
 
     def build(self):
         """Create the Tk root window and lay out the mock homepage."""
@@ -79,12 +75,13 @@ class BlankWindowApp:
         self.root = root
         self.canvas = canvas
         self.test_var = tk.StringVar(value="")
-        self._create_overlay_widgets(tk)
+        self._create_test_box(tk)
 
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
         root.bind("<Escape>", lambda _event: self.close())
 
+        self._bind_drag_targets(canvas)
         self._render()
         return root
 
@@ -106,34 +103,10 @@ class BlankWindowApp:
             self.root = None
             self.canvas = None
 
-    def _create_overlay_widgets(self, tk):
+    def _create_test_box(self, tk):
         root = self.root
         if root is None:
             return
-
-        self.sidebar_frame = tk.Frame(
-            root,
-            bg=self.theme.panel,
-            highlightbackground=self.theme.border,
-            highlightthickness=1,
-        )
-        tk.Label(
-            self.sidebar_frame,
-            text="Sidebar",
-            bg=self.theme.panel,
-            fg=self.theme.text,
-            font=("Segoe UI", 13, "bold"),
-            anchor="w",
-        ).pack(fill="x", padx=14, pady=(14, 8))
-        for label in ("Home", "Widgets", "Tests"):
-            tk.Label(
-                self.sidebar_frame,
-                text=label,
-                bg=self.theme.panel,
-                fg=self.theme.placeholder,
-                font=("Segoe UI", 11),
-                anchor="w",
-            ).pack(fill="x", padx=14, pady=4)
 
         self.test_frame = tk.Frame(
             root,
@@ -149,7 +122,7 @@ class BlankWindowApp:
             font=("Segoe UI", 10),
             anchor="w",
         ).pack(fill="x", padx=12, pady=(8, 2))
-        test_entry = tk.Entry(
+        entry = tk.Entry(
             self.test_frame,
             textvariable=self.test_var,
             font=("Segoe UI", 14),
@@ -160,8 +133,8 @@ class BlankWindowApp:
             highlightthickness=0,
             bd=0,
         )
-        test_entry.pack(fill="x", padx=12, pady=(0, 10))
-        test_entry.bind("<Return>", self._submit_prompt)
+        entry.pack(fill="x", padx=12, pady=(0, 10))
+        entry.bind("<Return>", self._submit_prompt)
 
     def _render(self, _event=None):
         canvas = self.canvas
@@ -173,22 +146,20 @@ class BlankWindowApp:
         height = max(1, root.winfo_height())
         canvas.delete("all")
 
-        self._layout_overlay_widgets(width, height)
+        self._layout_test_box(width, height)
         self._draw_window_shell(canvas, width, height)
         self._draw_title_bar(canvas, width)
-        self._draw_tiles(canvas)
-        self._draw_prompt_strip(canvas, width, height)
+        self._draw_tiles(canvas, width, height)
         self._draw_sidebar(canvas, width, height)
+        self._draw_prompt_strip(canvas, width, height)
 
-    def _layout_overlay_widgets(self, width: int, height: int):
-        if self.sidebar_frame is not None:
-            if self.sidebar_visible:
-                self.sidebar_frame.place(x=12, y=self._top_bar_height + 12, width=self._sidebar_width, height=height - self._top_bar_height - self._prompt_bar_height - 42)
-            else:
-                self.sidebar_frame.place_forget()
-
-        if self.test_frame is not None:
-            self.test_frame.place(x=72, y=height - 60, width=max(260, width - 176), height=36)
+    def _layout_test_box(self, width: int, height: int):
+        if self.test_frame is None:
+            return
+        frame_width = max(280, width - 160)
+        frame_x = max(72, (width - frame_width) // 2)
+        frame_y = height - 68
+        self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=44)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
         self._rounded_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
@@ -197,11 +168,15 @@ class BlankWindowApp:
         self._rounded_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
         canvas.create_line(20, 80, width - 20, 80, fill=self.theme.border, width=1)
         self._draw_menu_icon(canvas, 32, 46, self._toggle_sidebar)
-        self._draw_window_icon(canvas, width - 92, 46, self._minimize_window)
+        self._draw_window_icon(canvas, width - 92, 46, self._noop)
         self._draw_close_icon(canvas, width - 48, 46, self.close)
 
-    def _draw_tiles(self, canvas):
-        for slot_index, (x, y) in enumerate(self._grid):
+    def _draw_tiles(self, canvas, width: int, height: int):
+        available = self._content_bounds(width, height)
+        tile_size = self._tile_dimensions(available)
+        tile_positions = self._tile_positions(available["left"], available["top"], available["right"], available["bottom"], tile_size)
+
+        for slot_index, (x, y) in enumerate(tile_positions):
             tile_id = self._tile_order[slot_index]
             spec = self._tile_specs[tile_id]
             if self._active_tile_id == tile_id and self._drag_position is not None:
@@ -210,31 +185,40 @@ class BlankWindowApp:
             else:
                 draw_x, draw_y = x, y
                 active = False
-            self._draw_tile(canvas, draw_x, draw_y, spec.title, active=active)
+            self._draw_tile(canvas, draw_x, draw_y, spec.title, tile_size, active=active)
 
-    def _draw_tile(self, canvas, x: int, y: int, title: str, active: bool = False):
-        width, height = self._tile_size
+    def _draw_tile(self, canvas, x: int, y: int, title: str, tile_size: tuple[int, int], active: bool = False):
+        width, height = tile_size
         fill = self.theme.background if not active else "#202020"
         outline = self.theme.accent if active else self.theme.border
         self._rounded_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
         canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
 
-    def _draw_prompt_strip(self, canvas, width: int, height: int):
-        base_y = height - self._prompt_bar_height - 16
-        canvas.create_line(20, base_y, width - 20, base_y, fill=self.theme.border, width=1)
-        self._draw_status_dot(canvas, 40, height - 43)
-        self._rounded_rect(canvas, 72, height - 60, width - 104, height - 24, 16, fill=self.theme.panel, outline=self.theme.border, width=2)
-        canvas.create_text(96, height - 42, anchor="w", text="Test box", fill=self.theme.placeholder, font=("Segoe UI", 16))
-        self._draw_prompt_button(canvas, width - 52, height - 42)
-
     def _draw_sidebar(self, canvas, width: int, height: int):
         if not self.sidebar_visible:
             return
-        x1 = 12
-        y1 = self._top_bar_height + 12
+
+        top = self._content_top
+        bottom = height - self._content_bottom_margin
+        x1 = 24
         x2 = x1 + self._sidebar_width
-        y2 = height - self._prompt_bar_height - 28
-        self._rounded_rect(canvas, x1, y1, x2, y2, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
+        self._rounded_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
+        canvas.create_text(x1 + 16, top + 16, anchor="nw", text="Sidebar", fill=self.theme.text, font=("Segoe UI", 13, "bold"))
+        for index, label in enumerate(("Home", "Widgets", "Tests")):
+            canvas.create_text(
+                x1 + 16,
+                top + 52 + (index * 30),
+                anchor="nw",
+                text=label,
+                fill=self.theme.placeholder,
+                font=("Segoe UI", 11),
+            )
+
+    def _draw_prompt_strip(self, canvas, width: int, height: int):
+        top = height - self._prompt_height - 12
+        canvas.create_line(20, top, width - 20, top, fill=self.theme.border, width=1)
+        self._draw_status_dot(canvas, 40, height - 42)
+        self._draw_prompt_button(canvas, width - 52, height - 39)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
         canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=self.theme.accent, outline=self.theme.accent)
@@ -295,13 +279,13 @@ class BlankWindowApp:
         self.sidebar_visible = not self.sidebar_visible
         self._render()
 
-    def _minimize_window(self):
+    def _noop(self):
         return None
 
     def _submit_prompt(self, _event=None):
         return None
 
-    def _bind_drag_targets(self, root, canvas):
+    def _bind_drag_targets(self, canvas):
         canvas.bind("<ButtonPress-1>", self._on_canvas_press)
         canvas.bind("<B1-Motion>", self._on_canvas_drag)
         canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
@@ -311,7 +295,9 @@ class BlankWindowApp:
         if tile_id is None:
             return
         slot_index = self._slot_index_for_tile(tile_id)
-        tile_x, tile_y = self._grid[slot_index]
+        bounds = self._content_bounds(self.root.winfo_width(), self.root.winfo_height())
+        tile_size = self._tile_dimensions(bounds)
+        tile_x, tile_y = self._tile_positions(bounds["left"], bounds["top"], bounds["right"], bounds["bottom"], tile_size)[slot_index]
         self._active_tile_id = tile_id
         self._active_tile_offset = (event.x - tile_x, event.y - tile_y)
         self._drag_position = (tile_x, tile_y)
@@ -329,10 +315,11 @@ class BlankWindowApp:
             return
 
         tile_x, tile_y = self._drag_position or (0, 0)
-        tile_w, tile_h = self._tile_size
+        bounds = self._content_bounds(self.root.winfo_width(), self.root.winfo_height())
+        tile_w, tile_h = self._tile_dimensions(bounds)
         center_x = tile_x + tile_w / 2
         center_y = tile_y + tile_h / 2
-        target_slot = self._nearest_slot(center_x, center_y)
+        target_slot = self._nearest_slot(center_x, center_y, bounds, (tile_w, tile_h))
         current_slot = self._slot_index_for_tile(self._active_tile_id)
 
         if target_slot != current_slot:
@@ -343,10 +330,51 @@ class BlankWindowApp:
         self._drag_position = None
         self._render()
 
+    def _content_bounds(self, width: int, height: int) -> dict[str, int]:
+        left = 86
+        right = width - 86
+        top = self._content_top
+        bottom = height - self._content_bottom_margin
+        if self.sidebar_visible:
+            left = 24 + self._sidebar_width + 28
+        return {"left": left, "right": right, "top": top, "bottom": bottom}
+
+    def _tile_dimensions(self, bounds: dict[str, int]) -> tuple[int, int]:
+        tile_w_max, tile_h_max = self._tile_size
+        avail_w = max(0, bounds["right"] - bounds["left"])
+        avail_h = max(0, bounds["bottom"] - bounds["top"])
+        gap_x = 40
+        gap_y = 32
+        tile_w = min(tile_w_max, max(150, (avail_w - gap_x) // 2))
+        tile_h = min(tile_h_max, max(140, (avail_h - gap_y) // 2))
+        return int(tile_w), int(tile_h)
+
+    def _tile_positions(self, left: int, top: int, right: int, bottom: int, tile_size: tuple[int, int]) -> list[tuple[int, int]]:
+        tile_w, tile_h = tile_size
+        gap_x = 40
+        gap_y = 32
+        avail_w = max(tile_w, right - left)
+        avail_h = max(tile_h, bottom - top)
+        grid_w = tile_w * 2 + gap_x
+        grid_h = tile_h * 2 + gap_y
+        start_x = left + max(0, (avail_w - grid_w) // 2)
+        start_y = top + max(0, (avail_h - grid_h) // 2)
+        if self.sidebar_visible:
+            start_x = left
+        return [
+            (start_x, start_y),
+            (start_x + tile_w + gap_x, start_y),
+            (start_x, start_y + tile_h + gap_y),
+            (start_x + tile_w + gap_x, start_y + tile_h + gap_y),
+        ]
+
     def _hit_test_tile(self, x: int, y: int) -> int | None:
-        for slot_index, (tile_x, tile_y) in enumerate(self._grid):
+        bounds = self._content_bounds(self.root.winfo_width(), self.root.winfo_height())
+        tile_size = self._tile_dimensions(bounds)
+        positions = self._tile_positions(bounds["left"], bounds["top"], bounds["right"], bounds["bottom"], tile_size)
+        for slot_index, (tile_x, tile_y) in enumerate(positions):
             tile_id = self._tile_order[slot_index]
-            if tile_x <= x <= tile_x + self._tile_size[0] and tile_y <= y <= tile_y + self._tile_size[1]:
+            if tile_x <= x <= tile_x + tile_size[0] and tile_y <= y <= tile_y + tile_size[1]:
                 return tile_id
         return None
 
@@ -356,12 +384,13 @@ class BlankWindowApp:
                 return index
         return 0
 
-    def _nearest_slot(self, center_x: float, center_y: float) -> int:
+    def _nearest_slot(self, center_x: float, center_y: float, bounds: dict[str, int], tile_size: tuple[int, int]) -> int:
+        positions = self._tile_positions(bounds["left"], bounds["top"], bounds["right"], bounds["bottom"], tile_size)
         best_index = 0
         best_distance = float("inf")
-        for index, (slot_x, slot_y) in enumerate(self._grid):
-            slot_center_x = slot_x + self._tile_size[0] / 2
-            slot_center_y = slot_y + self._tile_size[1] / 2
+        for index, (slot_x, slot_y) in enumerate(positions):
+            slot_center_x = slot_x + tile_size[0] / 2
+            slot_center_y = slot_y + tile_size[1] / 2
             distance = (center_x - slot_center_x) ** 2 + (center_y - slot_center_y) ** 2
             if distance < best_distance:
                 best_distance = distance
