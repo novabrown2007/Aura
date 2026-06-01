@@ -188,7 +188,7 @@ class BlankWindowApp:
     def _layout_test_box(self, width: int, height: int):
         if self.test_frame is None:
             return
-        frame_width = min(900, max(420, width - 120))
+        frame_width = min(860, max(400, width - 340))
         frame_height = min(64, max(44, height // 12))
         frame_x = max(36, (width - frame_width) // 2)
         prompt_top = height - self._prompt_height - 12
@@ -289,11 +289,11 @@ class BlankWindowApp:
     def _draw_prompt_strip(self, canvas, width: int, height: int):
         top = height - self._prompt_height - 12
         canvas.create_line(20, top, width - 20, top, fill=self.theme.border, width=1)
-        self._draw_status_dot(canvas, 40, height - 42)
-        self._draw_prompt_button(canvas, width - 52, height - 39)
+        self._draw_status_dot(canvas, 44, height - 44)
+        self._draw_prompt_button(canvas, width - 78, height - 48)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
-        canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=self.theme.accent, outline=self.theme.accent)
+        canvas.create_oval(x - 8, y - 8, x + 8, y + 8, fill=self.theme.accent, outline=self.theme.accent)
 
     def _draw_menu_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="menu")
@@ -308,11 +308,11 @@ class BlankWindowApp:
         tag = f"prompt_button_{center_x}_{center_y}"
         button = self._rounded_rect(
             canvas,
-            center_x - 16,
-            center_y - 16,
-            center_x + 16,
-            center_y + 16,
-            9,
+            center_x - 18,
+            center_y - 18,
+            center_x + 18,
+            center_y + 18,
+            10,
             fill="",
             outline="",
             width=1,
@@ -320,10 +320,10 @@ class BlankWindowApp:
         )
         canvas.create_text(
             center_x,
-            center_y - 1,
+            center_y - 7,
             text=">",
             fill=self.theme.text,
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 28, "bold"),
             tags=(tag,),
         )
         canvas.tag_bind(tag, "<Button-1>", lambda _event: self._submit_prompt())
@@ -331,7 +331,7 @@ class BlankWindowApp:
         return button
 
     def _draw_bar_button(self, canvas, center_x: int, center_y: int, callback, kind: str):
-        size = 32
+        size = 36
         tag = f"bar_button_{kind}_{center_x}_{center_y}"
         button = self._rounded_rect(
             canvas,
@@ -339,18 +339,18 @@ class BlankWindowApp:
             center_y - size // 2,
             center_x + size // 2,
             center_y + size // 2,
-            9,
+            10,
             fill="",
             outline="",
             width=1,
             tags=(tag,),
         )
         if kind == "menu":
-            for offset in (-6, 0, 6):
+            for offset in (-7, 0, 7):
                 canvas.create_line(
-                    center_x - 7,
+                    center_x - 8,
                     center_y + offset,
-                    center_x + 7,
+                    center_x + 8,
                     center_y + offset,
                     fill=self.theme.text,
                     width=2,
@@ -358,29 +358,29 @@ class BlankWindowApp:
                 )
         elif kind == "window":
             canvas.create_rectangle(
-                center_x - 6,
-                center_y - 7,
-                center_x + 6,
-                center_y + 7,
+                center_x - 7,
+                center_y - 8,
+                center_x + 7,
+                center_y + 8,
                 outline=self.theme.text,
                 width=2,
                 tags=(tag,),
             )
         else:
             canvas.create_line(
-                center_x - 6,
-                center_y - 6,
-                center_x + 6,
-                center_y + 6,
+                center_x - 7,
+                center_y - 7,
+                center_x + 7,
+                center_y + 7,
                 fill=self.theme.text,
                 width=2,
                 tags=(tag,),
             )
             canvas.create_line(
-                center_x - 6,
-                center_y + 6,
-                center_x + 6,
-                center_y - 6,
+                center_x - 7,
+                center_y + 7,
+                center_x + 7,
+                center_y - 7,
                 fill=self.theme.text,
                 width=2,
                 tags=(tag,),
