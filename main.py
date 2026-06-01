@@ -21,6 +21,7 @@ from core.interruption import InterruptionManager
 from assistant.personality import PersonalityManager
 from assistant.personality.handlers import PersonalityEventHandler
 from assistant.notifications import NotificationManager
+from assistant.responses import ResponseManager
 from interface.voice.wakeWord import WakeWordManager
 from interface.voice.vad import VADManager
 from assistant.conversation import ConversationManager
@@ -91,6 +92,9 @@ def shutdown(context):
 
     if context.memoryManager and hasattr(context.memoryManager, "shutdown"):
         context.memoryManager.shutdown()
+
+    if getattr(context, "responseManager", None) and hasattr(context.responseManager, "shutdown"):
+        context.responseManager.shutdown()
 
     if getattr(context, "wakeWordManager", None):
         context.wakeWordManager.shutdown()
@@ -163,6 +167,7 @@ def buildRuntimeContext():
     context.personalityManager = PersonalityManager(context)
     context.personalityEventHandler = PersonalityEventHandler(context, context.personalityManager)
     context.personalityEventHandler.subscribe()
+    context.responseManager = ResponseManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
     context.vadManager = VADManager(context)

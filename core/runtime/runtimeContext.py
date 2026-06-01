@@ -216,6 +216,9 @@ class RuntimeContext:
         self.personalityEventHandler = None
         """Event-bus bridge for personality context updates."""
 
+        self.responseManager = None
+        """Structured assistant response orchestration layer."""
+
         self.memoryManager = None
         """Handles long-term memory and user information."""
 

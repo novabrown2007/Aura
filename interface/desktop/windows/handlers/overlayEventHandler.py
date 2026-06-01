@@ -12,6 +12,11 @@ class OverlayEventHandler:
         "voice.capture.finished",
         "stt.processing.started",
         "response.generated",
+        "response.created",
+        "response.validated",
+        "response.routed",
+        "response.delivered",
+        "response.failed",
         "tts.started",
         "tts.finished",
         "notification.created",
@@ -82,6 +87,16 @@ class OverlayEventHandler:
         elif name == "response.generated":
             manager.updateAssistant("RESPONDING", "Responding")
             manager.setProcessing(False)
+        elif name == "response.created":
+            manager.updateAssistant("RESPONDING", str(payload.get("uiText") or payload.get("spokenText") or "Responding"))
+        elif name == "response.validated":
+            manager.updateAssistant("RESPONDING", str(payload.get("uiText") or payload.get("spokenText") or "Responding"))
+        elif name == "response.routed":
+            manager.updateAssistant("RESPONDING", str(payload.get("uiText") or payload.get("spokenText") or "Responding"))
+        elif name == "response.delivered":
+            manager.updateAssistant("IDLE", "")
+        elif name == "response.failed":
+            manager.updateAssistant("ERROR", str(payload.get("error") or "Response failed"))
         elif name == "tts.started":
             manager.updateAssistant("RESPONDING", "Speaking")
             manager.updateMic("RESPONDING", activity=False)

@@ -1,5 +1,23 @@
 """Assistant cognition and behavior layer for Aura."""
 
+from assistant.responses import (
+    AssistantResponse,
+    ResponseAction,
+    ResponseBuilder,
+    ResponseContext,
+    ResponseContextManager,
+    ResponseEventHandler,
+    ResponseFollowup,
+    ResponseFormatter,
+    ResponseManager,
+    ResponseMetadata,
+    ResponseNotification,
+    ResponsePipeline,
+    ResponseRouter,
+    ResponseValidator,
+    SpokenResponse,
+    UIResponse,
+)
 from assistant.notifications import (
     DeliveryStrategyManager,
     EscalationManager,
@@ -20,8 +38,22 @@ from assistant.notifications import (
 )
 
 __all__ = [
+    "AssistantResponse",
     "DeliveryStrategyManager",
     "EscalationManager",
+    "ResponseAction",
+    "ResponseBuilder",
+    "ResponseContext",
+    "ResponseContextManager",
+    "ResponseEventHandler",
+    "ResponseFollowup",
+    "ResponseFormatter",
+    "ResponseManager",
+    "ResponseMetadata",
+    "ResponseNotification",
+    "ResponsePipeline",
+    "ResponseRouter",
+    "ResponseValidator",
     "InterruptionManager",
     "Notification",
     "NotificationCategory",
@@ -36,4 +68,6 @@ __all__ = [
     "NotificationRoute",
     "NotificationRouter",
     "NotificationSuppression",
+    "SpokenResponse",
+    "UIResponse",
 ]

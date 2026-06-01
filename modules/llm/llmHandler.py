@@ -12,6 +12,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+from assistant.responses import ResponseManager
 from core.tools.toolOrchestrator import ToolOrchestrator
 from modules.llm.manager.llmManager import LLMManager
 from modules.llm.intent.intentPipeline import IntentPipeline
@@ -43,6 +44,8 @@ class LLMHandler(AuraModule):
         self.manager = None
         self.intentPipeline = None
         self.tools = None
+        self.responseManager = None
+        self.lastStructuredResponse = None
 
         if context is not None:
             self.initialize(context)
@@ -67,6 +70,10 @@ class LLMHandler(AuraModule):
             context.llmManager = self.manager
         self.tools = getattr(context, "toolOrchestrator", None) or ToolOrchestrator(context)
         self.intentPipeline = IntentPipeline(context, self.manager)
+        self.responseManager = getattr(context, "responseManager", None)
+        if self.responseManager is None:
+            self.responseManager = ResponseManager(context)
+            context.responseManager = self.responseManager
 
         self._logStartup("llm module started.")
 
@@ -98,32 +105,26 @@ class LLMHandler(AuraModule):
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
             cleaned = self._offlineToolUnavailableMessage()
             cleaned = self._applyPersonality(userInput, cleaned)
-            self._logConversation(userInput, cleaned)
-            self._emit("response.generated", {"text": cleaned})
-            return cleaned
+            return self._finishResponse(userInput, cleaned)
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and not self._hasConversationFallback():
             cleaned = self._providerFailureMessage(self._offlineReason())
             cleaned = self._applyPersonality(userInput, cleaned)
-            self._logConversation(userInput, cleaned)
-            self._emit("response.generated", {"text": cleaned})
-            return cleaned
+            return self._finishResponse(userInput, cleaned)
 
         systemPrompt = self._buildSystemPrompt(userInput)
         conversationHistory = self._getConversationHistory()
         if self._shouldUseIntentPipeline(userInput):
             cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
             cleaned = self._applyPersonality(userInput, cleaned)
-            self._logConversation(userInput, cleaned)
-            self._emit("response.generated", {"text": cleaned})
-            return cleaned
+            return self._finishResponse(userInput, cleaned)
 
         response = self.manager.generateResponse(systemPrompt, userInput, conversationHistory)
 
         if not response.success:
             if self.logger:
                 self.logger.error(f"LLM response failed: {response.error}")
-            return self._finishResponse(userInput, self._providerFailureMessage(response.error))
+            return self._finishResponse(userInput, self._providerFailureMessage(response.error), providerResponse=response)
 
         cleaned = self._cleanResponseText(response.text) or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)
@@ -131,9 +132,7 @@ class LLMHandler(AuraModule):
             cleaned = self._cleanResponseText(toolResult)
         cleaned = self._applyPersonality(userInput, cleaned)
 
-        self._logConversation(userInput, cleaned)
-        self._emit("response.generated", {"text": cleaned})
-        return cleaned
+        return self._finishResponse(userInput, cleaned, providerResponse=response)
 
     def _resolveConversationInput(self, userInput: str) -> str:
         """Preprocess follow-ups and references through Aura's conversation manager."""
@@ -148,12 +147,27 @@ class LLMHandler(AuraModule):
                 self.logger.warning(f"Conversation continuity preprocessing failed: {error}")
             return userInput
 
-    def _finishResponse(self, userInput: str, responseText: str) -> str:
+    def _finishResponse(self, userInput: str, responseText: str, providerResponse=None) -> str:
         """Clean, log, emit, and optionally speak a deterministic response."""
 
         cleaned = self._applyPersonality(userInput, self._cleanResponseText(responseText))
         self._logConversation(userInput, cleaned)
-        self._emit("response.generated", {"text": cleaned})
+        if self.responseManager is not None:
+            try:
+                structured = self.responseManager.createResponse(
+                    userInput,
+                    providerResponse=providerResponse,
+                    spokenText=cleaned,
+                    uiText=cleaned,
+                    metadata={
+                        "provider": getattr(providerResponse, "provider", "") if providerResponse is not None else "",
+                        "confidence": float(getattr(providerResponse, "confidence", 0.0) or 0.0),
+                    },
+                )
+                self.lastStructuredResponse = structured
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Structured response orchestration failed: {error}")
         return cleaned
 
     def _supportsIntentPipeline(self) -> bool:
