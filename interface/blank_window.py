@@ -9,11 +9,11 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Theme:
-    background: str = "#163038"
-    panel: str = "#1D3A44"
-    hover: str = "#254652"
-    border: str = "#3B545F"
-    chrome: str = "#1D3A44"
+    background: str = "#091a1f"
+    panel: str = "#1b142b"
+    hover: str = "#21414C"
+    border: str = "#344A55"
+    chrome: str = "#1b142b"
     text: str = "#E8EAF0"
     placeholder: str = "#AAB6C3"
     accent: str = "#9D4EDD"
@@ -299,7 +299,7 @@ class BlankWindowApp:
         self._draw_prompt_button(canvas, width - 78, height - 48)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
-        self._draw_icon_sprite(canvas, "Active Notification icon.png", x, y, size=24, fallback_fill=self.theme.secondary_accent)
+        return None
 
     def _draw_menu_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="menu")
