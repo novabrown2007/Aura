@@ -25,7 +25,7 @@ class TileSpec:
 class BlankWindowApp:
     """Create and run the first Aura homepage shell."""
 
-    def __init__(self, title: str = "Aura", width: int = 960, height: int = 680):
+    def __init__(self, title: str = "Aura", width: int = 960, height: int = 740):
         self.title = str(title or "Aura")
         self.width = int(width or 960)
         self.height = int(height or 680)
@@ -34,6 +34,7 @@ class BlankWindowApp:
         self.canvas = None
         self.test_frame = None
         self.test_var = None
+        self.test_value = ""
         self.sidebar_visible = False
         self._drag_offset = (0, 0)
         self._active_tile_id: int | None = None
@@ -76,7 +77,7 @@ class BlankWindowApp:
         root = tk.Tk()
         root.title(self.title)
         root.geometry(f"{self.width}x{self.height}")
-        root.minsize(760, 520)
+        root.minsize(760, 580)
         root.configure(bg=self.theme.background)
         root.overrideredirect(True)
 
@@ -125,26 +126,21 @@ class BlankWindowApp:
             highlightbackground=self.theme.border,
             highlightthickness=1,
         )
-        tk.Label(
-            self.test_frame,
-            text="Test box",
-            bg=self.theme.panel,
-            fg=self.theme.placeholder,
-            font=("Segoe UI", 10),
-            anchor="w",
-        ).pack(fill="x", padx=12, pady=(8, 2))
         entry = tk.Entry(
             self.test_frame,
             textvariable=self.test_var,
-            font=("Segoe UI", 14),
+            font=("Segoe UI", 13),
             bg=self.theme.background,
-            fg=self.theme.text,
+            fg=self.theme.placeholder,
             insertbackground=self.theme.text,
             relief="flat",
             highlightthickness=0,
             bd=0,
         )
-        entry.pack(fill="x", padx=12, pady=(0, 10))
+        entry.pack(fill="both", expand=True, padx=12, pady=10)
+        entry.insert(0, "Test box")
+        entry.bind("<FocusIn>", self._clear_test_placeholder)
+        entry.bind("<FocusOut>", self._restore_test_placeholder)
         entry.bind("<Return>", self._submit_prompt)
 
     def _render(self, _event=None):
@@ -167,10 +163,10 @@ class BlankWindowApp:
     def _layout_test_box(self, width: int, height: int):
         if self.test_frame is None:
             return
-        frame_width = max(280, width - 160)
-        frame_x = max(72, (width - frame_width) // 2)
-        frame_y = height - 122
-        self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=44)
+        frame_width = min(720, max(280, width - 240))
+        frame_x = 72
+        frame_y = height - 54
+        self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=32)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
         self._rounded_rect(canvas, 10, 10, width - 10, height - 10, 18, fill=self.theme.panel, outline=self.theme.border, width=2)
@@ -214,16 +210,15 @@ class BlankWindowApp:
         x1 = 24
         x2 = x1 + self._sidebar_width
         self._rounded_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
-        canvas.create_text(x1 + 16, top + 16, anchor="nw", text="Sidebar", fill=self.theme.text, font=("Segoe UI", 13, "bold"))
-        for index, label in enumerate(("Home", "Widgets", "Tests")):
-            canvas.create_text(
-                x1 + 16,
-                top + 52 + (index * 30),
-                anchor="nw",
-                text=label,
-                fill=self.theme.placeholder,
-                font=("Segoe UI", 11),
-            )
+        canvas.create_text(x1 + 16, top + 16, anchor="nw", text="Menu", fill=self.theme.text, font=("Segoe UI", 13, "bold"))
+        self._draw_sidebar_item(canvas, x1 + 16, top + 56, "Home", active=True)
+        self._draw_sidebar_item(canvas, x1 + 16, top + 92, "Chat", active=False)
+        canvas.create_line(x1 + 16, bottom - 56, x2 - 16, bottom - 56, fill=self.theme.border, width=1)
+        self._draw_sidebar_item(canvas, x1 + 16, bottom - 40, "Settings", active=False)
+
+    def _draw_sidebar_item(self, canvas, x: int, y: int, label: str, active: bool = False):
+        fill = self.theme.text if active else self.theme.placeholder
+        canvas.create_text(x, y, anchor="nw", text=label, fill=fill, font=("Segoe UI", 11, "bold" if active else "normal"))
 
     def _draw_prompt_strip(self, canvas, width: int, height: int):
         top = height - self._prompt_height - 12
@@ -244,6 +239,7 @@ class BlankWindowApp:
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="close")
 
     def _draw_prompt_button(self, canvas, center_x: int, center_y: int):
+        tag = f"prompt_button_{center_x}_{center_y}"
         button = self._rounded_rect(
             canvas,
             center_x - 16,
@@ -251,16 +247,26 @@ class BlankWindowApp:
             center_x + 16,
             center_y + 16,
             9,
-            fill=self.theme.chrome,
-            outline=self.theme.chrome,
+            fill="",
+            outline="",
             width=1,
+            tags=(tag,),
         )
-        canvas.create_text(center_x, center_y - 1, text=">", fill=self.theme.text, font=("Segoe UI", 16, "bold"))
-        canvas.tag_bind(button, "<Button-1>", lambda _event: self._submit_prompt())
+        canvas.create_text(
+            center_x,
+            center_y - 1,
+            text=">",
+            fill=self.theme.text,
+            font=("Segoe UI", 16, "bold"),
+            tags=(tag,),
+        )
+        canvas.tag_bind(tag, "<Button-1>", lambda _event: self._submit_prompt())
+        canvas.tag_raise(tag)
         return button
 
     def _draw_bar_button(self, canvas, center_x: int, center_y: int, callback, kind: str):
         size = 32
+        tag = f"bar_button_{kind}_{center_x}_{center_y}"
         button = self._rounded_rect(
             canvas,
             center_x - size // 2,
@@ -268,22 +274,56 @@ class BlankWindowApp:
             center_x + size // 2,
             center_y + size // 2,
             9,
-            fill=self.theme.chrome,
-            outline=self.theme.chrome,
+            fill="",
+            outline="",
             width=1,
+            tags=(tag,),
         )
         if kind == "menu":
             for offset in (-6, 0, 6):
-                canvas.create_line(center_x - 7, center_y + offset, center_x + 7, center_y + offset, fill=self.theme.text, width=2)
+                canvas.create_line(
+                    center_x - 7,
+                    center_y + offset,
+                    center_x + 7,
+                    center_y + offset,
+                    fill=self.theme.text,
+                    width=2,
+                    tags=(tag,),
+                )
         elif kind == "window":
-            canvas.create_rectangle(center_x - 6, center_y - 7, center_x + 6, center_y + 7, outline=self.theme.text, width=2)
+            canvas.create_rectangle(
+                center_x - 6,
+                center_y - 7,
+                center_x + 6,
+                center_y + 7,
+                outline=self.theme.text,
+                width=2,
+                tags=(tag,),
+            )
         else:
-            canvas.create_line(center_x - 6, center_y - 6, center_x + 6, center_y + 6, fill=self.theme.text, width=2)
-            canvas.create_line(center_x - 6, center_y + 6, center_x + 6, center_y - 6, fill=self.theme.text, width=2)
+            canvas.create_line(
+                center_x - 6,
+                center_y - 6,
+                center_x + 6,
+                center_y + 6,
+                fill=self.theme.text,
+                width=2,
+                tags=(tag,),
+            )
+            canvas.create_line(
+                center_x - 6,
+                center_y + 6,
+                center_x + 6,
+                center_y - 6,
+                fill=self.theme.text,
+                width=2,
+                tags=(tag,),
+            )
 
-        canvas.tag_bind(button, "<Button-1>", lambda _event: callback())
-        canvas.tag_bind(button, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
-        canvas.tag_bind(button, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.chrome))
+        canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=""))
+        canvas.tag_raise(tag)
         return button
 
     def _toggle_sidebar(self):
@@ -294,7 +334,25 @@ class BlankWindowApp:
         return None
 
     def _submit_prompt(self, _event=None):
+        if self.test_var is not None:
+            self.test_value = str(self.test_var.get() or "").strip()
         return None
+
+    def _clear_test_placeholder(self, event=None):
+        widget = getattr(event, "widget", None)
+        if widget is None:
+            return
+        if widget.get().strip() == "Test box":
+            widget.delete(0, "end")
+            widget.configure(fg=self.theme.text)
+
+    def _restore_test_placeholder(self, event=None):
+        widget = getattr(event, "widget", None)
+        if widget is None:
+            return
+        if not widget.get().strip():
+            widget.insert(0, "Test box")
+            widget.configure(fg=self.theme.placeholder)
 
     def _bind_drag_targets(self, canvas):
         canvas.bind("<ButtonPress-1>", self._on_canvas_press)
@@ -302,6 +360,10 @@ class BlankWindowApp:
         canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
 
     def _on_canvas_press(self, event):
+        if self.sidebar_visible and not self._point_in_sidebar(event.x, event.y):
+            self.sidebar_visible = False
+            self._render()
+            return
         tile_id = self._hit_test_tile(event.x, event.y)
         if tile_id is None:
             return
@@ -340,6 +402,16 @@ class BlankWindowApp:
         self._active_tile_id = None
         self._drag_position = None
         self._render()
+
+    def _point_in_sidebar(self, x: int, y: int) -> bool:
+        if not self.sidebar_visible or self.root is None:
+            return False
+        bounds = self._content_bounds(self.root.winfo_width(), self.root.winfo_height())
+        left = 24
+        top = self._content_top
+        right = left + self._sidebar_width
+        bottom = bounds["bottom"]
+        return left <= x <= right and top <= y <= bottom
 
     def _content_bounds(self, width: int, height: int) -> dict[str, int]:
         left = 86

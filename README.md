@@ -161,8 +161,9 @@ and keeps prompt injection lightweight and explainable.
 
 The first rebuilt surface is a blank desktop window that serves as the starting
 shell for the new presentation layer. It follows the current homepage mockup:
-custom top bar, a 4x3 grid of smaller draggable widget tiles, a toggleable sidebar, and a bottom
-test box.
+custom top bar, a 4x3 grid of smaller draggable widget tiles, a toggleable sidebar that closes on outside clicks, and a lower bottom
+text field placed in the footer band. The sidebar currently exposes Home, Chat,
+and a Settings area anchored at the bottom. The top-bar controls are transparent hit targets layered above the chrome. The window is slightly taller so the footer field stays fully visible.
 
 Launch it with:
 
