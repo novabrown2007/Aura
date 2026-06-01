@@ -189,10 +189,10 @@ class BlankWindowApp:
         if self.test_frame is None:
             return
         frame_width = min(900, max(420, width - 120))
-        frame_height = min(88, max(56, height // 10))
+        frame_height = min(64, max(44, height // 12))
         frame_x = max(36, (width - frame_width) // 2)
         prompt_top = height - self._prompt_height - 12
-        frame_y = max(84, prompt_top - frame_height - 2)
+        frame_y = prompt_top + 10
         self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=frame_height)
 
     def _draw_window_shell(self, canvas, width: int, height: int):
@@ -289,8 +289,8 @@ class BlankWindowApp:
     def _draw_prompt_strip(self, canvas, width: int, height: int):
         top = height - self._prompt_height - 12
         canvas.create_line(20, top, width - 20, top, fill=self.theme.border, width=1)
-        self._draw_status_dot(canvas, 40, height - 48)
-        self._draw_prompt_button(canvas, width - 52, height - 45)
+        self._draw_status_dot(canvas, 40, height - 42)
+        self._draw_prompt_button(canvas, width - 52, height - 39)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
         canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=self.theme.accent, outline=self.theme.accent)
