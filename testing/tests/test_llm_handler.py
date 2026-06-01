@@ -173,12 +173,12 @@ def make_llm_context(endpoint="http://localhost:11434/api/generate"):
     context.toolExecutor = ToolExecutor(context)
     context.toolRegistry.registerTool(
         Tool(
-            name="calendar.createEvent",
-            description="Create a calendar event.",
-            parameters={"title": {"type": "string"}, "start_at": {"type": "string"}},
-            requiredParameters=("title", "start_at"),
-            module="calendar",
-            method="createEvent",
+            name="schedule.createItem",
+            description="Create a schedule item.",
+            parameters={"title": {"type": "string"}, "dueTime": {"type": "string"}},
+            requiredParameters=("title",),
+            module="personalSchedule",
+            method="createScheduleItem",
         )
     )
     return context
@@ -245,13 +245,13 @@ class LLMHandlerTests(unittest.TestCase):
             generateStructuredResponse=lambda *args, **kwargs: LLMResponse(
                 provider="gemini",
                 success=True,
-                rawResponse={"intent": "calendar.create", "confidence": 1},
+                rawResponse={"intent": "schedule.createItem", "confidence": 1},
             )
         )
         handler = LLMHandler(context)
 
         result = handler.generateStructuredResponse(
-            "Create a calendar event",
+            "Create a schedule item",
             {
                 "type": "object",
                 "required": ["intent", "confidence"],
@@ -262,7 +262,7 @@ class LLMHandlerTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(result["intent"], "calendar.create")
+        self.assertEqual(result["intent"], "schedule.createItem")
         self.assertEqual(result["confidence"], 1)
 
     def test_manager_falls_back_when_primary_fails(self):
@@ -955,7 +955,7 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertIn("Known user information", prompt)
         self.assertIn("- name: Nova", prompt)
         self.assertIn("Available deterministic tools", prompt)
-        self.assertIn("calendar.createEvent", prompt)
+        self.assertIn("schedule.createItem", prompt)
         self.assertIn('"toolCalls"', prompt)
 
     def test_offline_prompt_excludes_tools_and_instructs_generic_action_response(self):
@@ -972,10 +972,10 @@ class LLMHandlerTests(unittest.TestCase):
         self.assertIn("- name: Nova", prompt)
         self.assertIn("cannot be completed in offline mode", prompt)
         self.assertNotIn("Available deterministic tools", prompt)
-        self.assertNotIn("calendar.createEvent", prompt)
+        self.assertNotIn("schedule.createItem", prompt)
         self.assertNotIn('"toolCalls"', prompt)
 
-    def test_generate_response_executes_calendar_tool_call(self):
+    def test_generate_response_executes_schedule_tool_call(self):
         """A JSON tool-call response should execute the matching backend function."""
 
         calls = []
@@ -985,23 +985,23 @@ class LLMHandlerTests(unittest.TestCase):
                 provider="test",
                 success=True,
                 text=(
-                    '{"response":"Added it to your calendar.",'
-                    '"toolCalls":[{"toolName":"calendar.createEvent","arguments":'
-                    '{"title":"Dentist","start_at":"2026-05-21 09:00:00"}}]}'
+                    '{"response":"Added it to your schedule.",'
+                    '"toolCalls":[{"toolName":"schedule.createItem","arguments":'
+                    '{"title":"Dentist","dueTime":"2026-05-21 09:00:00"}}]}'
                 ),
             )
         )
-        context.calendar = SimpleNamespace(
-            createEvent=lambda **kwargs: calls.append(kwargs) or 42
+        context.personalSchedule = SimpleNamespace(
+            createScheduleItem=lambda **kwargs: calls.append(kwargs) or 42
         )
 
         handler = LLMHandler(context)
         result = handler.generateResponse("Add dentist tomorrow at 9")
 
-        self.assertEqual(result, "Added it to your calendar.")
+        self.assertEqual(result, "Added it to your schedule.")
         self.assertEqual(
             calls,
-            [{"title": "Dentist", "start_at": "2026-05-21 09:00:00"}],
+            [{"title": "Dentist", "dueTime": "2026-05-21 09:00:00"}],
         )
 
     def test_live_llm_connection_optional(self):

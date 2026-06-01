@@ -233,8 +233,8 @@ You are Aura, a private AI assistant for Nova.
 
 Current date: {currentDate}.
 
-Purpose:
-- Help with conversation, planning, reminders, calendar management, home automation, and general assistant tasks.
+ Purpose:
+- Help with conversation, planning, scheduling, reminders, task management, home automation, and general assistant tasks.
 - Use long-term memory only as context; do not expose it unless it is relevant to the user's request.
 - Use short-term conversation history to preserve continuity and resolve references like "that", "tomorrow", or "the event".
 - Reason with the LLM, but execute real actions only through deterministic Aura tools.
@@ -425,8 +425,8 @@ Rules:
             "update", "change", "put", "do", "run",
         }
         deviceWords = {
-            "light", "lights", "lamp", "lamps", "reminder", "calendar", "event",
-            "task", "camera", "stream", "automation", "brightness", "color",
+            "light", "lights", "lamp", "lamps", "reminder", "schedule", "event",
+            "task", "meeting", "timer", "bill", "camera", "stream", "automation", "brightness", "color",
             "action", "actions",
         }
         temporalWords = {

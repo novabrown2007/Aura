@@ -291,6 +291,20 @@ notifications:
   # Runtime quiet-hours flag managed by future time/window logic.
   quietHoursActive: false
 
+personalSchedule:
+  # Whether the unified personal schedule hub is active.
+  personalScheduleEnabled: true
+  # Whether schedule-triggered notifications are enabled.
+  scheduleNotificationsEnabled: true
+  # Whether recurring schedule items are allowed.
+  allowRecurringSchedules: true
+  # Whether schedule data persists across restarts.
+  persistScheduleData: true
+  # Schedule tick cadence in seconds.
+  scheduleTickIntervalSeconds: 1
+  # Default reminder priority.
+  defaultReminderPriority: NORMAL
+
 safety:
   # Whether the execution governance layer is active.
   safetyLayerEnabled: true

@@ -31,7 +31,6 @@ SUITES = {
     "short_memory": "testing.tests.test_conversation_history",
     "long_memory": "testing.tests.test_memory_manager",
     "memory_retrieval": "testing.tests.test_memory_retrieval",
-    "calendar": "testing.tests.test_calendar",
     "interfaces": ("testing.tests.interfaceTests", "testing.tests.test_developer_ui"),
     "developer_ui": "testing.tests.test_developer_ui",
     "desktop_overlay": "testing.tests.test_desktop_overlay",
@@ -44,7 +43,7 @@ SUITES = {
     "voice": "testing.tests.test_voice",
     "vad": "testing.tests.test_vad",
     "assistant_testing": "testing.tests.test_assistant_testing",
-    "reminders": "testing.tests.test_reminders",
+    "personal_schedule": "testing.tests.test_personal_schedule",
     "mysql_integration": "testing.tests.test_mysql_integration",
 }
 

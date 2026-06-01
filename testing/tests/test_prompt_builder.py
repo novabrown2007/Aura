@@ -63,8 +63,8 @@ class PromptBuilderTests(unittest.TestCase):
             "You are Aura.",
             toolDefinitions=[
                 {
-                    "name": "calendar.createEvent",
-                    "description": "Create calendar event.",
+                    "name": "schedule.createItem",
+                    "description": "Create schedule item.",
                     "parameters": {"title": {"type": "string"}},
                 }
             ],
@@ -74,7 +74,7 @@ class PromptBuilderTests(unittest.TestCase):
         self.assertIn("Prompt mode: tool selection", prompt)
         self.assertIn("Available deterministic tools", prompt)
         self.assertIn('"toolCalls"', prompt)
-        self.assertIn("calendar.createEvent", prompt)
+        self.assertIn("schedule.createItem", prompt)
 
 
 if __name__ == "__main__":

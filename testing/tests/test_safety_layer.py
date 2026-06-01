@@ -29,27 +29,29 @@ class SafetyLayerTests(unittest.TestCase):
         )
         self.context.toolRegistry = ToolRegistry(self.context)
         self.context.toolExecutor = ToolExecutor(self.context)
-        self.context.calendar = SimpleNamespace(createEvent=lambda **kwargs: self.calls.append(kwargs) or 7)
+        self.context.personalSchedule = SimpleNamespace(
+            createScheduleItem=lambda **kwargs: self.calls.append(kwargs) or 7
+        )
         self.context.lightController = SimpleNamespace(setBrightness=lambda **kwargs: self.calls.append(kwargs) or True)
         self.context.system = SimpleNamespace(shutdown=lambda: self.calls.append({"shutdown": True}) or True)
         self.context.safetyManager = SafetyManager(self.context)
 
     def test_safe_action_executes_through_guard(self):
         tool = Tool(
-            name="calendar.createEvent",
-            description="Create a calendar event.",
-            parameters={"title": {"type": "string"}, "start_at": {"type": "string"}},
-            requiredParameters=("title", "start_at"),
-            module="calendar",
-            method="createEvent",
+            name="schedule.createItem",
+            description="Create a schedule item.",
+            parameters={"title": {"type": "string"}, "dueTime": {"type": "string"}},
+            requiredParameters=("title",),
+            module="personalSchedule",
+            method="createScheduleItem",
             offlineAllowed=True,
             riskLevel="LOW",
         )
         self.context.toolRegistry.registerTool(tool)
 
         result = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+            "schedule.createItem",
+            {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
         )
 
         self.assertTrue(result["success"])
@@ -95,12 +97,12 @@ class SafetyLayerTests(unittest.TestCase):
 
     def test_rate_limit_blocks_repeated_execution(self):
         tool = Tool(
-            name="calendar.createEvent",
-            description="Create a calendar event.",
-            parameters={"title": {"type": "string"}, "start_at": {"type": "string"}},
-            requiredParameters=("title", "start_at"),
-            module="calendar",
-            method="createEvent",
+            name="schedule.createItem",
+            description="Create a schedule item.",
+            parameters={"title": {"type": "string"}, "dueTime": {"type": "string"}},
+            requiredParameters=("title",),
+            module="personalSchedule",
+            method="createScheduleItem",
             offlineAllowed=True,
             riskLevel="LOW",
         )
@@ -108,12 +110,12 @@ class SafetyLayerTests(unittest.TestCase):
         self.context.safetyManager.rateLimitManager.maxExecutionsPerMinute = 1
 
         first = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+            "schedule.createItem",
+            {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
         )
         second = self.context.toolExecutor.executeToolCall(
-            "calendar.createEvent",
-            {"title": "Dentist", "start_at": "2026-05-21 09:00:00"},
+            "schedule.createItem",
+            {"title": "Dentist", "dueTime": "2026-05-21 09:00:00"},
         )
 
         self.assertTrue(first["success"])

@@ -13,15 +13,14 @@ from core.router.intent import Intent
 from core.runtime.moduleLoader import ModuleLoader
 from core.runtime.runtimeContext import RuntimeContext
 from modules.base import AuraModule
-from modules.calendar import Calendar
 from modules.database.mysql.mysqlDatabase import MySQLDatabase
 from modules.database.sqlite.sqliteDatabase import SQLiteDatabase
 from modules.home_automation import HomeAutomation
 from modules.llm.conversationHistory import ConversationHistory
 from modules.llm.llmHandler import LLMHandler
 from modules.llm.memoryManager import MemoryManager
+from modules.personalSchedule import PersonalScheduleModule
 from modules.notifications import Notifications
-from modules.reminders import Reminders
 from modules.system import System
 
 
@@ -113,14 +112,13 @@ class ModuleLoaderTests(unittest.TestCase):
         """Existing backend modules should inherit the standard contract."""
 
         module_classes = (
-            Calendar,
             HomeAutomation,
             ConversationHistory,
             LLMHandler,
             MemoryManager,
             MySQLDatabase,
             Notifications,
-            Reminders,
+            PersonalScheduleModule,
             SQLiteDatabase,
             System,
         )
