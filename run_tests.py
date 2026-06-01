@@ -1,8 +1,13 @@
 """Core implementation for `run_tests` in the Aura assistant project."""
 
 import argparse
+from pathlib import Path
 import sys
 import unittest
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 SUITES = {
@@ -99,7 +104,7 @@ def buildSuite(suiteName: str):
 
     loader = unittest.TestLoader()
     if suiteName == "all":
-        return loader.discover("testing/tests")
+        return loader.discover("testing/tests", top_level_dir=str(ROOT))
 
     suite = unittest.TestSuite()
     for target in _suiteTargets(SUITES[suiteName]):

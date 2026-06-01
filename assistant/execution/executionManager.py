@@ -45,6 +45,13 @@ class ExecutionManager:
 
     def executeToolCall(self, toolName: str, arguments: dict | None = None, offlineMode: bool = False, confirmed: bool = False, allowAdmin: bool = False, source: str = "SYSTEM", intent: str | None = None, conversationId: str = ""):
         tool = getattr(getattr(self.context, "toolRegistry", None), "getTool", lambda *_: None)(toolName)
+        if tool is not None and getattr(tool, "category", "") == "ADMIN_ONLY" and not allowAdmin:
+            return {
+                "success": False,
+                "toolName": toolName,
+                "status": "DENIED",
+                "error": "Tool requires admin permission.",
+            }
         request = ExecutionRequest(
             intent=str(intent or toolName or ""),
             action=str(toolName or ""),
@@ -90,6 +97,14 @@ class ExecutionManager:
             legacy["error"] = result.get("errors", ["Confirmation required."])[0]
         if result.get("status") in {"FAILED", "DENIED", "TIMEOUT", "RATE_LIMITED"}:
             legacy["error"] = result.get("errors", ["Execution failed."])[0]
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        decision = metadata.get("decision") if isinstance(metadata, dict) else {}
+        if isinstance(decision, dict):
+            cooldownRemaining = float(decision.get("cooldownRemaining", 0.0) or 0.0)
+            if cooldownRemaining > 0.0:
+                legacy["cooldownRemaining"] = cooldownRemaining
+            if decision.get("requiresConfirmation"):
+                legacy["requiresConfirmation"] = True
         return legacy
 
     def execute(self, request, confirmed: bool = False, allowAdmin: bool = False, offlineMode: bool = False, tool=None):

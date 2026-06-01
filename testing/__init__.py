@@ -1,9 +1,18 @@
-"""Assistant ecosystem testing utilities for Aura."""
+"""Test package bootstrap for Aura."""
 
-from .debugging import AssistantConsole, EventTracer, IntentDebugger, IntentRecord, SessionDebugger, SessionRecord, TracedEvent
-from .mock import MockNotifications, MockUser, MockVoiceInput
-from .simulation import AssistantSimulator, WorkflowSimulator
-from .harnesses import IntegrationTester, IntentTester, VoiceTestResult, VoiceTester, WorkflowTester
+from __future__ import annotations
+
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from testing.debugging import AssistantConsole, EventTracer, IntentDebugger, SessionDebugger, TracedEvent
+from testing.harnesses import IntegrationTester, IntentTester, VoiceTester, WorkflowTester
+from testing.mock import MockNotifications, MockUser, MockVoiceInput
+from testing.simulation import AssistantSimulator, WorkflowSimulator
 
 __all__ = [
     "AssistantConsole",
@@ -12,15 +21,12 @@ __all__ = [
     "IntegrationTester",
     "IntentDebugger",
     "IntentTester",
-    "IntentRecord",
     "MockNotifications",
     "MockUser",
     "MockVoiceInput",
     "SessionDebugger",
-    "SessionRecord",
+    "TracedEvent",
     "VoiceTester",
-    "VoiceTestResult",
     "WorkflowSimulator",
     "WorkflowTester",
-    "TracedEvent",
 ]
