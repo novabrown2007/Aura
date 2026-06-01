@@ -407,6 +407,24 @@ execution:
   # Default execution timeout in seconds.
   executionTimeoutSeconds: 30
 
+task:
+  # Whether the lightweight async task system is enabled.
+  taskSystemEnabled: true
+  # Whether scheduled tasks are persisted across restarts.
+  taskPersistenceEnabled: true
+  # Whether recurring background jobs are enabled.
+  backgroundJobsEnabled: true
+  # Maximum number of concurrent task worker slots.
+  maxConcurrentTasks: 5
+  # Scheduler polling cadence in milliseconds.
+  taskSchedulerTickIntervalMs: 500
+  # Default retry count used when tasks do not specify one.
+  defaultRetryAttempts: 3
+  # Default retry delay in seconds used when tasks do not specify one.
+  defaultRetryDelaySeconds: 30
+  # SQLite file used for task persistence.
+  databasePath: .aura/tasks.sqlite3
+
 homeAutomationBridge:
   # HTTP timeout for bridge requests in seconds.
   timeout: 5

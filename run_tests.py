@@ -20,6 +20,7 @@ SUITES = {
     "autonomous_tasks": "testing.tests.test_autonomous_tasks",
     "automation_composer": "testing.tests.test_automation_composer",
     "threading_scheduler": "testing.tests.test_threading_scheduler",
+    "async_tasks": "testing.tests.test_async_tasks",
     "context_awareness": "testing.tests.test_context_awareness",
     "conversation_continuity": "testing.tests.test_conversation_continuity",
     "clarification": "testing.tests.test_clarification",

@@ -138,6 +138,16 @@ execution:
   allowAsyncExecution: true
   executionTimeoutSeconds: 30
 
+task:
+  taskSystemEnabled: true
+  taskPersistenceEnabled: true
+  backgroundJobsEnabled: true
+  maxConcurrentTasks: 5
+  taskSchedulerTickIntervalMs: 500
+  defaultRetryAttempts: 3
+  defaultRetryDelaySeconds: 30
+  databasePath: .aura/tasks.sqlite3
+
 responses:
   structuredResponsesEnabled: true
   spokenResponseEnabled: true

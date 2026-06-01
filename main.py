@@ -12,7 +12,7 @@ from core.modules.moduleManager import ModuleManager
 
 from core.threading.threadingManager import ThreadingManager
 from core.threading.events.eventManager import EventManager
-from core.threading.tasks.taskManager import TaskManager
+from core.tasks.taskManager import TaskManager
 from core.threading.scheduler.scheduler import Scheduler
 from core.eventBus.autonomy import AutonomousTaskManager
 from modules.llm.contextAwareness import ContextAwarenessManager
@@ -63,6 +63,9 @@ def startup(context):
 
     logger.info("Starting Aura.")
 
+    if getattr(context, "taskManager", None):
+        context.taskManager.start()
+
     if context.scheduler:
         context.scheduler.start()
 
@@ -82,6 +85,9 @@ def shutdown(context):
     logger = context.logger.getChild("Main")
 
     logger.info("Shutting down Aura.")
+
+    if getattr(context, "taskManager", None):
+        context.taskManager.shutdown()
 
     if context.scheduler:
         context.scheduler.stop()

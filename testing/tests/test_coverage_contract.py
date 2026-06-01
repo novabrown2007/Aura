@@ -33,6 +33,7 @@ class CoverageContractTests(unittest.TestCase):
         "core/eventBus/autonomy": ("testing/tests/test_autonomous_tasks.py",),
         "core/interruption": ("testing/tests/test_interruption.py",),
         "core/personality": ("testing/tests/test_personality.py",),
+        "core/tasks": ("testing/tests/test_async_tasks.py", "testing/tests/test_threading_scheduler.py"),
         "core/modules": ("testing/tests/test_module_framework.py",),
         "core/router": ("testing/tests/test_module_loader.py", "testing/tests/test_intent_pipeline.py"),
         "core/runtime/datetimeUtils.py": ("testing/tests/test_datetime_utils.py",),
