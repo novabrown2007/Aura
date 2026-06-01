@@ -161,7 +161,7 @@ and keeps prompt injection lightweight and explainable.
 
 The first rebuilt surface is a blank desktop window that serves as the starting
 shell for the new presentation layer. It follows the current homepage mockup:
-custom top bar, a 4x3 grid of smaller draggable widget tiles, a toggleable sidebar that closes on outside clicks, and a lower bottom
+custom top bar, a larger 4x3 grid of draggable widget tiles, a toggleable sidebar that closes on outside clicks, and a lower bottom
 text field placed in the footer band. The sidebar currently exposes Home, Chat,
 and a Settings area anchored at the bottom. The top-bar controls are transparent hit targets layered above the chrome. The sidebar also has an `X` button in its top-right corner to close it. The window is taller so the footer field stays fully visible. The desktop window is resizable. On Windows, the launcher starts in the system tray when tray startup succeeds, and otherwise leaves the window visible.
 The footer field now grows with the window and sits in the lower band below the separator line.

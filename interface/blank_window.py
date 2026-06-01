@@ -58,10 +58,10 @@ class BlankWindowApp:
             TileSpec(10, "Tile 11"),
             TileSpec(11, "Tile 12"),
         ]
-        self._tile_size = (130, 110)
+        self._tile_size = (320, 180)
         self._tile_columns = 4
         self._tile_rows = 3
-        self._tile_gap = (16, 18)
+        self._tile_gap = (18, 18)
         self._top_bar_rect = (12, 12, 948, 80)
         self._shell_padding = 10
         self._sidebar_width = 210
@@ -542,8 +542,8 @@ class BlankWindowApp:
         )
 
     def _content_bounds(self, width: int, height: int) -> dict[str, int]:
-        left = 86
-        right = width - 86
+        left = 36
+        right = width - 36
         top = self._content_top
         bottom = height - self._content_bottom_margin
         if self.sidebar_visible:
