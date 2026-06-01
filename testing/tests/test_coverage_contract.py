@@ -75,7 +75,7 @@ class CoverageContractTests(unittest.TestCase):
         "modules/notifications": ("testing/tests/test_notifications.py",),
         "modules/smartHome": ("testing/tests/test_module_framework.py",),
         "modules/spotify": ("testing/tests/test_module_framework.py",),
-        "modules/weather": ("testing/tests/test_module_framework.py",),
+        "modules/weather": ("testing/tests/test_weather_module.py",),
         "modules/system": ("testing/tests/test_system.py",),
         "providers": ("testing/tests/test_architecture.py",),
         "providers/base": ("testing/tests/test_architecture.py",),
@@ -123,6 +123,14 @@ class CoverageContractTests(unittest.TestCase):
         "homeAutomation.takeCameraSnapshot": "testing/tests/test_home_automation.py",
         "system.getTime": "testing/tests/test_system.py",
         "system.reload": "testing/tests/test_system.py",
+        "weather.addLocation": "testing/tests/test_weather_module.py",
+        "weather.addThreshold": "testing/tests/test_weather_module.py",
+        "weather.getAlerts": "testing/tests/test_weather_module.py",
+        "weather.getCurrent": "testing/tests/test_weather_module.py",
+        "weather.getHourlyForecast": "testing/tests/test_weather_module.py",
+        "weather.getIndoorTemperature": "testing/tests/test_weather_module.py",
+        "weather.getWeeklyForecast": "testing/tests/test_weather_module.py",
+        "weather.listLocations": "testing/tests/test_weather_module.py",
     }
 
     def test_every_source_file_belongs_to_a_tested_feature_area(self):

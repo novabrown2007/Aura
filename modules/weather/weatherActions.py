@@ -1,22 +1,5 @@
-"""Weather module action definitions."""
+"""Compatibility wrapper for weather actions."""
 
-from core.modules.base.moduleAction import ModuleAction
+from modules.weather.actions.weatherActions import WEATHER_ACTIONS
 
-WEATHER_ACTIONS = (
-    ModuleAction(
-        name="weather.getCurrent",
-        description="Return the current weather snapshot.",
-        method="getCurrentWeather",
-        parameters={"location": {"type": "string"}},
-        requiredParameters=("location",),
-        capabilities=("weather.read",),
-    ),
-    ModuleAction(
-        name="weather.getForecast",
-        description="Return a short forecast snapshot.",
-        method="getForecast",
-        parameters={"location": {"type": "string"}, "days": {"type": "integer"}},
-        requiredParameters=("location",),
-        capabilities=("weather.forecast",),
-    ),
-)
+__all__ = ["WEATHER_ACTIONS"]

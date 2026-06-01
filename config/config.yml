@@ -81,6 +81,16 @@ personalSchedule:
   scheduleTickIntervalSeconds: 1
   defaultReminderPriority: NORMAL
 
+weather:
+  weatherEnabled: true
+  weatherApiEnabled: true
+  localSensorWeatherEnabled: true
+  weatherAlertsEnabled: true
+  weatherThresholdNotificationsEnabled: true
+  weatherForecastCacheEnabled: true
+  weatherRefreshIntervalMinutes: 15
+  preferredWeatherProvider: openweathermap
+
 safety:
   safetyLayerEnabled: true
   requireConfirmationForHighRisk: true
