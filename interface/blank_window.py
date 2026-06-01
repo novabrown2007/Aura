@@ -26,7 +26,6 @@ class Theme:
 class TileSpec:
     tile_id: int
     title: str
-    sprite_name: str | None = None
 
 
 class BlankWindowApp:
@@ -53,10 +52,10 @@ class BlankWindowApp:
         self._drag_position: tuple[int, int] | None = None
         self._tile_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self._tile_specs = [
-            TileSpec(0, "Sidebar", "Sidebar icon.png"),
-            TileSpec(1, "Close", "Close icon.png"),
-            TileSpec(2, "Notifications On", "Active Notification icon.png"),
-            TileSpec(3, "Notifications Off", "Inactive Notification icon.png"),
+            TileSpec(0, "Widget 1"),
+            TileSpec(1, "Widget 2"),
+            TileSpec(2, "Widget 3"),
+            TileSpec(3, "Widget 4"),
             TileSpec(4, "Widget 5"),
             TileSpec(5, "Widget 6"),
             TileSpec(6, "Widget 7"),
@@ -233,19 +232,7 @@ class BlankWindowApp:
         fill = self.theme.panel if not active else self.theme.hover
         outline = self.theme.secondary_accent if active else self.theme.border
         self._shadow_round_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
-        sprite = self._sprite_images.get(title)
-        if sprite is not None:
-            canvas.create_image(x + width / 2, y + height / 2 - 8, image=sprite, anchor="center")
-            canvas.create_text(
-                x + width / 2,
-                y + height - 20,
-                anchor="s",
-                text=title,
-                fill=self.theme.placeholder,
-                font=("Segoe UI", 11),
-            )
-        else:
-            canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
+        canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
 
     def _draw_sidebar(self, canvas, width: int, height: int):
         if not self.sidebar_visible:
@@ -312,7 +299,7 @@ class BlankWindowApp:
         self._draw_prompt_button(canvas, width - 78, height - 48)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
-        canvas.create_oval(x - 8, y - 8, x + 8, y + 8, fill=self.theme.soft_glow, outline=self.theme.secondary_accent)
+        self._draw_icon_sprite(canvas, "Active Notification icon.png", x, y, size=24, fallback_fill=self.theme.secondary_accent)
 
     def _draw_menu_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="menu")
@@ -364,46 +351,12 @@ class BlankWindowApp:
             width=1,
             tags=(tag,),
         )
-        if kind == "menu":
-            for offset in (-7, 0, 7):
-                canvas.create_line(
-                    center_x - 8,
-                    center_y + offset,
-                    center_x + 8,
-                    center_y + offset,
-                    fill=self.theme.text,
-                    width=2,
-                    tags=(tag,),
-                )
-        elif kind == "window":
-            canvas.create_rectangle(
-                center_x - 7,
-                center_y - 8,
-                center_x + 7,
-                center_y + 8,
-                outline=self.theme.text,
-                width=2,
-                tags=(tag,),
-            )
-        else:
-            canvas.create_line(
-                center_x - 7,
-                center_y - 7,
-                center_x + 7,
-                center_y + 7,
-                fill=self.theme.text,
-                width=2,
-                tags=(tag,),
-            )
-            canvas.create_line(
-                center_x - 7,
-                center_y + 7,
-                center_x + 7,
-                center_y - 7,
-                fill=self.theme.text,
-                width=2,
-                tags=(tag,),
-            )
+        sprite_name = {
+            "menu": "Sidebar icon.png",
+            "window": "Inactive Notification icon.png",
+            "close": "Close icon.png",
+        }[kind]
+        self._draw_icon_sprite(canvas, sprite_name, center_x, center_y, size=26, fallback_fill=self.theme.text, tags=(tag,))
 
         canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
         canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.soft_glow))
@@ -432,10 +385,7 @@ class BlankWindowApp:
     def _load_sprite_images(self, tk):
         self._sprite_images = {}
         target_size = 84
-        for spec in self._tile_specs:
-            if not spec.sprite_name:
-                continue
-            sprite_path = self._asset_dir / spec.sprite_name
+        for sprite_path in sorted(self._asset_dir.glob("*.png")):
             if not sprite_path.exists():
                 continue
             try:
@@ -443,9 +393,26 @@ class BlankWindowApp:
                 scale = max(1, int(-(-max(image.width(), image.height()) // target_size)))
                 if scale > 1:
                     image = image.subsample(scale, scale)
-                self._sprite_images[spec.title] = image
+                self._sprite_images[sprite_path.name] = image
             except Exception:
                 continue
+
+    def _draw_icon_sprite(self, canvas, sprite_name: str, center_x: int, center_y: int, size: int, fallback_fill: str, tags: tuple[str, ...] = ()):
+        sprite = self._sprite_images.get(sprite_name)
+        if sprite is not None:
+            canvas.create_image(center_x, center_y, image=sprite, anchor="center", tags=tags)
+            return
+        half = size // 2
+        canvas.create_oval(
+            center_x - half,
+            center_y - half,
+            center_x + half,
+            center_y + half,
+            fill="",
+            outline=fallback_fill,
+            width=2,
+            tags=tags,
+        )
 
     def _clear_test_placeholder(self, event=None):
         widget = getattr(event, "widget", None)
