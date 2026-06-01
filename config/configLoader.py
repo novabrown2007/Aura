@@ -384,6 +384,16 @@ DEFAULT_DEV_CONFIG = {
         "allowAsyncExecution": True,
         "executionTimeoutSeconds": 30,
     },
+    "task": {
+        "taskSystemEnabled": True,
+        "taskPersistenceEnabled": True,
+        "backgroundJobsEnabled": True,
+        "maxConcurrentTasks": 5,
+        "taskSchedulerTickIntervalMs": 500,
+        "defaultRetryAttempts": 3,
+        "defaultRetryDelaySeconds": 30,
+        "databasePath": ".aura/tasks.sqlite3",
+    },
 }
 
 
@@ -669,8 +679,15 @@ class ConfigLoader:
             "executionValidationEnabled": "execution.executionValidationEnabled",
             "executionAuditLoggingEnabled": "execution.executionAuditLoggingEnabled",
             "allowAsyncExecution": "execution.allowAsyncExecution",
-            "executionTimeoutSeconds": "execution.executionTimeoutSeconds",
-        }
+    "executionTimeoutSeconds": "execution.executionTimeoutSeconds",
+    "taskSystemEnabled": "task.taskSystemEnabled",
+    "taskPersistenceEnabled": "task.taskPersistenceEnabled",
+    "backgroundJobsEnabled": "task.backgroundJobsEnabled",
+    "maxConcurrentTasks": "task.maxConcurrentTasks",
+    "taskSchedulerTickIntervalMs": "task.taskSchedulerTickIntervalMs",
+    "defaultRetryAttempts": "task.defaultRetryAttempts",
+    "defaultRetryDelaySeconds": "task.defaultRetryDelaySeconds",
+}
 
         self.load()
 

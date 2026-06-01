@@ -61,6 +61,36 @@ class RuntimeContext:
         self.taskManager = None
         """Task manager responsible for running background jobs or async tasks."""
 
+        self.taskScheduler = None
+        """Lightweight scheduler for delayed and recurring tasks."""
+
+        self.taskRegistry = None
+        """Registry of reusable task definitions and recurring jobs."""
+
+        self.taskQueue = None
+        """Priority queue of pending async tasks."""
+
+        self.taskPersistenceManager = None
+        """Persistence bridge for scheduled task recovery."""
+
+        self.taskRetryManager = None
+        """Retry coordinator for lightweight async tasks."""
+
+        self.taskCancellationManager = None
+        """Cancellation manager for queued tasks."""
+
+        self.taskStateManager = None
+        """Task lifecycle tracker for async orchestration."""
+
+        self.taskExecutor = None
+        """Execution adapter used by the unified task pipeline."""
+
+        self.backgroundJobManager = None
+        """Recurring background job coordinator."""
+
+        self.recurringTaskManager = None
+        """Recurring task registry and rescheduler."""
+
         self.autonomousTasks = None
         """Persistent autonomous task manager for scheduled/event-driven work."""
 
