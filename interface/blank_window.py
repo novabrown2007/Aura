@@ -337,7 +337,7 @@ class BlankWindowApp:
         )
         canvas.create_text(
             center_x,
-            center_y - 7,
+            center_y,
             text=">",
             fill=self.theme.secondary_accent,
             font=("Segoe UI", 28, "bold"),
