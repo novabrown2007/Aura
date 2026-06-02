@@ -85,6 +85,8 @@ class BlankWindowApp:
         self._content_top = 102
         self._content_bottom_margin = 138
         self._prompt_height = 78
+        self._prompt_button_item = None
+        self._prompt_button_bounds = (0, 0, 0, 0)
 
     def _resolve_asset_dir(self) -> Path:
         frozen_root = getattr(sys, "_MEIPASS", None)
@@ -345,18 +347,23 @@ class BlankWindowApp:
             center_y + 18,
             10,
             fill="",
-            outline=self.theme.secondary_accent,
+            outline=self.theme.border,
             width=1,
             tags=(tag,),
         )
-        canvas.create_text(
-            center_x,
-            center_y,
-            text=">",
-            fill=self.theme.secondary_accent,
-            font=("Segoe UI", 28, "bold"),
+        self._prompt_button_item = button
+        self._prompt_button_bounds = (center_x - 18, center_y - 18, center_x + 18, center_y + 18)
+        self._draw_icon_sprite(
+            canvas,
+            "Send button icon.png",
+            center_x - 2,
+            center_y - 6,
+            size=32,
+            fallback_fill=self.theme.secondary_accent,
             tags=(tag,),
         )
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.soft_glow))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
         canvas.tag_bind(tag, "<Button-1>", lambda _event: self._submit_prompt())
         canvas.tag_raise(tag)
         return button
@@ -527,6 +534,8 @@ class BlankWindowApp:
         canvas.bind("<ButtonPress-1>", self._on_canvas_press)
         canvas.bind("<B1-Motion>", self._on_canvas_drag)
         canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
+        canvas.bind("<Motion>", self._on_canvas_motion)
+        canvas.bind("<Leave>", self._on_canvas_leave)
 
     def _on_canvas_press(self, event):
         if self.sidebar_visible and not self._point_in_sidebar(event.x, event.y) and not self._point_in_title_bar_control(event.x, event.y):
@@ -571,6 +580,25 @@ class BlankWindowApp:
         self._active_tile_id = None
         self._drag_position = None
         self._render()
+
+    def _on_canvas_motion(self, event):
+        self._update_prompt_hover(event.x, event.y)
+
+    def _on_canvas_leave(self, _event):
+        self._update_prompt_hover(None, None)
+
+    def _update_prompt_hover(self, x: int | None, y: int | None):
+        canvas = self.canvas
+        button = self._prompt_button_item
+        if canvas is None or button is None:
+            return
+
+        x1, y1, x2, y2 = self._prompt_button_bounds
+        hovered = x is not None and y is not None and x1 <= x <= x2 and y1 <= y <= y2
+        try:
+            canvas.itemconfigure(button, outline=self.theme.soft_glow if hovered else self.theme.border)
+        except Exception:
+            return
 
     def _point_in_sidebar(self, x: int, y: int) -> bool:
         if not self.sidebar_visible or self.root is None:
