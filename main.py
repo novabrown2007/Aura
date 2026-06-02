@@ -27,6 +27,7 @@ from assistant.responses import ResponseManager
 from assistant.safety import SafetyManager
 from assistant.conversation import ConversationManager
 from assistant.execution import ExecutionManager
+from core.voice import VoiceManager
 
 from core.router.intentRouter import IntentRouter
 from core.router.interpreter import Interpreter
@@ -106,6 +107,9 @@ def shutdown(context):
 
     if getattr(context, "executionManager", None) and hasattr(context.executionManager, "shutdown"):
         context.executionManager.shutdown()
+
+    if getattr(context, "voiceManager", None) and hasattr(context.voiceManager, "shutdown"):
+        context.voiceManager.shutdown()
 
     if getattr(context, "notificationManager", None):
         context.notificationManager.shutdown()
@@ -199,6 +203,24 @@ def buildRuntimeContext():
     context.responseManager = ResponseManager(context)
     context.conversationHistory = ConversationHistory(context)
     context.llm = LLMHandler(context)
+    try:
+        context.voiceManager = VoiceManager(context)
+        context.pushToTalkManager = context.voiceManager.pushToTalkManager
+        context.wakeWordManager = context.voiceManager.wakeWordManager
+        context.vadManager = context.voiceManager.vadManager
+        context.textToSpeech = context.voiceManager.textToSpeech
+        context.audioPlayer = context.voiceManager.audioPlayer
+        context.speechQueue = context.voiceManager.speechQueue
+    except Exception as error:
+        context.voiceManager = None
+        context.pushToTalkManager = None
+        context.wakeWordManager = None
+        context.vadManager = None
+        context.textToSpeech = None
+        context.audioPlayer = None
+        context.speechQueue = None
+        if context.logger:
+            context.logger.warning(f"Voice subsystem could not be initialized: {error}")
     # Router
     context.interpreter = Interpreter(context)
     context.intentRouter = IntentRouter(context)

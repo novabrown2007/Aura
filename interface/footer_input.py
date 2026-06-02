@@ -23,5 +23,11 @@ class FooterInput:
     def apply_hover(self, canvas, hovered: bool):
         self.chrome.apply_prompt_hover(canvas, hovered)
 
+    def apply_voice_hover(self, canvas, hovered: bool):
+        self.chrome.apply_voice_hover(canvas, hovered)
+
     def is_hovered(self, x: int | None, y: int | None) -> bool:
         return self.chrome.prompt_button_hovered(x, y)
+
+    def is_voice_hovered(self, x: int | None, y: int | None) -> bool:
+        return self.chrome.voice_button_hovered(x, y)

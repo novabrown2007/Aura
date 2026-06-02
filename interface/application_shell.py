@@ -55,3 +55,4 @@ class ApplicationShell:
     def set_prompt_hover(self, canvas, x: int | None, y: int | None):
         # Prompt hover is a footer concern; the overlay layer stays a placeholder.
         self.footer_input.apply_hover(canvas, self.footer_input.is_hovered(x, y))
+        self.footer_input.apply_voice_hover(canvas, self.footer_input.is_voice_hovered(x, y))

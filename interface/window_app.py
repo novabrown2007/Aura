@@ -34,6 +34,7 @@ class AuraWindowApp:
         self._tray = None
         self._tray_commands: queue.Queue[str] = queue.Queue()
         self._ui_actions: queue.Queue[object] = queue.Queue()
+        self._voice_capture_active = False
         self._asset_dir = self._resolve_asset_dir()
         self._sprite_crop_boxes = {
             "Sidebar icon.png": (256, 480, 768, 992),
@@ -102,6 +103,7 @@ class AuraWindowApp:
             overlay_layer=OverlayLayer(),
         )
         self.shell.create_footer_input(root, tk, self._submit_prompt)
+        self._bind_voice_handlers()
 
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
@@ -168,6 +170,9 @@ class AuraWindowApp:
                     self.chrome.test_var = None
                     self.chrome._prompt_button_item = None
                     self.chrome._prompt_button_bounds = (0, 0, 0, 0)
+                    self.chrome._voice_button_item = None
+                    self.chrome._voice_button_bounds = (0, 0, 0, 0)
+                    self.chrome._voice_button_active = False
                 self._closing = False
 
         try:
@@ -206,6 +211,7 @@ class AuraWindowApp:
             submit_prompt=self._submit_prompt,
             close_sidebar=self._close_sidebar,
             settings=self._toggle_settings,
+            voice_press=self._start_push_to_talk,
         )
         shell.render(canvas, width, height, callbacks, self.sidebar_visible)
 
@@ -220,6 +226,9 @@ class AuraWindowApp:
                 llm=None,
                 llmManager=None,
                 conversationHistory=None,
+                voiceManager=None,
+                pushToTalkManager=None,
+                wakeWordManager=None,
             )
 
         try:
@@ -230,6 +239,9 @@ class AuraWindowApp:
                 llm=None,
                 llmManager=None,
                 conversationHistory=None,
+                voiceManager=None,
+                pushToTalkManager=None,
+                wakeWordManager=None,
             )
 
     def _bind_drag_targets(self, canvas):
@@ -255,7 +267,8 @@ class AuraWindowApp:
         if self.shell.overlay_layer.handle_press(event.x, event.y, width, height):
             self._render()
             return
-        if self.sidebar_visible and not self.shell.sidebar.point_inside(event.x, event.y, width, height, self.sidebar_visible) and not self.shell.point_in_title_bar_control(event.x, event.y, width):
+        voice_button = self.chrome is not None and self.chrome.voice_button_hovered(event.x, event.y)
+        if self.sidebar_visible and not self.shell.sidebar.point_inside(event.x, event.y, width, height, self.sidebar_visible) and not self.shell.point_in_title_bar_control(event.x, event.y, width) and not voice_button:
             self.sidebar_visible = False
             self._render()
             return
@@ -272,6 +285,9 @@ class AuraWindowApp:
 
     def _on_canvas_release(self, event):
         if self.root is None:
+            return
+        if self._voice_capture_active:
+            self._stop_push_to_talk()
             return
         if self.shell is not None and self.shell.content_area.handle_release(event.x, event.y, self.root.winfo_width(), self.root.winfo_height(), self.sidebar_visible):
             self._render()
@@ -323,6 +339,65 @@ class AuraWindowApp:
         if self.shell is None:
             return None
         text = self.shell.footer_input.chrome.consume_prompt_text()
+        if not text:
+            return None
+        self.shell.content_area.setPage("chat")
+        self.shell.content_area.submitPrompt(text)
+        self._render()
+        return None
+
+    def _bind_voice_handlers(self):
+        voiceManager = getattr(self.runtime_context, "voiceManager", None)
+        if voiceManager is None:
+            return
+        if hasattr(voiceManager, "setPostUIEvent"):
+            voiceManager.setPostUIEvent(self._queue_ui_action)
+        if hasattr(voiceManager, "setTranscriptHandler"):
+            voiceManager.setTranscriptHandler(self._handle_voice_transcript)
+
+    def _start_push_to_talk(self):
+        voiceManager = getattr(self.runtime_context, "voiceManager", None)
+        if voiceManager is None or self._voice_capture_active:
+            return False
+        try:
+            started = bool(voiceManager.startPushToTalk())
+        except Exception as error:
+            started = False
+            if getattr(self.runtime_context, "logger", None):
+                self.runtime_context.logger.warning(f"Push-to-talk start failed: {error}")
+        if started:
+            self._voice_capture_active = True
+            if self.chrome is not None and self.canvas is not None:
+                self.chrome.set_voice_active(True, self.canvas)
+            self._render()
+        return started
+
+    def _stop_push_to_talk(self):
+        voiceManager = getattr(self.runtime_context, "voiceManager", None)
+        if voiceManager is None or not self._voice_capture_active:
+            return False
+        self._voice_capture_active = False
+        if self.chrome is not None and self.canvas is not None:
+            self.chrome.set_voice_active(False, self.canvas)
+        self._render()
+        try:
+            return bool(voiceManager.stopPushToTalk(asyncProcess=True))
+        except Exception as error:
+            if getattr(self.runtime_context, "logger", None):
+                self.runtime_context.logger.warning(f"Push-to-talk stop failed: {error}")
+            return False
+
+    def _handle_voice_transcript(self, text: str, source: str = "push_to_talk", _result=None):
+        prompt = str(text or "").strip()
+        if not prompt or self.shell is None:
+            return False
+        self._submit_voice_prompt(prompt)
+        return True
+
+    def _submit_voice_prompt(self, prompt: str):
+        if self.shell is None:
+            return None
+        text = str(prompt or "").strip()
         if not text:
             return None
         self.shell.content_area.setPage("chat")
