@@ -166,6 +166,9 @@ class RuntimeContext:
         self.auraBridgeClient = None
         """Alias for the Aura Protocol bridge client."""
 
+        self.homeAutomationManagerClient = None
+        """HTTP/process client used to manage the Home Automation Manager service."""
+
         self.bridgeStateCache = None
         """Cached assistant-facing bridge state."""
 

@@ -6,6 +6,8 @@ RuntimeContext, initializing all core subsystems, loading backend modules,
 and managing the application lifecycle.
 """
 
+import time
+
 from core.runtime.runtimeContext import RuntimeContext
 from core.runtime.datetimeUtils import DateTimeUtils
 from core.modules.moduleManager import ModuleManager
@@ -34,6 +36,7 @@ from core.tools.toolRegistry import ToolRegistry
 
 from modules.database.databaseFactory import createDatabaseWithFallback
 from modules.home_automation.config import buildHomeAutomationConfig
+from modules.home_automation.managerConnection import HomeAutomationManagerConnection
 from bridge import AuraBridgeClient
 
 from modules.llm.manager.llmManager import LLMManager
@@ -131,6 +134,24 @@ def buildRuntimeContext():
     context.config.logger = context.logger.getChild("Config")
     context.config.logger.info("Configuration loaded.")
     context.homeAutomationConfig = buildHomeAutomationConfig(context)
+    context.homeAutomationManagerClient = HomeAutomationManagerConnection(
+        context.homeAutomationConfig.manager,
+        logger=context.logger.getChild("HomeAutomationManager"),
+    )
+
+    manager_config = context.homeAutomationConfig.manager
+    if manager_config.auto_start:
+        try:
+            context.homeAutomationManagerClient.ensureRunning()
+        except Exception as error:
+            context.logger.warning(f"Home Automation Manager could not be started automatically: {error}")
+
+    if manager_config.auto_start_bridge:
+        try:
+            context.homeAutomationManagerClient.ensureRunning()
+            context.homeAutomationManagerClient.start(manager_config.bridge_target)
+        except Exception as error:
+            context.logger.warning(f"Home Automation bridge could not be started through the manager: {error}")
 
     # Threading
     context.threader = ThreadingManager(context)
@@ -147,7 +168,15 @@ def buildRuntimeContext():
     context.bridgeClient = AuraBridgeClient(context)
     context.auraBridgeClient = context.bridgeClient
     try:
-        context.bridgeClient.connect()
+        try:
+            context.bridgeClient.connect()
+        except Exception as error:
+            if manager_config.auto_start_bridge:
+                context.logger.info("Retrying bridge connection after manager start request.")
+                time.sleep(max(0.0, float(manager_config.startup_wait_seconds)))
+                context.bridgeClient.connect()
+            else:
+                raise error
     except Exception as error:
         if context.logger:
             context.logger.warning(f"Bridge protocol client could not connect: {error}")

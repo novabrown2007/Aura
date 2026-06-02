@@ -61,8 +61,26 @@ interruptions:
 # Connection credentials for the Home Automation Bridge
 homeAutomationBridge:
   host: 127.0.0.1
+  port: 8082
+  ssl: false
+
+# Connection and launch settings for the Home Automation Manager.
+# The manager can be started headlessly by Aura when launchCommand is configured.
+homeAutomationManager:
+  host: 127.0.0.1
   port: 8080
   ssl: false
+  timeout: 3.0
+  protocolPath: /protocol/manager
+  statusPath: /status
+  launchCommand: []
+  launchWorkingDirectory: ""
+  autoStart: false
+  autoStartBridge: false
+  startupWaitSeconds: 2.5
+  bridgeTarget: bridge
+  hubTarget: hub
+  suiteTarget: suite
 
 notifications:
   notificationsEnabled: true

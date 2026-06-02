@@ -8,6 +8,7 @@ from core.tools.tool import Tool
 from modules.base import AuraModule, ModuleMetadata
 from modules.home_automation.bridgeConnection import BridgeConnection
 from modules.home_automation.config import HomeAutomationConfig, buildHomeAutomationConfig
+from modules.home_automation.managerConnection import HomeAutomationManagerConnection
 from modules.home_automation.models import (
     BridgeState,
     CameraDevice,
@@ -22,7 +23,7 @@ class HomeAutomation(AuraModule):
 
     metadata = ModuleMetadata(
         name="homeAutomation",
-        version="1.4.0",
+        version="1.5.0",
         description="Home automation bridge and device state.",
         permissions=("network:http",),
         capabilities=("home-automation", "device-control"),
@@ -35,6 +36,7 @@ class HomeAutomation(AuraModule):
         self.config = config
         self.logger = None
         self.bridge = None
+        self.manager = None
         if context is not None:
             self.initialize(context)
 
@@ -48,10 +50,18 @@ class HomeAutomation(AuraModule):
         self.context = context
         self.config = self.config or getattr(context, "homeAutomationConfig", None) or buildHomeAutomationConfig(context)
         self.logger = context.logger.getChild("HomeAutomation") if context.logger else None
+        self.manager = getattr(context, "homeAutomationManagerClient", None) or HomeAutomationManagerConnection(self.config.manager, logger=self.logger)
+        if self.config.manager.auto_start:
+            try:
+                self.manager.ensureRunning()
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Home Automation Manager could not be started from the module: {error}")
         self.bridge = getattr(context, "bridgeClient", None) or getattr(context, "auraBridgeClient", None) or BridgeConnection(self.config.bridge)
         self._logStartup(
             "homeAutomation module started "
-            f"(bridge_host={self.config.bridge.host}, bridge_port={self.config.bridge.port}, ssl={self.config.bridge.ssl})."
+            f"(bridge_host={self.config.bridge.host}, bridge_port={self.config.bridge.port}, ssl={self.config.bridge.ssl}, "
+            f"manager_host={self.config.manager.host}, manager_port={self.config.manager.port}, manager_ssl={self.config.manager.ssl})."
         )
         return None
 
@@ -179,6 +189,22 @@ class HomeAutomation(AuraModule):
                 method="takeCameraSnapshot",
                 safe=True,
             ),
+            Tool(
+                name="homeAutomation.manageService",
+                description="Send a lifecycle command to the Home Automation Manager.",
+                parameters={
+                    "command": {"type": "string"},
+                    "target": {"type": "string"},
+                    "fields": {"type": "object"},
+                },
+                requiredParameters=("command", "target"),
+                module="homeAutomation",
+                method="manageService",
+                safe=False,
+                confirmRequired=True,
+                requiredPermissions=("system.manage",),
+                riskLevel="MEDIUM",
+            ),
         ]
 
     def refresh(self) -> BridgeState:
@@ -302,15 +328,61 @@ class HomeAutomation(AuraModule):
 
         return self.bridge.queueNotification(source, severity, category, title, message, device_id)
 
-    def startBridge(self) -> dict[str, object]:
-        """Record a local bridge start request."""
+    def manageService(self, command: str, target: str, **fields) -> dict[str, object]:
+        """Send a lifecycle command through the Home Automation Manager when available."""
 
-        return self._localServiceStartResponse("bridge")
+        manager = self._managerClient()
+        if manager is not None:
+            try:
+                manager.ensureRunning()
+                response = manager.request(command, target, **fields)
+                self._emitServiceChange(command, target, response, mode="manager")
+                return response
+            except Exception as error:
+                if self.logger:
+                    self.logger.warning(f"Home Automation Manager request failed, falling back locally: {error}")
+
+        return self._localServiceResponse(command, target, **fields)
+
+    def startBridge(self) -> dict[str, object]:
+        """Start the bridge through the manager when available."""
+
+        return self.manageService("start", "bridge")
+
+    def stopBridge(self) -> dict[str, object]:
+        """Stop the bridge through the manager when available."""
+
+        return self.manageService("stop", "bridge")
+
+    def restartBridge(self) -> dict[str, object]:
+        """Restart the bridge through the manager when available."""
+
+        return self.manageService("restart", "bridge")
+
+    def forceStopBridge(self) -> dict[str, object]:
+        """Force stop the bridge through the manager when available."""
+
+        return self.manageService("forcestop", "bridge")
 
     def startHub(self) -> dict[str, object]:
-        """Record a local hub start request."""
+        """Start the hub through the manager when available."""
 
-        return self._localServiceStartResponse("hub")
+        return self.manageService("start", "hub")
+
+    def stopHub(self) -> dict[str, object]:
+        """Stop the hub through the manager when available."""
+
+        return self.manageService("stop", "hub")
+
+    def restartHub(self) -> dict[str, object]:
+        """Restart the hub through the manager when available."""
+
+        return self.manageService("restart", "hub")
+
+    def forceStopHub(self) -> dict[str, object]:
+        """Force stop the hub through the manager when available."""
+
+        return self.manageService("forcestop", "hub")
 
     def _resolveLightId(self, room: str) -> str:
         """Resolve a user-facing room/name string to a bridge light device id."""
@@ -343,25 +415,54 @@ class HomeAutomation(AuraModule):
             },
         )
 
-    def _localServiceStartResponse(self, service: str) -> dict[str, object]:
-        """Return a local acknowledgement for service-start actions."""
+    def _managerClient(self):
+        """Return the configured manager client if it can accept requests."""
+
+        manager = self.manager or getattr(self.context, "homeAutomationManagerClient", None)
+        if manager is None:
+            return None
+        return manager
+
+    def _emitServiceChange(self, command: str, target: str, response: dict[str, object], mode: str):
+        """Emit a service lifecycle event for other runtime components."""
+
+        event_manager = getattr(self.context, "eventManager", None)
+        if event_manager is None:
+            return
+
+        event_manager.emit(
+            "homeAutomation.serviceCommandIssued",
+            {
+                "command": command,
+                "target": target,
+                "mode": mode,
+                "response": dict(response or {}),
+            },
+        )
+
+    def _localServiceResponse(self, command: str, target: str, **fields) -> dict[str, object]:
+        """Return a local acknowledgement for service lifecycle actions."""
 
         if self.logger:
-            self.logger.info("Local home automation %s start requested.", service)
+            self.logger.info("Local home automation %s requested for %s.", command, target)
 
         event_manager = getattr(self.context, "eventManager", None)
         if event_manager is not None:
             event_manager.emit(
-                "homeAutomation.serviceStartRequested",
+                "homeAutomation.serviceCommandRequested",
                 {
-                    "service": service,
+                    "command": command,
+                    "target": target,
                     "mode": "local",
+                    "fields": dict(fields),
                 },
             )
 
         return {
             "status": "ok",
-            "service": service,
+            "command": command,
+            "target": target,
             "mode": "local",
-            "message": f"{service.title()} start request handled locally.",
+            "fields": dict(fields),
+            "message": f"{target.title()} {command} request handled locally.",
         }

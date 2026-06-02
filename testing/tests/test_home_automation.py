@@ -12,7 +12,7 @@ from core.threading.events.eventManager import EventManager
 from core.runtime.moduleLoader import ModuleLoader
 from modules.home_automation import HomeAutomation
 from modules.home_automation.bridgeConnection import BridgeConnectionError
-from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, buildHomeAutomationConfig
+from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, HomeAutomationManagerConfig, buildHomeAutomationConfig
 from modules.home_automation.models import BridgeState, CameraDevice, Device, LightDevice
 from testing.tests.support.fakes import make_context
 
@@ -126,6 +126,10 @@ class HomeAutomationConfigTests(unittest.TestCase):
                 "homeAutomationBridge.ssl": "true",
                 "homeAutomationBridge.timeout": "7.5",
                 "homeAutomationBridge.refreshSeconds": "9.0",
+                "homeAutomationManager.host": "manager.local",
+                "homeAutomationManager.port": "9090",
+                "homeAutomationManager.autoStart": "false",
+                "homeAutomationManager.launchCommand": ["manager.exe", "--headless"],
             }.get(key, default)
         )
 
@@ -135,6 +139,10 @@ class HomeAutomationConfigTests(unittest.TestCase):
         self.assertTrue(config.bridge.use_ssl)
         self.assertEqual(config.bridge.timeout_seconds, 7.5)
         self.assertEqual(config.refresh_interval_seconds, 9.0)
+        self.assertEqual(config.manager.host, "manager.local")
+        self.assertEqual(config.manager.port, 9090)
+        self.assertFalse(config.manager.auto_start)
+        self.assertEqual(config.manager.launch_command, ("manager.exe", "--headless"))
 
     def test_get_tools_exposes_complete_home_automation_tool_contract(self):
         module = makeModule()
@@ -155,6 +163,7 @@ class HomeAutomationConfigTests(unittest.TestCase):
                 "homeAutomation.startCameraStream",
                 "homeAutomation.stopCameraStream",
                 "homeAutomation.takeCameraSnapshot",
+                "homeAutomation.manageService",
             },
         )
 
@@ -487,7 +496,8 @@ class LocalStartTests(unittest.TestCase):
         response = module.startBridge()
 
         self.assertEqual(response["status"], "ok")
-        self.assertEqual(response["service"], "bridge")
+        self.assertEqual(response["command"], "start")
+        self.assertEqual(response["target"], "bridge")
         self.assertEqual(response["mode"], "local")
 
     def test_start_hub_returns_local_ack(self):
@@ -495,8 +505,34 @@ class LocalStartTests(unittest.TestCase):
         response = module.startHub()
 
         self.assertEqual(response["status"], "ok")
-        self.assertEqual(response["service"], "hub")
+        self.assertEqual(response["command"], "start")
+        self.assertEqual(response["target"], "hub")
+        self.assertEqual(response["fields"], {})
         self.assertEqual(response["mode"], "local")
+
+    def test_manage_service_uses_manager_when_available(self):
+        class FakeManager:
+            def __init__(self):
+                self.calls = []
+
+            def ensureRunning(self):
+                self.calls.append(("ensureRunning", {}))
+
+            def request(self, command, target, **fields):
+                self.calls.append(("request", {"command": command, "target": target, "fields": dict(fields)}))
+                return {"status": "ok", "mode": "manager", "command": command, "target": target}
+
+        manager = FakeManager()
+        module_config = HomeAutomationConfig(bridge=BridgeConfig(), manager=HomeAutomationManagerConfig(auto_start=False))
+        context = make_context(extra={"homeAutomationManagerClient": manager, "homeAutomationConfig": module_config})
+        module = HomeAutomation(context, config=module_config)
+
+        response = module.manageService("restart", "bridge", reason="test")
+
+        self.assertEqual(response["mode"], "manager")
+        self.assertEqual(manager.calls[0][0], "ensureRunning")
+        self.assertEqual(manager.calls[1][0], "request")
+        self.assertEqual(manager.calls[1][1]["fields"], {"reason": "test"})
 
 
 class BridgeClientIntegrationTests(unittest.TestCase):

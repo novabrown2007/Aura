@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import queue
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,7 +48,7 @@ class BlankWindowApp:
         self._tray_commands: queue.Queue[str] = queue.Queue()
         self._sprite_images: dict[str, object] = {}
         self._sprite_variants: dict[tuple[str, int], object] = {}
-        self._asset_dir = Path(__file__).resolve().parents[1] / "assets"
+        self._asset_dir = self._resolve_asset_dir()
         self._sprite_crop_boxes = {
             "Sidebar icon.png": (256, 480, 768, 992),
             "Close icon.png": (256, 480, 768, 992),
@@ -84,6 +85,19 @@ class BlankWindowApp:
         self._content_top = 102
         self._content_bottom_margin = 138
         self._prompt_height = 78
+
+    def _resolve_asset_dir(self) -> Path:
+        frozen_root = getattr(sys, "_MEIPASS", None)
+        if frozen_root:
+            bundled_assets = Path(frozen_root) / "assets"
+            if bundled_assets.exists():
+                return bundled_assets
+
+        project_assets = Path(__file__).resolve().parents[1] / "assets"
+        if project_assets.exists():
+            return project_assets
+
+        return project_assets
 
     def build(self, start_hidden: bool = False):
         """Create the Tk root window and lay out the mock homepage."""
