@@ -1,5 +1,5 @@
 """Minimal presentation package for Aura."""
 
-from .blank_window import BlankWindowApp
+from .window_app import AuraWindowApp, BlankWindowApp
 
-__all__ = ["BlankWindowApp"]
+__all__ = ["AuraWindowApp", "BlankWindowApp"]
