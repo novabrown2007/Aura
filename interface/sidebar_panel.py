@@ -18,7 +18,7 @@ class SidebarPanel:
             return
 
         top = 102
-        bottom = height - 138
+        bottom = height - 148
         x1 = 24
         x2 = x1 + self.width
         shadow_round_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
@@ -35,7 +35,7 @@ class SidebarPanel:
         left = 24
         top = 102
         right = left + self.width
-        bottom = height - 138
+        bottom = height - 148
         return left <= x <= right and top <= y <= bottom
 
     def _draw_sidebar_item(self, canvas, x: int, y: int, label: str, active: bool = False):

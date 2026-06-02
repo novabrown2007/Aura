@@ -104,7 +104,7 @@ class HomePage(Page):
         left = 36
         right = width - 36
         top = 102
-        bottom = height - 138
+        bottom = height - 148
         if sidebar_visible:
             left = 24 + 210 + 28
         return {"left": left, "right": right, "top": top, "bottom": bottom}

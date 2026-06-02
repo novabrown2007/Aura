@@ -21,6 +21,10 @@ class ChromeCallbacks:
 class WindowChrome:
     """Draw and manage the fixed header/footer chrome."""
 
+    FOOTER_HEIGHT = 88
+    FOOTER_MARGIN = 12
+    FOOTER_INPUT_OFFSET_Y = 14
+
     def __init__(self, theme: Theme, sprite_store, sprite_crop_boxes: dict[str, tuple[int, int, int, int]]):
         self.theme = theme
         self.sprite_store = sprite_store
@@ -63,8 +67,8 @@ class WindowChrome:
         frame_width = min(860, max(400, width - 340))
         frame_height = min(64, max(44, height // 12))
         frame_x = max(36, (width - frame_width) // 2)
-        prompt_top = height - 78 - 12
-        frame_y = prompt_top + 10
+        prompt_top = height - self.FOOTER_HEIGHT - self.FOOTER_MARGIN
+        frame_y = prompt_top + self.FOOTER_INPUT_OFFSET_Y
         self.test_frame.place(x=frame_x, y=frame_y, width=frame_width, height=frame_height)
 
     def bind_canvas(self, canvas):
@@ -80,7 +84,7 @@ class WindowChrome:
         left = 36
         right = width - 36
         top = 102
-        bottom = height - 138
+        bottom = height - (self.FOOTER_HEIGHT + 50)
         if sidebar_visible:
             left = 24 + 210 + 28
         return {"left": left, "right": right, "top": top, "bottom": bottom}
@@ -97,10 +101,10 @@ class WindowChrome:
         self._draw_close_icon(canvas, width - 48, 46, callbacks.close)
 
     def _draw_prompt_strip(self, canvas, width: int, height: int, callbacks: ChromeCallbacks):
-        top = height - 78 - 12
+        top = height - self.FOOTER_HEIGHT - self.FOOTER_MARGIN
         canvas.create_line(20, top, width - 20, top, fill=self.theme.border, width=1)
-        self._draw_status_dot(canvas, 44, height - 44)
-        self._draw_prompt_button(canvas, width - 78, height - 48, callbacks.submit_prompt)
+        self._draw_status_dot(canvas, 44, height - 54)
+        self._draw_prompt_button(canvas, width - 78, height - 58, callbacks.submit_prompt)
 
     def _draw_status_dot(self, canvas, x: int, y: int):
         return None

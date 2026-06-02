@@ -50,5 +50,5 @@ class PageManager:
 
     def content_bounds(self, width: int, height: int, sidebar_visible: bool) -> dict[str, int]:
         if self.currentPage is None:
-            return {"left": 36, "right": width - 36, "top": 102, "bottom": height - 138}
+            return {"left": 36, "right": width - 36, "top": 102, "bottom": height - 148}
         return self.currentPage.content_bounds(width, height, sidebar_visible)
