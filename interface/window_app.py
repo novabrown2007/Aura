@@ -192,6 +192,7 @@ class AuraWindowApp:
             close=self.close,
             submit_prompt=self._submit_prompt,
             close_sidebar=self._close_sidebar,
+            settings=self._toggle_settings,
         )
         shell.render(canvas, width, height, callbacks, self.sidebar_visible)
 
@@ -215,6 +216,9 @@ class AuraWindowApp:
             return
         width = self.root.winfo_width()
         height = self.root.winfo_height()
+        if self.shell.overlay_layer.handle_press(event.x, event.y, width, height):
+            self._render()
+            return
         if self.sidebar_visible and not self.shell.sidebar.point_inside(event.x, event.y, width, height, self.sidebar_visible) and not self.shell.point_in_title_bar_control(event.x, event.y, width):
             self.sidebar_visible = False
             self._render()
@@ -244,6 +248,12 @@ class AuraWindowApp:
         if not self.sidebar_visible:
             return
         self.sidebar_visible = False
+        self._render()
+
+    def _toggle_settings(self):
+        if self.shell is None:
+            return
+        self.shell.overlay_layer.toggle_settings()
         self._render()
 
     def _set_home_page(self):

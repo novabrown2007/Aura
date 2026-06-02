@@ -13,7 +13,7 @@ class SidebarPanel:
         self.theme = theme
         self.width = int(width)
 
-    def render(self, canvas, width: int, height: int, visible: bool, on_close):
+    def render(self, canvas, width: int, height: int, visible: bool, on_close, on_settings):
         if not visible:
             return
 
@@ -27,7 +27,7 @@ class SidebarPanel:
         self._draw_sidebar_item(canvas, x1 + 16, top + 56, "Home", active=True)
         self._draw_sidebar_item(canvas, x1 + 16, top + 92, "Chat", active=False)
         canvas.create_line(x1 + 16, bottom - 56, x2 - 16, bottom - 56, fill=self.theme.border, width=1)
-        self._draw_sidebar_item(canvas, x1 + 16, bottom - 40, "Settings", active=False)
+        self._draw_sidebar_button(canvas, x1 + 21, bottom - 34, on_settings)
 
     def point_inside(self, x: int, y: int, width: int, height: int, visible: bool) -> bool:
         if not visible:
@@ -41,6 +41,37 @@ class SidebarPanel:
     def _draw_sidebar_item(self, canvas, x: int, y: int, label: str, active: bool = False):
         fill = self.theme.text if active else self.theme.placeholder
         canvas.create_text(x, y, anchor="nw", text=label, fill=fill, font=("Segoe UI", 11, "bold" if active else "normal"))
+
+    def _draw_sidebar_button(self, canvas, x: int, y: int, callback):
+        # Placeholder click target for the future Settings control.
+        button_width = 170
+        button_height = 28
+        label = "Settings"
+        tag = f"sidebar_settings_{x}_{y}"
+        button = canvas.create_rectangle(
+            x,
+            y - 8,
+            x + button_width,
+            y - 8 + button_height,
+            fill=self.theme.panel,
+            outline=self.theme.border,
+            width=1,
+            tags=(tag,),
+        )
+        text = canvas.create_text(
+            x + button_width / 2,
+            y - 4,
+            anchor="n",
+            text=label,
+            fill=self.theme.placeholder,
+            font=("Segoe UI", 11, "normal"),
+            tags=(tag,),
+        )
+        canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.secondary_accent))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(button, outline=self.theme.border))
+        canvas.tag_raise(text)
+        return button
 
     def _draw_sidebar_close_button(self, canvas, center_x: int, center_y: int, on_close):
         tag = f"sidebar_close_{center_x}_{center_y}"

@@ -30,10 +30,11 @@ class ApplicationShell:
     def render(self, canvas, width: int, height: int, callbacks: ChromeCallbacks, sidebar_visible: bool):
         self.chrome._draw_window_shell(canvas, width, height)
         self.top_bar.render(canvas, width, callbacks)
+        content_bounds = self.content_bounds(width, height, sidebar_visible)
         self.content_area.render(canvas, width, height, self.chrome.theme, sidebar_visible)
-        self.sidebar.render(canvas, width, height, sidebar_visible, callbacks.close_sidebar)
+        self.sidebar.render(canvas, width, height, sidebar_visible, callbacks.close_sidebar, callbacks.settings)
         self.footer_input.render(canvas, width, height, callbacks)
-        self.overlay_layer.render(canvas, self.footer_input)
+        self.overlay_layer.render(canvas, self.footer_input, content_bounds)
 
     def point_in_title_bar_control(self, x: int, y: int, width: int) -> bool:
         return self.top_bar.point_in_control(x, y, width)

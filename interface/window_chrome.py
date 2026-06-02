@@ -15,6 +15,7 @@ class ChromeCallbacks:
     window: callable
     close: callable
     close_sidebar: callable
+    settings: callable
     submit_prompt: callable
 
 
