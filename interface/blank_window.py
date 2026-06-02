@@ -9,12 +9,12 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Theme:
-    background: str = "#091a1f"
-    panel: str = "#1b142b"
-    hover: str = "#21414C"
+    background: str = "#0f141c"
+    panel: str = "#171f2b"
+    tertiary_background: str = "#00112b"
     border: str = "#344A55"
-    chrome: str = "#1b142b"
-    text: str = "#E8EAF0"
+    chrome: str = "#171f2b"
+    text: str = "#e8eef7"
     placeholder: str = "#AAB6C3"
     accent: str = "#9D4EDD"
     secondary_accent: str = "#C77DFF"
@@ -38,6 +38,7 @@ class BlankWindowApp:
         self.theme = Theme()
         self.root = None
         self.canvas = None
+        self._tk = None
         self.test_frame = None
         self.test_var = None
         self.test_value = ""
@@ -45,7 +46,15 @@ class BlankWindowApp:
         self._tray = None
         self._tray_commands: queue.Queue[str] = queue.Queue()
         self._sprite_images: dict[str, object] = {}
+        self._sprite_variants: dict[tuple[str, int], object] = {}
         self._asset_dir = Path(__file__).resolve().parents[1] / "assets"
+        self._sprite_crop_boxes = {
+            "Sidebar icon.png": (256, 480, 768, 992),
+            "Close icon.png": (256, 480, 768, 992),
+            "Inactive Notification icon.png": (256, 448, 768, 960),
+            "Active Notification icon.png": (256, 448, 768, 960),
+            "Send button icon.png": (384, 384, 896, 896),
+        }
         self._drag_offset = (0, 0)
         self._active_tile_id: int | None = None
         self._active_tile_offset = (0, 0)
@@ -98,6 +107,7 @@ class BlankWindowApp:
 
         self.root = root
         self.canvas = canvas
+        self._tk = tk
         self.test_var = tk.StringVar(value="")
         self._load_sprite_images(tk)
         self._create_test_box(tk)
@@ -142,6 +152,7 @@ class BlankWindowApp:
         finally:
             self.root = None
             self.canvas = None
+            self._tk = None
 
     def _create_test_box(self, tk):
         root = self.root
@@ -229,7 +240,7 @@ class BlankWindowApp:
 
     def _draw_tile(self, canvas, x: int, y: int, title: str, tile_size: tuple[int, int], active: bool = False):
         width, height = tile_size
-        fill = self.theme.panel if not active else self.theme.hover
+        fill = self.theme.tertiary_background if not active else self.theme.secondary_accent
         outline = self.theme.secondary_accent if active else self.theme.border
         self._shadow_round_rect(canvas, x, y, x + width, y + height, 16, fill=fill, outline=outline, width=2)
         canvas.create_text(x + 20, y + 20, anchor="nw", text=title, fill=self.theme.placeholder, font=("Segoe UI", 10))
@@ -356,7 +367,7 @@ class BlankWindowApp:
             "window": "Inactive Notification icon.png",
             "close": "Close icon.png",
         }[kind]
-        self._draw_icon_sprite(canvas, sprite_name, center_x, center_y, size=26, fallback_fill=self.theme.text, tags=(tag,))
+        self._draw_icon_sprite(canvas, sprite_name, center_x, center_y, size=22, fallback_fill=self.theme.text, tags=(tag,))
 
         canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
         canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(button, outline=self.theme.soft_glow))
@@ -384,21 +395,45 @@ class BlankWindowApp:
 
     def _load_sprite_images(self, tk):
         self._sprite_images = {}
-        target_size = 84
+        self._sprite_variants = {}
         for sprite_path in sorted(self._asset_dir.glob("*.png")):
             if not sprite_path.exists():
                 continue
             try:
                 image = tk.PhotoImage(file=str(sprite_path))
-                scale = max(1, int(-(-max(image.width(), image.height()) // target_size)))
-                if scale > 1:
-                    image = image.subsample(scale, scale)
                 self._sprite_images[sprite_path.name] = image
             except Exception:
                 continue
 
+    def _sprite_image_for(self, sprite_name: str, size: int):
+        cached = self._sprite_variants.get((sprite_name, size))
+        if cached is not None:
+            return cached
+
+        source = self._sprite_images.get(sprite_name)
+        if source is None:
+            return None
+
+        crop_box = self._sprite_crop_boxes.get(sprite_name)
+        image = source
+        if crop_box is not None:
+            tk = self._tk
+            if tk is None:
+                return source
+            cropped = tk.PhotoImage()
+            cropped.tk.call(cropped, "copy", source, "-from", *crop_box)
+            image = cropped
+
+        max_dimension = max(image.width(), image.height())
+        scale = max(1, int(-(-max_dimension // size)))
+        if scale > 1:
+            image = image.subsample(scale, scale)
+
+        self._sprite_variants[(sprite_name, size)] = image
+        return image
+
     def _draw_icon_sprite(self, canvas, sprite_name: str, center_x: int, center_y: int, size: int, fallback_fill: str, tags: tuple[str, ...] = ()):
-        sprite = self._sprite_images.get(sprite_name)
+        sprite = self._sprite_image_for(sprite_name, size)
         if sprite is not None:
             canvas.create_image(center_x, center_y, image=sprite, anchor="center", tags=tags)
             return

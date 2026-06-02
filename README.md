@@ -167,7 +167,7 @@ and a Settings area anchored at the bottom. The top-bar controls are transparent
 The footer field now grows with the window and sits in the lower band below the separator line. The status circle is slightly larger, the send button arrow is even larger and sits a bit higher, the button sits farther in from the bottom-right edge, and the input is slightly narrower so it cannot run underneath that button.
 Escape no longer closes the app; use the window controls instead.
 The imported sprite assets now replace the existing chrome glyphs: Sidebar for the menu button, Close for the close button, Inactive Notification for the window control, and Active Notification for the status dot. The Home icon is still unused.
-The current color scheme uses `#091a1f` as the primary background, `#1b142b` as the secondary background, `#21414C` for hover and active surfaces, `#9D4EDD` for the primary accent, `#C77DFF` for the secondary accent, `#7B2CBF` for the soft glow, `#E8EAF0` for primary text, `#AAB6C3` for secondary text, a low-contrast border approximation of `rgba(255,255,255,0.08)`, and a dark shadow approximation of `rgba(0,0,0,0.35)`.
+The current color scheme uses `#0f141c` for the primary background, `#171f2b` for the secondary background, `#00112b` for the tertiary widget background, `#9D4EDD` for the primary accent, `#C77DFF` for the secondary accent, `#7B2CBF` for the soft glow, `#e8eef7` for primary text, `#AAB6C3` for secondary text, a low-contrast border approximation of `rgba(255,255,255,0.08)`, and a dark shadow approximation of `rgba(0,0,0,0.35)`.
 The bottom-left status icon is removed.
 
 Launch it with:
