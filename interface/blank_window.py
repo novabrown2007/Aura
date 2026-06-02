@@ -234,7 +234,7 @@ class BlankWindowApp:
     def _draw_title_bar(self, canvas, width: int):
         self._shadow_round_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
         canvas.create_line(20, 80, width - 20, 80, fill=self.theme.border, width=1)
-        self._draw_menu_icon(canvas, 32, 46, self._toggle_sidebar)
+        self._draw_menu_icon(canvas, 36, 46, self._toggle_sidebar)
         self._draw_window_icon(canvas, width - 92, 46, self._noop)
         self._draw_close_icon(canvas, width - 48, 46, self.close)
 
