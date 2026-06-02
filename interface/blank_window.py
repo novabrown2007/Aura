@@ -87,6 +87,7 @@ class BlankWindowApp:
         self._prompt_height = 78
         self._prompt_button_item = None
         self._prompt_button_bounds = (0, 0, 0, 0)
+        self._closing = False
 
     def _resolve_asset_dir(self) -> Path:
         frozen_root = getattr(sys, "_MEIPASS", None)
@@ -131,6 +132,7 @@ class BlankWindowApp:
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
         self._bind_drag_targets(canvas)
+        root.protocol("WM_DELETE_WINDOW", self.close)
         self._render()
         return root
 
@@ -139,6 +141,7 @@ class BlankWindowApp:
 
         root = self.root or self.build()
         root.mainloop()
+        return 1
 
     def run_in_tray(self):
         """Start the window hidden and expose it through a tray icon."""
@@ -151,9 +154,14 @@ class BlankWindowApp:
             root.withdraw()
             root.after(100, self._poll_tray_commands)
         root.mainloop()
+        return 1
 
     def close(self):
         """Destroy the window if it exists."""
+
+        if self._closing:
+            return
+        self._closing = True
 
         tray = self._tray
         if tray is not None:
@@ -162,13 +170,32 @@ class BlankWindowApp:
 
         root = self.root
         if root is None:
+            self._closing = False
             return
+        self._sprite_images = {}
+        self._sprite_variants = {}
+        self._prompt_button_item = None
+        self._prompt_button_bounds = (0, 0, 0, 0)
+
+        def finalize_close():
+            try:
+                if root.winfo_exists():
+                    root.destroy()
+            finally:
+                self.root = None
+                self.canvas = None
+                self._tk = None
+                self.test_frame = None
+                self.test_var = None
+                self._closing = False
+
         try:
-            root.destroy()
-        finally:
-            self.root = None
-            self.canvas = None
-            self._tk = None
+            if root.winfo_exists():
+                root.after(0, finalize_close)
+            else:
+                finalize_close()
+        except Exception:
+            finalize_close()
 
     def _create_test_box(self, tk):
         root = self.root

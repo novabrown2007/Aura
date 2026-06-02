@@ -18,10 +18,10 @@ def main():
 
     app = BlankWindowApp()
     if os.name == "nt":
-        app.run_in_tray()
+        return app.run_in_tray()
     else:
-        app.run()
+        return app.run()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
