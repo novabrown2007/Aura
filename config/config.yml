@@ -68,15 +68,15 @@ homeAutomationBridge:
 # The manager can be started headlessly by Aura when launchCommand is configured.
 homeAutomationManager:
   host: 127.0.0.1
-  port: 8080
+  port: 8081
   ssl: false
   timeout: 3.0
   protocolPath: /protocol/manager
   statusPath: /status
   launchCommand: []
   launchWorkingDirectory: ""
-  autoStart: false
-  autoStartBridge: false
+  autoStart: true
+  autoStartBridge: true
   startupWaitSeconds: 2.5
   bridgeTarget: bridge
   hubTarget: hub
