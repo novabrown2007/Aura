@@ -51,6 +51,7 @@ class BlankWindowApp:
         self._asset_dir = self._resolve_asset_dir()
         self._sprite_crop_boxes = {
             "Sidebar icon.png": (256, 480, 768, 992),
+            "Home icon.png": (256, 480, 768, 992),
             "Close icon.png": (256, 480, 768, 992),
             "Inactive Notification icon.png": (256, 448, 768, 960),
             "Active Notification icon.png": (256, 448, 768, 960),
@@ -262,6 +263,7 @@ class BlankWindowApp:
         self._shadow_round_rect(canvas, 12, 12, width - 12, 80, 16, fill=self.theme.chrome, outline=self.theme.border, width=1)
         canvas.create_line(20, 80, width - 20, 80, fill=self.theme.border, width=1)
         self._draw_menu_icon(canvas, 36, 46, self._toggle_sidebar)
+        self._draw_home_icon(canvas, 80, 46, self._noop)
         self._draw_window_icon(canvas, width - 92, 46, self._noop)
         self._draw_close_icon(canvas, width - 48, 46, self.close)
 
@@ -358,6 +360,9 @@ class BlankWindowApp:
     def _draw_menu_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="menu")
 
+    def _draw_home_icon(self, canvas, center_x: int, center_y: int, callback):
+        self._draw_bar_button(canvas, center_x, center_y, callback, kind="home")
+
     def _draw_window_icon(self, canvas, center_x: int, center_y: int, callback):
         self._draw_bar_button(canvas, center_x, center_y, callback, kind="window")
 
@@ -412,6 +417,7 @@ class BlankWindowApp:
         )
         sprite_name = {
             "menu": "Sidebar icon.png",
+            "home": "Home icon.png",
             "window": "Inactive Notification icon.png",
             "close": "Close icon.png",
         }[kind]
@@ -643,6 +649,8 @@ class BlankWindowApp:
         width = self.root.winfo_width()
         return (
             16 <= x <= 48 and 30 <= y <= 62
+        ) or (
+            60 <= x <= 96 and 30 <= y <= 62
         ) or (
             width - 108 <= x <= width - 76 and 30 <= y <= 62
         ) or (
