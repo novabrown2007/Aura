@@ -5,20 +5,17 @@ from __future__ import annotations
 import textwrap
 
 from ..chat_session import ChatSession
-from ..drawing import shadow_round_rect, rounded_rect
+from ..drawing import shadow_round_rect
 from .base import Page
 
 
 class ChatPage(Page):
-    """Conversation page with transcript rendering and prompt submission."""
+    """Single conversation page with transcript rendering and prompt submission."""
 
     name = "chat"
 
     def __init__(self, context=None, post_ui_event=None, thread_factory=None):
         self.session = ChatSession(context=context, post_ui_event=post_ui_event, thread_factory=thread_factory)
-        self._session_item_bounds: dict[str, tuple[int, int, int, int]] = {}
-        self._session_delete_bounds: dict[str, tuple[int, int, int, int]] = {}
-        self._new_chat_bounds: tuple[int, int, int, int] = (0, 0, 0, 0)
         self._transcript_bounds: tuple[int, int, int, int] = (0, 0, 0, 0)
 
     def set_context(self, context=None, post_ui_event=None):
@@ -34,17 +31,10 @@ class ChatPage(Page):
         canvas.create_text(left, top, anchor="nw", text="Chat", fill=theme.text, font=("Segoe UI", 18, "bold"))
         canvas.create_text(left, top + 28, anchor="nw", text="Session history", fill=theme.placeholder, font=("Segoe UI", 10))
 
-        rail_width = min(286, max(238, int((right - left) * 0.26)))
-        rail_left = left
-        rail_right = rail_left + rail_width
-        rail_top = top + 60
-        rail_bottom = bottom
-        transcript_left = rail_right + 16
+        transcript_left = left
         transcript_right = right
-        transcript_top = rail_top
+        transcript_top = top + 60
         transcript_bottom = bottom
-
-        self._draw_left_rail(canvas, theme, rail_left, rail_top, rail_right, rail_bottom)
         self._draw_transcript(canvas, theme, transcript_left, transcript_top, transcript_right, transcript_bottom)
 
     def content_bounds(self, width: int, height: int, sidebar_visible: bool) -> dict[str, int]:
@@ -57,20 +47,6 @@ class ChatPage(Page):
         return {"left": left, "right": right, "top": top, "bottom": bottom}
 
     def handle_press(self, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
-        for conversation_id, bounds in self._session_delete_bounds.items():
-            if self._point_in_bounds(x, y, bounds):
-                self.session.delete_chat(conversation_id)
-                return True
-
-        if self._point_in_bounds(x, y, self._new_chat_bounds):
-            self.session.new_chat()
-            return True
-
-        for conversation_id, bounds in self._session_item_bounds.items():
-            if self._point_in_bounds(x, y, bounds):
-                self.session.switch_to(conversation_id)
-                return True
-
         return self._point_in_bounds(x, y, self._transcript_bounds)
 
     def handle_scroll(self, delta: int, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
@@ -80,96 +56,6 @@ class ChatPage(Page):
 
     def submit_prompt(self, prompt: str) -> bool:
         return self.session.submit(prompt)
-
-    def _draw_left_rail(self, canvas, theme, left: int, top: int, right: int, bottom: int):
-        shadow_round_rect(
-            canvas,
-            left,
-            top,
-            right,
-            bottom,
-            18,
-            fill=theme.tertiary_background,
-            outline=theme.border,
-            width=2,
-        )
-
-        header_y = top + 18
-        canvas.create_text(left + 18, header_y, anchor="nw", text="Chats", fill=theme.text, font=("Segoe UI", 12, "bold"))
-        new_chat_y1 = header_y + 30
-        new_chat_y2 = new_chat_y1 + 38
-        self._new_chat_bounds = (left + 12, new_chat_y1, right - 12, new_chat_y2)
-        rounded_rect(
-            canvas,
-            *self._new_chat_bounds,
-            12,
-            fill=theme.panel,
-            outline=theme.border,
-            width=1,
-        )
-        canvas.create_text(
-            (self._new_chat_bounds[0] + self._new_chat_bounds[2]) // 2,
-            (new_chat_y1 + new_chat_y2) // 2,
-            text="New chat",
-            fill=theme.text,
-            font=("Segoe UI", 10, "bold"),
-        )
-
-        self._session_item_bounds = {}
-        self._session_delete_bounds = {}
-        conversations = self.session.list_conversations()
-        item_y = new_chat_y2 + 16
-        for conversation in conversations:
-            preview = self._truncate_preview(conversation["preview"])
-            item_height = 52
-            item_bounds = (left + 12, item_y, right - 12, item_y + item_height)
-            self._session_item_bounds[conversation["conversation_id"]] = item_bounds
-            delete_bounds = (item_bounds[2] - 28, item_bounds[1] + 10, item_bounds[2] - 10, item_bounds[1] + 28)
-            self._session_delete_bounds[conversation["conversation_id"]] = delete_bounds
-            fill = theme.panel if not conversation["active"] else theme.accent
-            outline = theme.border if not conversation["active"] else theme.soft_glow
-            rounded_rect(
-                canvas,
-                *item_bounds,
-                12,
-                fill=fill,
-                outline=outline,
-                width=1,
-            )
-            canvas.create_text(
-                item_bounds[0] + 14,
-                item_bounds[1] + 10,
-                anchor="nw",
-                text=conversation["title"],
-                fill=theme.text,
-                font=("Segoe UI", 10, "bold"),
-                width=(item_bounds[2] - item_bounds[0]) - 28,
-            )
-            canvas.create_text(
-                item_bounds[0] + 14,
-                item_bounds[1] + 28,
-                anchor="nw",
-                text=preview or "No messages yet",
-                fill=theme.placeholder if not conversation["active"] else theme.background,
-                font=("Segoe UI", 9),
-                width=(item_bounds[2] - item_bounds[0]) - 56,
-            )
-            rounded_rect(
-                canvas,
-                *delete_bounds,
-                8,
-                fill=theme.background if not conversation["active"] else theme.tertiary_background,
-                outline=theme.border,
-                width=1,
-            )
-            canvas.create_text(
-                (delete_bounds[0] + delete_bounds[2]) // 2,
-                (delete_bounds[1] + delete_bounds[3]) // 2,
-                text="X",
-                fill=theme.placeholder,
-                font=("Segoe UI", 8, "bold"),
-            )
-            item_y += item_height + 10
 
     def _draw_transcript(self, canvas, theme, left: int, top: int, right: int, bottom: int):
         self._transcript_bounds = (left, top, right, bottom)
@@ -185,13 +71,7 @@ class ChatPage(Page):
             width=2,
         )
 
-        conversation = self.session.active_conversation
-        if conversation is None:
-            canvas.create_text(left + 24, top + 24, anchor="nw", text="Start a conversation with Aura using the footer input.", fill=theme.placeholder, font=("Segoe UI", 11))
-            return
-
-        title = conversation.title or "Chat"
-        canvas.create_text(left + 24, top + 18, anchor="nw", text=title, fill=theme.text, font=("Segoe UI", 12, "bold"))
+        canvas.create_text(left + 24, top + 18, anchor="nw", text="Conversation", fill=theme.text, font=("Segoe UI", 12, "bold"))
         canvas.create_text(left + 24, top + 40, anchor="nw", text="Scroll to review older messages", fill=theme.placeholder, font=("Segoe UI", 9))
 
         viewport_left = left + 18
@@ -200,11 +80,11 @@ class ChatPage(Page):
         viewport_bottom = bottom - 20
         viewport_height = max(1, viewport_bottom - viewport_top)
 
-        layout = self._layout_messages(conversation.messages, viewport_right - viewport_left)
+        layout = self._layout_messages(self.session.messages, viewport_right - viewport_left)
         total_height = sum(item["height"] for item in layout) + max(0, len(layout) - 1) * 14
         max_scroll = max(0, total_height - viewport_height)
-        conversation.max_scroll = max_scroll
-        conversation.scroll_offset = max(0, min(int(conversation.scroll_offset or 0), max_scroll))
+        self.session.max_scroll = max_scroll
+        self.session.scroll_offset = max(0, min(int(self.session.scroll_offset or 0), max_scroll))
 
         if not layout:
             canvas.create_text(
@@ -217,7 +97,7 @@ class ChatPage(Page):
             )
             return
 
-        cursor = viewport_bottom + conversation.scroll_offset
+        cursor = viewport_bottom + self.session.scroll_offset
         rendered = []
         for item in reversed(layout):
             bubble_height = item["height"]
@@ -281,7 +161,7 @@ class ChatPage(Page):
                     font=("Segoe UI", 9, "italic"),
                 )
 
-        self._draw_scrollbar(canvas, theme, viewport_right, viewport_top, viewport_bottom, conversation.scroll_offset, max_scroll)
+        self._draw_scrollbar(canvas, theme, viewport_right, viewport_top, viewport_bottom, self.session.scroll_offset, max_scroll)
 
     def _layout_messages(self, messages, available_width: int) -> list[dict]:
         width = max(320, available_width)
@@ -341,12 +221,6 @@ class ChatPage(Page):
             width=1,
         )
 
-    def _truncate_preview(self, text: str, limit: int = 44) -> str:
-        cleaned = " ".join(str(text or "").split())
-        if len(cleaned) <= limit:
-            return cleaned
-        return f"{cleaned[: max(0, limit - 3)].rstrip()}..."
-
     @staticmethod
     def _wrap_text(text: str, max_width: int) -> list[str]:
         average_char_width = 7.2
@@ -366,3 +240,4 @@ class ChatPage(Page):
     def _point_in_bounds(x: int, y: int, bounds: tuple[int, int, int, int]) -> bool:
         x1, y1, x2, y2 = bounds
         return x1 <= x <= x2 and y1 <= y <= y2
+
