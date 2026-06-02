@@ -12,6 +12,7 @@ from .theme import Theme
 class ChromeCallbacks:
     toggle_sidebar: callable
     home: callable
+    chat: callable
     window: callable
     close: callable
     close_sidebar: callable
@@ -31,12 +32,14 @@ class WindowChrome:
         self.sprite_store = sprite_store
         self.sprite_crop_boxes = sprite_crop_boxes
         self.test_frame = None
+        self.test_entry = None
         self.test_var = None
+        self.test_placeholder = None
         self.test_value = ""
         self._prompt_button_item = None
         self._prompt_button_bounds = (0, 0, 0, 0)
 
-    def create_prompt_entry(self, root, tk):
+    def create_prompt_entry(self, root, tk, submit_callback):
         self.test_frame = tk.Frame(
             root,
             bg=self.theme.panel,
@@ -56,10 +59,25 @@ class WindowChrome:
             bd=0,
         )
         entry.pack(fill="both", expand=True, padx=12, pady=10)
-        entry.insert(0, "Ask Aura anything...")
-        entry.bind("<FocusIn>", self._clear_test_placeholder)
-        entry.bind("<FocusOut>", self._restore_test_placeholder)
-        entry.bind("<Return>", self._submit_prompt)
+        placeholder = tk.Label(
+            self.test_frame,
+            text="Ask Aura anything...",
+            font=("Segoe UI", 13),
+            bg=self.theme.background,
+            fg=self.theme.placeholder,
+            bd=0,
+            highlightthickness=0,
+        )
+        placeholder.place(x=16, rely=0.5, anchor="w")
+        placeholder.bind("<Button-1>", self._focus_prompt_entry)
+        self.test_placeholder = placeholder
+        self.test_var.trace_add("write", self._sync_test_placeholder)
+        entry.bind("<FocusIn>", self._sync_test_placeholder)
+        entry.bind("<FocusOut>", self._sync_test_placeholder)
+        entry.bind("<KeyRelease>", self._sync_test_placeholder)
+        entry.bind("<Return>", lambda _event=None: submit_callback())
+        self.test_entry = entry
+        self._sync_test_placeholder()
         return self.test_frame
 
     def layout_prompt_entry(self, width: int, height: int):
@@ -199,26 +217,41 @@ class WindowChrome:
             tags=tags,
         )
 
-    def _clear_test_placeholder(self, event=None):
-        widget = getattr(event, "widget", None)
-        if widget is None:
-            return
-        if widget.get().strip() == "Ask Aura anything...":
-            widget.delete(0, "end")
-            widget.configure(fg=self.theme.text)
+    def _focus_prompt_entry(self, _event=None):
+        if self.test_entry is not None:
+            self.test_entry.focus_set()
 
-    def _restore_test_placeholder(self, event=None):
-        widget = getattr(event, "widget", None)
-        if widget is None:
+    def _sync_test_placeholder(self, *_args):
+        if self.test_entry is None or self.test_placeholder is None:
             return
-        if not widget.get().strip():
-            widget.insert(0, "Ask Aura anything...")
-            widget.configure(fg=self.theme.placeholder)
+
+        text = str(self.test_var.get() or "")
+        has_text = bool(text.strip())
+        if has_text:
+            self.test_entry.configure(fg=self.theme.text)
+            self.test_placeholder.place_forget()
+            return
+
+        self.test_entry.configure(fg=self.theme.text)
+        self.test_placeholder.place(x=16, rely=0.5, anchor="w")
+        self.test_placeholder.lift()
 
     def _submit_prompt(self, _event=None):
-        if self.test_var is not None:
-            self.test_value = str(self.test_var.get() or "").strip()
+        self.consume_prompt_text()
         return None
+
+    def consume_prompt_text(self) -> str:
+        """Return the current prompt text and reset the footer entry."""
+
+        if self.test_var is None:
+            return ""
+
+        text = str(self.test_var.get() or "").strip()
+        self.test_value = text
+        if self.test_var is not None:
+            self.test_var.set("")
+        self._sync_test_placeholder()
+        return text
 
     def _on_canvas_motion(self, event):
         self._update_prompt_hover(event.x, event.y)

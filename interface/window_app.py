@@ -5,6 +5,7 @@ from __future__ import annotations
 import queue
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from .application_shell import ApplicationShell
 from .assets import SpriteStore
@@ -32,6 +33,7 @@ class AuraWindowApp:
         self._prompt_hovered = False
         self._tray = None
         self._tray_commands: queue.Queue[str] = queue.Queue()
+        self._ui_actions: queue.Queue[object] = queue.Queue()
         self._asset_dir = self._resolve_asset_dir()
         self._sprite_crop_boxes = {
             "Sidebar icon.png": (256, 480, 768, 992),
@@ -42,6 +44,7 @@ class AuraWindowApp:
             "Send button icon.png": (384, 384, 896, 896),
         }
         self._closing = False
+        self.runtime_context = None
         self.sprite_store = None
         self.chrome = None
         self.shell = None
@@ -85,7 +88,12 @@ class AuraWindowApp:
         self.sprite_store = SpriteStore(self._asset_dir, tk)
         self.sprite_store.load()
         self.chrome = WindowChrome(self.theme, self.sprite_store, self._sprite_crop_boxes)
-        content_area = ContentArea(PageManager())
+        self.runtime_context = self._build_runtime_context()
+        content_area = ContentArea(
+            PageManager(),
+            context=self.runtime_context,
+            post_ui_event=self._queue_ui_action,
+        )
         self.shell = ApplicationShell(
             chrome=self.chrome,
             sidebar=SidebarPanel(self.theme, width=210),
@@ -93,15 +101,19 @@ class AuraWindowApp:
             footer_input=FooterInput(self.chrome),
             overlay_layer=OverlayLayer(),
         )
-        self.shell.create_footer_input(root, tk)
+        self.shell.create_footer_input(root, tk, self._submit_prompt)
 
         root.bind("<Map>", self._render)
         root.bind("<Configure>", self._render)
+        root.bind("<MouseWheel>", self._on_canvas_scroll)
+        root.bind("<Button-4>", self._on_canvas_scroll)
+        root.bind("<Button-5>", self._on_canvas_scroll)
         self._bind_drag_targets(canvas)
         canvas.bind("<Motion>", self._on_canvas_motion)
         canvas.bind("<Leave>", self._on_canvas_leave)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._render()
+        root.after(50, self._poll_ui_actions)
         return root
 
     def run(self):
@@ -188,6 +200,7 @@ class AuraWindowApp:
         callbacks = ChromeCallbacks(
             toggle_sidebar=self._toggle_sidebar,
             home=self._set_home_page,
+            chat=self._set_chat_page,
             window=self._noop,
             close=self.close,
             submit_prompt=self._submit_prompt,
@@ -195,6 +208,29 @@ class AuraWindowApp:
             settings=self._toggle_settings,
         )
         shell.render(canvas, width, height, callbacks, self.sidebar_visible)
+
+    def _build_runtime_context(self):
+        """Build the assistant runtime when the chat page needs LLM access."""
+
+        try:
+            from main import buildRuntimeContext
+        except Exception:
+            return SimpleNamespace(
+                logger=None,
+                llm=None,
+                llmManager=None,
+                conversationHistory=None,
+            )
+
+        try:
+            return buildRuntimeContext()
+        except Exception:
+            return SimpleNamespace(
+                logger=None,
+                llm=None,
+                llmManager=None,
+                conversationHistory=None,
+            )
 
     def _bind_drag_targets(self, canvas):
         canvas.bind("<ButtonPress-1>", self._on_canvas_press)
@@ -240,6 +276,18 @@ class AuraWindowApp:
         if self.shell is not None and self.shell.content_area.handle_release(event.x, event.y, self.root.winfo_width(), self.root.winfo_height(), self.sidebar_visible):
             self._render()
 
+    def _on_canvas_scroll(self, event):
+        if self.root is None or self.shell is None:
+            return
+
+        if getattr(event, "delta", 0):
+            delta = int(event.delta)
+        else:
+            delta = 120 if getattr(event, "num", None) == 4 else -120
+
+        if self.shell.content_area.handle_scroll(delta, getattr(event, "x", 0), getattr(event, "y", 0), self.root.winfo_width(), self.root.winfo_height(), self.sidebar_visible):
+            self._render()
+
     def _toggle_sidebar(self):
         self.sidebar_visible = not self.sidebar_visible
         self._render()
@@ -262,13 +310,51 @@ class AuraWindowApp:
         self.shell.content_area.setPage("home")
         self._render()
 
+    def _set_chat_page(self):
+        if self.shell is None:
+            return
+        self.shell.content_area.setPage("chat")
+        self._render()
+
     def _noop(self):
         return None
 
     def _submit_prompt(self, _event=None):
-        if self.shell is not None:
-            self.shell.footer_input.chrome._submit_prompt()
+        if self.shell is None:
+            return None
+        text = self.shell.footer_input.chrome.consume_prompt_text()
+        if not text:
+            return None
+        self.shell.content_area.setPage("chat")
+        self.shell.content_area.submitPrompt(text)
+        self._render()
         return None
+
+    def _queue_ui_action(self, callback):
+        if callback is None:
+            return
+        self._ui_actions.put(callback)
+
+    def _poll_ui_actions(self):
+        root = self.root
+        if root is None:
+            return
+
+        rendered = False
+        while True:
+            try:
+                callback = self._ui_actions.get_nowait()
+            except queue.Empty:
+                break
+
+            try:
+                callback()
+            finally:
+                rendered = True
+
+        if rendered:
+            self._render()
+        root.after(50, self._poll_ui_actions)
 
     def _start_tray(self):
         try:

@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 from .page_manager import PageManager
+from .pages.chat_page import ChatPage
 from .pages.home_page import HomePage
 
 
 class ContentArea:
     """Expose the switchable middle page area."""
 
-    def __init__(self, page_manager: PageManager | None = None):
-        self.page_manager = page_manager or PageManager({"home": HomePage()}, initial_page="home")
+    def __init__(self, page_manager: PageManager | None = None, context=None, post_ui_event=None, thread_factory=None):
+        self.page_manager = page_manager or PageManager(
+            {
+                "home": HomePage(),
+                "chat": ChatPage(context=context, post_ui_event=post_ui_event, thread_factory=thread_factory),
+            },
+            initial_page="home",
+        )
         if "home" not in getattr(self.page_manager, "_pages", {}):
             self.page_manager.registerPage("home", HomePage())
+        if "chat" not in getattr(self.page_manager, "_pages", {}):
+            self.page_manager.registerPage("chat", ChatPage(context=context, post_ui_event=post_ui_event, thread_factory=thread_factory))
         self.page_manager.setPage("home")
 
     def render(self, canvas, width: int, height: int, theme, sidebar_visible: bool):
@@ -27,8 +36,17 @@ class ContentArea:
     def handle_release(self, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
         return self.page_manager.handle_release(x, y, width, height, sidebar_visible)
 
+    def handle_scroll(self, delta: int, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
+        return self.page_manager.handle_scroll(delta, x, y, width, height, sidebar_visible)
+
+    def submitPrompt(self, prompt: str) -> bool:
+        return self.page_manager.submit_prompt(prompt)
+
     def content_bounds(self, width: int, height: int, sidebar_visible: bool) -> dict[str, int]:
         return self.page_manager.content_bounds(width, height, sidebar_visible)
 
     def setPage(self, pageName):
         return self.page_manager.setPage(pageName)
+
+    def currentPageName(self):
+        return self.page_manager.current_page_name()

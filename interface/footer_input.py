@@ -11,8 +11,8 @@ class FooterInput:
     def __init__(self, chrome: WindowChrome):
         self.chrome = chrome
 
-    def create(self, root, tk):
-        return self.chrome.create_prompt_entry(root, tk)
+    def create(self, root, tk, submit_callback):
+        return self.chrome.create_prompt_entry(root, tk, submit_callback)
 
     def layout(self, width: int, height: int):
         self.chrome.layout_prompt_entry(width, height)

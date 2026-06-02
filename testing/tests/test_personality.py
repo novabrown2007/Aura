@@ -42,10 +42,10 @@ class StubHistory:
     def __init__(self):
         self.messages = []
 
-    def getRecentMessages(self, limit=25):
+    def getRecentMessages(self, limit=25, conversationId=None):
         return self.messages[-limit:]
 
-    def logMessage(self, role, content):
+    def logMessage(self, role, content, conversationId="default"):
         self.messages.append((role, content))
 
 

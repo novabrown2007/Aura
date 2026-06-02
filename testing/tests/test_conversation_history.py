@@ -28,6 +28,22 @@ class ConversationHistoryTests(unittest.TestCase):
             [("aura", "hi there"), ("user", "what time is it")],
         )
 
+    def test_recent_messages_are_filtered_by_conversation(self):
+        """Each chat should keep its own conversation history."""
+
+        self.history.logMessage("user", "hello", conversationId="chat-1")
+        self.history.logMessage("aura", "hi there", conversationId="chat-1")
+        self.history.logMessage("user", "separate chat", conversationId="chat-2")
+
+        self.assertEqual(
+            self.history.getRecentMessages(limit=10, conversationId="chat-1"),
+            [("user", "hello"), ("aura", "hi there")],
+        )
+        self.assertEqual(
+            self.history.getRecentMessages(limit=10, conversationId="chat-2"),
+            [("user", "separate chat")],
+        )
+
     def test_invalid_author_raises(self):
         """Validate that invalid author raises behaves as expected."""
         with self.assertRaises(ValueError):
@@ -42,15 +58,15 @@ class ConversationHistoryTests(unittest.TestCase):
 
         self.assertEqual(self.history.getRecentMessages(limit=10), [])
 
-    def test_history_resets_on_startup_by_default(self):
-        """Short-term conversation history should not leak across restarts."""
+    def test_history_persists_across_restarts_by_default(self):
+        """Conversation history should survive restarts unless disabled explicitly."""
 
         self.history.logMessage("user", "old message")
         self.assertEqual(len(self.history.getRecentMessages(limit=10)), 1)
 
         restarted = ConversationHistory(self.context)
 
-        self.assertEqual(restarted.getRecentMessages(limit=10), [])
+        self.assertEqual(restarted.getRecentMessages(limit=10), [("user", "old message")])
 
     def test_history_can_persist_across_restarts_when_configured(self):
         """Persistence remains available behind an explicit config switch."""

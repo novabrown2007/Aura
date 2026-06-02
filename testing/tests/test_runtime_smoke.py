@@ -32,7 +32,7 @@ class RuntimeSmokeTests(unittest.TestCase):
             logMessage=lambda author, content: None,
         )
         self.context.llm = SimpleNamespace(
-            generateResponse=lambda text: f"llm:{text}",
+            generateResponse=lambda text, conversationId="": f"llm:{text}",
         )
         self.context.interpreter = Interpreter(self.context)
         self.context.engine = Engine(self.context)

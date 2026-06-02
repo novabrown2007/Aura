@@ -13,7 +13,7 @@ class SidebarPanel:
         self.theme = theme
         self.width = int(width)
 
-    def render(self, canvas, width: int, height: int, visible: bool, on_close, on_settings):
+    def render(self, canvas, width: int, height: int, visible: bool, on_close, on_settings, on_home, on_chat, current_page_name: str | None):
         if not visible:
             return
 
@@ -24,8 +24,8 @@ class SidebarPanel:
         shadow_round_rect(canvas, x1, top, x2, bottom, 14, fill=self.theme.panel, outline=self.theme.border, width=2)
         canvas.create_text(x1 + 16, top + 16, anchor="nw", text="Menu", fill=self.theme.text, font=("Segoe UI", 13, "bold"))
         self._draw_sidebar_close_button(canvas, x2 - 20, top + 20, on_close)
-        self._draw_sidebar_item(canvas, x1 + 16, top + 56, "Home", active=True)
-        self._draw_sidebar_item(canvas, x1 + 16, top + 92, "Chat", active=False)
+        self._draw_sidebar_nav_item(canvas, x1 + 16, top + 56, "Home", on_home, active=current_page_name == "home")
+        self._draw_sidebar_nav_item(canvas, x1 + 16, top + 92, "Chat", on_chat, active=current_page_name == "chat")
         canvas.create_line(x1 + 16, bottom - 56, x2 - 16, bottom - 56, fill=self.theme.border, width=1)
         self._draw_sidebar_button(canvas, x1 + 21, bottom - 34, on_settings)
 
@@ -38,9 +38,22 @@ class SidebarPanel:
         bottom = height - 148
         return left <= x <= right and top <= y <= bottom
 
-    def _draw_sidebar_item(self, canvas, x: int, y: int, label: str, active: bool = False):
+    def _draw_sidebar_nav_item(self, canvas, x: int, y: int, label: str, callback, active: bool = False):
         fill = self.theme.text if active else self.theme.placeholder
-        canvas.create_text(x, y, anchor="nw", text=label, fill=fill, font=("Segoe UI", 11, "bold" if active else "normal"))
+        tag = f"sidebar_nav_{label.lower()}_{x}_{y}"
+        text_id = canvas.create_text(x, y, anchor="nw", text=label, fill=fill, font=("Segoe UI", 11, "bold" if active else "normal"), tags=(tag,))
+        bbox = canvas.bbox(text_id)
+        if bbox is not None:
+            x1, y1, x2, y2 = bbox
+            hit = canvas.create_rectangle(x1 - 8, y1 - 4, x2 + 8, y2 + 4, fill="", outline="", width=0, tags=(tag,))
+            canvas.tag_raise(text_id)
+        else:
+            hit = None
+        canvas.tag_bind(tag, "<Button-1>", lambda _event: callback())
+        if hit is not None:
+            canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.itemconfigure(text_id, fill=self.theme.text))
+            canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.itemconfigure(text_id, fill=fill))
+        return text_id
 
     def _draw_sidebar_button(self, canvas, x: int, y: int, callback):
         # Placeholder click target for the future Settings control.

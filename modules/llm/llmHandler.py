@@ -35,6 +35,7 @@ class LLMHandler(AuraModule):
         """Initialize handler state and optionally bind to a runtime context."""
 
         super().__init__()
+        self.handlesConversationLogging = True
         self.logger = None
         self.historyEnabled = True
         self.historyLimit = 25
@@ -82,49 +83,54 @@ class LLMHandler(AuraModule):
 
         return []
 
-    def generateResponse(self, userInput: str) -> str:
+    def generateResponse(self, userInput: str, conversationId: str = "") -> str:
         """Generate a conversational response while preserving legacy API shape."""
 
         userInput = self._resolveConversationInput(str(userInput or ""))
         self._emit("message.received", {"text": userInput})
         personalityReply = self._tryHandlePersonalityCommand(userInput)
         if personalityReply is not None:
-            return self._finishResponse(userInput, personalityReply)
+            return self._finishResponse(userInput, personalityReply, conversationId=conversationId)
         deterministicReply = self._tryAnswerDeterministicQuestion(userInput)
         if deterministicReply is not None:
-            return self._finishResponse(userInput, deterministicReply)
+            return self._finishResponse(userInput, deterministicReply, conversationId=conversationId)
 
         profileStatementReply = self._tryHandleProfileStatement(userInput)
         if profileStatementReply is not None:
-            return self._finishResponse(userInput, profileStatementReply)
+            return self._finishResponse(userInput, profileStatementReply, conversationId=conversationId)
 
         profileReply = self._tryAnswerProfileQuestion(userInput)
         if profileReply is not None:
-            return self._finishResponse(userInput, profileReply)
+            return self._finishResponse(userInput, profileReply, conversationId=conversationId)
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and self._looksLikeToolRequest(userInput):
             cleaned = self._offlineToolUnavailableMessage()
             cleaned = self._applyPersonality(userInput, cleaned)
-            return self._finishResponse(userInput, cleaned)
+            return self._finishResponse(userInput, cleaned, conversationId=conversationId)
 
         if self._isOfflineMode() and not self._canAttemptStructuredOutput() and not self._hasConversationFallback():
             cleaned = self._providerFailureMessage(self._offlineReason())
             cleaned = self._applyPersonality(userInput, cleaned)
-            return self._finishResponse(userInput, cleaned)
+            return self._finishResponse(userInput, cleaned, conversationId=conversationId)
 
-        systemPrompt = self._buildSystemPrompt(userInput)
-        conversationHistory = self._getConversationHistory()
+        systemPrompt = self._buildSystemPrompt(userInput, conversationId=conversationId)
+        conversationHistory = self._getConversationHistory(conversationId)
         if self._shouldUseIntentPipeline(userInput):
             cleaned = self._cleanResponseText(self.intentPipeline.handleUserInput(userInput, systemPrompt, conversationHistory))
             cleaned = self._applyPersonality(userInput, cleaned)
-            return self._finishResponse(userInput, cleaned)
+            return self._finishResponse(userInput, cleaned, conversationId=conversationId)
 
         response = self.manager.generateResponse(systemPrompt, userInput, conversationHistory)
 
         if not response.success:
             if self.logger:
                 self.logger.error(f"LLM response failed: {response.error}")
-            return self._finishResponse(userInput, self._providerFailureMessage(response.error), providerResponse=response)
+            return self._finishResponse(
+                userInput,
+                self._providerFailureMessage(response.error),
+                providerResponse=response,
+                conversationId=conversationId,
+            )
 
         cleaned = self._cleanResponseText(response.text) or "I don't have a response for that."
         toolResult = self._handleToolResponse(cleaned)
@@ -132,7 +138,7 @@ class LLMHandler(AuraModule):
             cleaned = self._cleanResponseText(toolResult)
         cleaned = self._applyPersonality(userInput, cleaned)
 
-        return self._finishResponse(userInput, cleaned, providerResponse=response)
+        return self._finishResponse(userInput, cleaned, providerResponse=response, conversationId=conversationId)
 
     def _resolveConversationInput(self, userInput: str) -> str:
         """Preprocess follow-ups and references through Aura's conversation manager."""
@@ -147,11 +153,11 @@ class LLMHandler(AuraModule):
                 self.logger.warning(f"Conversation continuity preprocessing failed: {error}")
             return userInput
 
-    def _finishResponse(self, userInput: str, responseText: str, providerResponse=None) -> str:
+    def _finishResponse(self, userInput: str, responseText: str, providerResponse=None, conversationId: str = "") -> str:
         """Clean, log, emit, and optionally speak a deterministic response."""
 
         cleaned = self._applyPersonality(userInput, self._cleanResponseText(responseText))
-        self._logConversation(userInput, cleaned)
+        self._logConversation(userInput, cleaned, conversationId=conversationId)
         if self.responseManager is not None:
             try:
                 clarification = None
@@ -200,14 +206,14 @@ class LLMHandler(AuraModule):
             return f"I can't reach an available language provider right now. Last provider error: {error}"
         return "I can't reach an available language provider right now."
 
-    def generateStructuredResponse(self, userInput: str, schema: dict) -> dict | None:
+    def generateStructuredResponse(self, userInput: str, schema: dict, conversationId: str = "") -> dict | None:
         """Generate structured JSON through the active provider."""
 
         response = self.manager.generateStructuredResponse(
-            self._buildSystemPrompt(userInput),
+            self._buildSystemPrompt(userInput, conversationId=conversationId),
             userInput,
             schema,
-            self._getConversationHistory(),
+            self._getConversationHistory(conversationId),
         )
         if not response.success:
             if self.logger:
@@ -215,11 +221,11 @@ class LLMHandler(AuraModule):
             return None
         return response.rawResponse if isinstance(response.rawResponse, dict) else None
 
-    def _buildSystemPrompt(self, userInput: str = "") -> str:
+    def _buildSystemPrompt(self, userInput: str = "", conversationId: str = "") -> str:
         """Build Aura's base system prompt with optional memory injection."""
 
         memoryData = {}
-        conversationHistory = self._getConversationHistory()
+        conversationHistory = self._getConversationHistory(conversationId)
         if self.memoryEnabled and self.memory:
             if hasattr(self.memory, "injectPrompt"):
                 memoryData = {}
@@ -377,22 +383,22 @@ Rules:
             return status.get("offlineReason") or "Gemini is temporarily unavailable."
         return str(getattr(self.manager, "offlineReason", "") or "Gemini is temporarily unavailable.")
 
-    def _getConversationHistory(self) -> list:
+    def _getConversationHistory(self, conversationId: str = "") -> list:
         """Return recent history when enabled."""
 
         if not self.historyEnabled or not self.history:
             return []
-        return self.history.getRecentMessages(limit=self.historyLimit)
+        return self.history.getRecentMessages(limit=self.historyLimit, conversationId=conversationId or None)
 
-    def _logConversation(self, userInput: str, responseText: str):
+    def _logConversation(self, userInput: str, responseText: str, conversationId: str = ""):
         """Persist conversation messages without failing the response path."""
 
         if not self.history:
             return
 
         try:
-            self.history.logMessage("user", userInput)
-            self.history.logMessage("aura", responseText)
+            self.history.logMessage("user", userInput, conversationId=conversationId or "default")
+            self.history.logMessage("aura", responseText, conversationId=conversationId or "default")
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Conversation logging failed: {error}")

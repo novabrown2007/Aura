@@ -48,7 +48,26 @@ class PageManager:
             return False
         return bool(self.currentPage.handle_release(x, y, width, height, sidebar_visible))
 
+    def handle_scroll(self, delta: int, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
+        if self.currentPage is None:
+            return False
+        handler = getattr(self.currentPage, "handle_scroll", None)
+        if handler is None:
+            return False
+        return bool(handler(delta, x, y, width, height, sidebar_visible))
+
+    def submit_prompt(self, prompt: str) -> bool:
+        if self.currentPage is None:
+            return False
+        handler = getattr(self.currentPage, "submit_prompt", None)
+        if handler is None:
+            return False
+        return bool(handler(prompt))
+
     def content_bounds(self, width: int, height: int, sidebar_visible: bool) -> dict[str, int]:
         if self.currentPage is None:
             return {"left": 36, "right": width - 36, "top": 102, "bottom": height - 148}
         return self.currentPage.content_bounds(width, height, sidebar_visible)
+
+    def current_page_name(self) -> str | None:
+        return self.currentPageName

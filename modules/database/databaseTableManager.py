@@ -26,6 +26,7 @@ class DatabaseTableManager:
 
         self.createSystemInfoTable()
         self.createCommandLogsTable()
+        self.createChatSessionsTable()
         self.createConversationHistoryTable()
         self.createMemoryTable()
         self.createSemanticMemoryTable()
@@ -76,9 +77,31 @@ class DatabaseTableManager:
             """
             CREATE TABLE IF NOT EXISTS conversation_history (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                conversation_id VARCHAR(64) DEFAULT 'default',
                 role VARCHAR(32) NOT NULL,
                 content TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        self.database.execute(
+            """
+            ALTER TABLE conversation_history
+            ADD COLUMN IF NOT EXISTS conversation_id VARCHAR(64) DEFAULT 'default'
+            """
+        )
+
+    def createChatSessionsTable(self):
+        """Create the chat_sessions table."""
+        self.database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                conversation_id VARCHAR(64) PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP,
+                last_message_at DATETIME NULL
             )
             """
         )

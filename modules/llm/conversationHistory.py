@@ -56,7 +56,7 @@ class ConversationHistory(AuraModule):
         self.historyLimit = int(config.get("llm.history.limit", 25))
         self.memoryEnabled = bool(config.get("llm.memory.enabled", True))
         self.memoryFrequency = int(config.get("llm.memory.frequency", 20))
-        self.persistAcrossRestarts = bool(config.get("llm.history.persistAcrossRestarts", False))
+        self.persistAcrossRestarts = bool(config.get("llm.history.persistAcrossRestarts", True))
 
         self._initializeDatabase()
         if not self.persistAcrossRestarts:
@@ -87,7 +87,7 @@ class ConversationHistory(AuraModule):
     # Message Management
     # --------------------------------------------------
 
-    def add(self, role: str, content: str):
+    def add(self, role: str, content: str, conversationId: str = "default"):
         """
         Add a message to the conversation history.
 
@@ -102,16 +102,17 @@ class ConversationHistory(AuraModule):
         if not self.database:
             return
 
+        conversationId = self._normalizeConversationId(conversationId)
         self.database.execute(
             """
-            INSERT INTO conversation_history (role, content)
-            VALUES (?, ?)
+            INSERT INTO conversation_history (conversation_id, role, content)
+            VALUES (?, ?, ?)
             """,
-            (role, content)
+            (conversationId, role, content)
         )
-        self._trimToHistoryLimit()
+        self._trimToHistoryLimit(conversationId)
 
-    def getRecentMessages(self, limit: int = 15):
+    def getRecentMessages(self, limit: int = 15, conversationId: str | None = None):
         """
         Retrieve recent conversation messages.
 
@@ -127,22 +128,75 @@ class ConversationHistory(AuraModule):
         if not self.database:
             return []
 
-        rows = self.database.fetchAll(
-            """
-            SELECT role, content
-            FROM conversation_history
-            ORDER BY id DESC
-            LIMIT ?
-            """,
-            (limit,)
-        )
+        conversationId = self._normalizeConversationId(conversationId) if conversationId is not None else None
+        if conversationId:
+            rows = self.database.fetchAll(
+                """
+                SELECT role, content
+                FROM conversation_history
+                WHERE conversation_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (conversationId, limit)
+            )
+        else:
+            rows = self.database.fetchAll(
+                """
+                SELECT role, content
+                FROM conversation_history
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,)
+            )
 
-        # reverse to maintain chronological order
         rows.reverse()
 
         return [(row["role"], row["content"]) for row in rows]
 
-    def logMessage(self, author: str, content: str):
+    def getConversationMessages(self, conversationId: str):
+        """Return the full message list for a single conversation."""
+
+        if not self.database:
+            return []
+
+        conversationId = self._normalizeConversationId(conversationId)
+        rows = self.database.fetchAll(
+            """
+            SELECT role, content
+            FROM conversation_history
+            WHERE conversation_id = ?
+            ORDER BY id ASC
+            """,
+            (conversationId,),
+        )
+        return [(row["role"], row["content"]) for row in rows]
+
+    def listConversationIds(self) -> list[str]:
+        """Return all known conversation IDs ordered by most recent activity."""
+
+        if not self.database:
+            return []
+
+        rows = self.database.fetchAll(
+            """
+            SELECT conversation_id, role, content
+            FROM conversation_history
+            ORDER BY id DESC
+            """
+        )
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for row in rows:
+            conversation_id = self._normalizeConversationId(row.get("conversation_id"))
+            if conversation_id in seen:
+                continue
+            seen.add(conversation_id)
+            ordered.append(conversation_id)
+        return ordered
+
+    def logMessage(self, author: str, content: str, conversationId: str = "default"):
         """
         Log a conversation message.
 
@@ -160,7 +214,7 @@ class ConversationHistory(AuraModule):
         if author not in ("user", "aura"):
             raise ValueError(f"Invalid message author: {author}")
 
-        self.add(author, content)
+        self.add(author, content, conversationId=conversationId)
         self.loggedSinceMemory += 1
 
         if self.logger:
@@ -173,7 +227,7 @@ class ConversationHistory(AuraModule):
     # Utilities
     # --------------------------------------------------
 
-    def clear(self):
+    def clear(self, conversationId: str | None = None):
         """
         Clear the conversation history.
         """
@@ -181,14 +235,20 @@ class ConversationHistory(AuraModule):
         if not self.database:
             return
 
-        self.database.execute(
-            "DELETE FROM conversation_history"
-        )
+        if conversationId is None:
+            self.database.execute(
+                "DELETE FROM conversation_history"
+            )
+        else:
+            self.database.execute(
+                "DELETE FROM conversation_history WHERE conversation_id = ?",
+                (self._normalizeConversationId(conversationId),),
+            )
 
         if self.logger:
             self.logger.info("Conversation history cleared")
 
-    def _trimToHistoryLimit(self):
+    def _trimToHistoryLimit(self, conversationId: str = "default"):
         """Keep only the configured number of short-term history messages."""
 
         if not self.database or self.historyLimit <= 0:
@@ -197,16 +257,18 @@ class ConversationHistory(AuraModule):
         self.database.execute(
             """
             DELETE FROM conversation_history
-            WHERE id NOT IN (
+            WHERE conversation_id = ?
+              AND id NOT IN (
                 SELECT id FROM (
                     SELECT id
                     FROM conversation_history
+                    WHERE conversation_id = ?
                     ORDER BY id DESC
                     LIMIT ?
                 ) AS recent_history
             )
             """,
-            (self.historyLimit,),
+            (conversationId, conversationId, self.historyLimit),
         )
 
     def _maybeTriggerMemoryExtraction(self):
@@ -231,3 +293,8 @@ class ConversationHistory(AuraModule):
         except Exception as error:
             if self.logger:
                 self.logger.warning(f"Memory extraction from history failed: {error}")
+
+    @staticmethod
+    def _normalizeConversationId(conversationId: str | None) -> str:
+        value = str(conversationId or "default").strip()
+        return value or "default"

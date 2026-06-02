@@ -21,8 +21,8 @@ class ApplicationShell:
         self.footer_input = footer_input
         self.overlay_layer = overlay_layer
 
-    def create_footer_input(self, root, tk):
-        return self.footer_input.create(root, tk)
+    def create_footer_input(self, root, tk, submit_callback):
+        return self.footer_input.create(root, tk, submit_callback)
 
     def layout(self, width: int, height: int):
         self.footer_input.layout(width, height)
@@ -32,7 +32,17 @@ class ApplicationShell:
         self.top_bar.render(canvas, width, callbacks)
         content_bounds = self.content_bounds(width, height, sidebar_visible)
         self.content_area.render(canvas, width, height, self.chrome.theme, sidebar_visible)
-        self.sidebar.render(canvas, width, height, sidebar_visible, callbacks.close_sidebar, callbacks.settings)
+        self.sidebar.render(
+            canvas,
+            width,
+            height,
+            sidebar_visible,
+            callbacks.close_sidebar,
+            callbacks.settings,
+            callbacks.home,
+            callbacks.chat,
+            self.content_area.currentPageName(),
+        )
         self.footer_input.render(canvas, width, height, callbacks)
         self.overlay_layer.render(canvas, self.footer_input, content_bounds)
 

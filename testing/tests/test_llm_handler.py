@@ -39,11 +39,11 @@ class StubHistory:
         """Initialize `StubHistory` with required dependencies and internal state."""
         self.messages = []
 
-    def getRecentMessages(self, limit=25):
+    def getRecentMessages(self, limit=25, conversationId=None):
         """Return `getRecentMessages` data from the component's current state."""
         return self.messages[-limit:]
 
-    def logMessage(self, author, content):
+    def logMessage(self, author, content, conversationId="default"):
         """Implement `logMessage` as part of this component's public/internal behavior."""
         self.messages.append((author, content))
 

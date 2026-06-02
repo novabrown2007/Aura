@@ -52,6 +52,7 @@ class InMemoryDatabase:
     def __init__(self):
         """Initialize `InMemoryDatabase` with required dependencies and internal state."""
         self._conversation_rows = []
+        self._chat_session_rows = {}
         self._memory_rows = {}
         self._semantic_memory_rows = {}
         self._command_logs = []
@@ -64,11 +65,51 @@ class InMemoryDatabase:
         normalized = " ".join(query.lower().split())
 
         if "insert into conversation_history" in normalized:
-            role, content = params
+            if len(params) == 3:
+                conversation_id, role, content = params
+            else:
+                conversation_id = "default"
+                role, content = params
             self._conversation_id += 1
             self._conversation_rows.append(
-                {"id": self._conversation_id, "role": role, "content": content}
+                {"id": self._conversation_id, "conversation_id": conversation_id, "role": role, "content": content}
             )
+            return None
+
+        if "insert into chat_sessions" in normalized:
+            conversation_id, title, created_at, updated_at, last_message_at = params
+            self._chat_session_rows[conversation_id] = {
+                "conversation_id": conversation_id,
+                "title": title,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "last_message_at": last_message_at,
+            }
+            return None
+
+        if normalized.startswith("update chat_sessions set title ="):
+            title, updated_at, last_message_at, conversation_id = params
+            row = self._chat_session_rows.get(conversation_id)
+            if row is not None:
+                row["title"] = title
+                row["updated_at"] = updated_at
+                row["last_message_at"] = last_message_at
+            return None
+
+        if normalized.startswith("delete from conversation_history where conversation_id = ? and id not in"):
+            conversation_id, conversation_id_repeat, limit = params
+            keep_ids = {
+                row["id"]
+                for row in sorted(
+                    [row for row in self._conversation_rows if row.get("conversation_id") == conversation_id],
+                    key=lambda item: item["id"],
+                    reverse=True,
+                )[: int(limit)]
+            }
+            self._conversation_rows = [
+                row for row in self._conversation_rows
+                if row.get("conversation_id") != conversation_id or row["id"] in keep_ids
+            ]
             return None
 
         if normalized.startswith("delete from conversation_history where id not in"):
@@ -87,7 +128,16 @@ class InMemoryDatabase:
             return None
 
         if normalized.startswith("delete from conversation_history"):
-            self._conversation_rows.clear()
+            if "where conversation_id =" in normalized:
+                conversation_id = params[0]
+                self._conversation_rows = [row for row in self._conversation_rows if row.get("conversation_id") != conversation_id]
+            else:
+                self._conversation_rows.clear()
+            return None
+
+        if normalized.startswith("delete from chat_sessions where conversation_id ="):
+            conversation_id = params[0]
+            self._chat_session_rows.pop(conversation_id, None)
             return None
 
         if "insert into semantic_memory" in normalized:
@@ -195,10 +245,29 @@ class InMemoryDatabase:
         normalized = " ".join(query.lower().split())
 
         if "from conversation_history" in normalized:
-            limit = params[0] if params else len(self._conversation_rows)
-            desc = list(reversed(self._conversation_rows))
-            selected = desc[:limit]
-            return [{"role": row["role"], "content": row["content"]} for row in selected]
+            if "where conversation_id =" in normalized:
+                conversation_id = params[0]
+                limit = int(params[1]) if len(params) > 1 else len(self._conversation_rows)
+                rows = [row for row in self._conversation_rows if row.get("conversation_id") == conversation_id]
+            else:
+                limit = int(params[0]) if params else len(self._conversation_rows)
+                rows = list(self._conversation_rows)
+            if "order by id asc" in normalized:
+                selected = rows[:limit]
+            else:
+                desc = list(reversed(rows))
+                selected = desc[:limit]
+            return [{"role": row["role"], "content": row["content"], "conversation_id": row.get("conversation_id", "default")} for row in selected]
+
+        if "from chat_sessions" in normalized:
+            rows = list(self._chat_session_rows.values())
+            if "order by coalesce(last_message_at, updated_at, created_at) desc" in normalized:
+                rows = sorted(
+                    rows,
+                    key=lambda row: row.get("last_message_at") or row.get("updated_at") or row.get("created_at") or "",
+                    reverse=True,
+                )
+            return [dict(row) for row in rows]
 
         if "select memory_key, value from memory" in normalized:
             return [
@@ -212,6 +281,7 @@ class InMemoryDatabase:
         if "from information_schema.tables" in normalized:
             return [
                 {"table_name": "conversation_history"},
+                {"table_name": "chat_sessions"},
                 {"table_name": "memory"},
                 {"table_name": "semantic_memory"},
                 {"table_name": "command_logs"},
