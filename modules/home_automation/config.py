@@ -97,10 +97,10 @@ class HomeAutomationManagerConfig:
     """Connection and launch details for the Home Automation Manager service."""
 
     host: str = field(default_factory=lambda: str(_env_value("HOME_AUTOMATION_MANAGER_HOST", "127.0.0.1")))
-    port: int = field(default_factory=lambda: _env_int("HOME_AUTOMATION_MANAGER_PORT", 8080))
+    port: int = field(default_factory=lambda: _env_int("HOME_AUTOMATION_MANAGER_PORT", 8081))
     use_ssl: bool = field(default_factory=lambda: _env_bool("HOME_AUTOMATION_MANAGER_SSL", False))
     timeout_seconds: float = field(default_factory=lambda: _env_float("HOME_AUTOMATION_MANAGER_TIMEOUT", 3.0))
-    protocol_path: str = "/protocol/manager"
+    command_path: str = "/command"
     status_path: str = "/status"
     launch_command: tuple[str, ...] = field(default_factory=lambda: _env_list("HOME_AUTOMATION_MANAGER_COMMAND"))
     launch_working_directory: str = field(default_factory=lambda: str(_env_value("HOME_AUTOMATION_MANAGER_WORKDIR", "")))
@@ -109,7 +109,6 @@ class HomeAutomationManagerConfig:
     startup_wait_seconds: float = field(default_factory=lambda: _env_float("HOME_AUTOMATION_MANAGER_STARTUP_WAIT", 2.5))
     bridge_target: str = "bridge"
     hub_target: str = "hub"
-    suite_target: str = "suite"
 
     @property
     def base_url(self) -> str:
@@ -123,6 +122,12 @@ class HomeAutomationManagerConfig:
         """Backward-compatible alias for use_ssl."""
 
         return self.use_ssl
+
+    @property
+    def protocol_path(self) -> str:
+        """Backward-compatible alias for the command endpoint."""
+
+        return self.command_path
 
 
 @dataclass(slots=True)
@@ -250,12 +255,15 @@ def buildHomeAutomationConfig(context) -> HomeAutomationConfig:
             "home_automation.manager.timeout_seconds",
             default=manager_defaults.timeout_seconds,
         )),
-        protocol_path=str(_config_value(
+        command_path=str(_config_value(
             aura_config,
+            "homeAutomationManager.commandPath",
+            "homeAutomationManager.command_path",
             "homeAutomationManager.protocolPath",
             "homeAutomationManager.protocol_path",
+            "home_automation.manager.command_path",
             "home_automation.manager.protocol_path",
-            default=manager_defaults.protocol_path,
+            default=manager_defaults.command_path,
         )),
         status_path=str(_config_value(
             aura_config,
@@ -312,13 +320,6 @@ def buildHomeAutomationConfig(context) -> HomeAutomationConfig:
             "homeAutomationManager.hub_target",
             "home_automation.manager.hub_target",
             default=manager_defaults.hub_target,
-        )),
-        suite_target=str(_config_value(
-            aura_config,
-            "homeAutomationManager.suiteTarget",
-            "homeAutomationManager.suite_target",
-            "home_automation.manager.suite_target",
-            default=manager_defaults.suite_target,
         )),
     )
     return HomeAutomationConfig(

@@ -71,16 +71,15 @@ homeAutomationManager:
   port: 8081
   ssl: false
   timeout: 3.0
-  protocolPath: /protocol/manager
+  commandPath: /command
   statusPath: /status
   launchCommand: []
   launchWorkingDirectory: ""
-  autoStart: true
-  autoStartBridge: true
+  autoStart: false
+  autoStartBridge: false
   startupWaitSeconds: 2.5
   bridgeTarget: bridge
   hubTarget: hub
-  suiteTarget: suite
 
 notifications:
   notificationsEnabled: true

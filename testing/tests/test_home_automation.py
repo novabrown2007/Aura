@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 from types import SimpleNamespace
 import unittest
@@ -13,6 +14,7 @@ from core.runtime.moduleLoader import ModuleLoader
 from modules.home_automation import HomeAutomation
 from modules.home_automation.bridgeConnection import BridgeConnectionError
 from modules.home_automation.config import BridgeConfig, HomeAutomationConfig, HomeAutomationManagerConfig, buildHomeAutomationConfig
+from modules.home_automation.managerConnection import HomeAutomationManagerConnection, HomeAutomationManagerError
 from modules.home_automation.models import BridgeState, CameraDevice, Device, LightDevice
 from testing.tests.support.fakes import make_context
 
@@ -128,6 +130,7 @@ class HomeAutomationConfigTests(unittest.TestCase):
                 "homeAutomationBridge.refreshSeconds": "9.0",
                 "homeAutomationManager.host": "manager.local",
                 "homeAutomationManager.port": "9090",
+                "homeAutomationManager.commandPath": "/command",
                 "homeAutomationManager.autoStart": "false",
                 "homeAutomationManager.launchCommand": ["manager.exe", "--headless"],
             }.get(key, default)
@@ -141,6 +144,7 @@ class HomeAutomationConfigTests(unittest.TestCase):
         self.assertEqual(config.refresh_interval_seconds, 9.0)
         self.assertEqual(config.manager.host, "manager.local")
         self.assertEqual(config.manager.port, 9090)
+        self.assertEqual(config.manager.command_path, "/command")
         self.assertFalse(config.manager.auto_start)
         self.assertEqual(config.manager.launch_command, ("manager.exe", "--headless"))
 
@@ -533,6 +537,113 @@ class LocalStartTests(unittest.TestCase):
         self.assertEqual(manager.calls[0][0], "ensureRunning")
         self.assertEqual(manager.calls[1][0], "request")
         self.assertEqual(manager.calls[1][1]["fields"], {"reason": "test"})
+
+
+class HomeAutomationManagerProtocolTests(unittest.TestCase):
+    """Manager protocol and routing testing.tests."""
+
+    def setUp(self):
+        self.config = HomeAutomationManagerConfig(
+            host="manager.local",
+            port=8081,
+            launch_command=("manager.exe", "--headless"),
+        )
+        self.client = HomeAutomationManagerConnection(self.config)
+
+    def test_get_status_uses_status_endpoint(self):
+        def fake_urlopen(req, timeout=None):
+            self.assertEqual(req.full_url, "http://manager.local:8081/status")
+            self.assertEqual(req.get_method(), "GET")
+            return FakeHttpResponse(
+                {
+                    "ok": True,
+                    "protocol": "home-automation-manager-control/1",
+                    "status": "ok",
+                    "managerPort": 8081,
+                    "lastAction": "",
+                    "hub": {"title": "Hub", "statusLine": "", "details": ""},
+                    "bridge": {"title": "Bridge", "statusLine": "", "details": ""},
+                }
+            )
+
+        with patch("modules.home_automation.managerConnection.request.urlopen", side_effect=fake_urlopen):
+            status = self.client.getStatus()
+
+        self.assertEqual(status["protocol"], "home-automation-manager-control/1")
+        self.assertEqual(status["managerPort"], 8081)
+
+    def test_request_posts_target_and_action_to_command_endpoint(self):
+        observed = {}
+
+        def fake_urlopen(req, timeout=None):
+            observed["url"] = req.full_url
+            observed["method"] = req.get_method()
+            observed["body"] = json.loads(req.data.decode("utf-8"))
+            return FakeHttpResponse(
+                {
+                    "ok": True,
+                    "protocol": "home-automation-manager-control/1",
+                    "action": "bridge.restart",
+                    "target": "bridge",
+                    "status": "ok",
+                }
+            )
+
+        with patch("modules.home_automation.managerConnection.request.urlopen", side_effect=fake_urlopen):
+            response = self.client.request("restart", "bridge", reason="maintenance")
+
+        self.assertEqual(observed["url"], "http://manager.local:8081/command")
+        self.assertEqual(observed["method"], "POST")
+        self.assertEqual(observed["body"], {"target": "bridge", "action": "restart"})
+        self.assertEqual(response["action"], "bridge.restart")
+
+    def test_request_falls_back_to_direct_route_when_command_endpoint_is_missing(self):
+        calls = []
+
+        def fake_urlopen(req, timeout=None):
+            calls.append((req.full_url, req.get_method()))
+            if req.full_url.endswith("/command"):
+                raise error.HTTPError(
+                    req.full_url,
+                    404,
+                    "Not Found",
+                    hdrs=None,
+                    fp=io.BytesIO(
+                        json.dumps(
+                            {
+                                "ok": False,
+                                "protocol": "home-automation-manager-control/1",
+                                "error": "unknown route",
+                                "status": "missing",
+                            }
+                        ).encode("utf-8")
+                    ),
+                )
+            return FakeHttpResponse(
+                {
+                    "ok": True,
+                    "protocol": "home-automation-manager-control/1",
+                    "action": "hub.stop",
+                    "target": "hub",
+                    "status": "ok",
+                }
+            )
+
+        with patch("modules.home_automation.managerConnection.request.urlopen", side_effect=fake_urlopen):
+            response = self.client.request("stop", "hub")
+
+        self.assertEqual(
+            calls,
+            [
+                ("http://manager.local:8081/command", "POST"),
+                ("http://manager.local:8081/hub/stop", "POST"),
+            ],
+        )
+        self.assertEqual(response["action"], "hub.stop")
+
+    def test_request_rejects_unsupported_target(self):
+        with self.assertRaises(HomeAutomationManagerError):
+            self.client.request("start", "suite")
 
 
 class BridgeClientIntegrationTests(unittest.TestCase):

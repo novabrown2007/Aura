@@ -362,7 +362,7 @@ class HomeAutomation(AuraModule):
     def forceStopBridge(self) -> dict[str, object]:
         """Force stop the bridge through the manager when available."""
 
-        return self.manageService("forcestop", "bridge")
+        return self.manageService("force_stop", "bridge")
 
     def startHub(self) -> dict[str, object]:
         """Start the hub through the manager when available."""
@@ -382,7 +382,7 @@ class HomeAutomation(AuraModule):
     def forceStopHub(self) -> dict[str, object]:
         """Force stop the hub through the manager when available."""
 
-        return self.manageService("forcestop", "hub")
+        return self.manageService("force_stop", "hub")
 
     def _resolveLightId(self, room: str) -> str:
         """Resolve a user-facing room/name string to a bridge light device id."""

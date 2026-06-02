@@ -49,10 +49,10 @@ DEFAULT_USER_CONFIG = {
     },
     "homeAutomationManager": {
         "host": "127.0.0.1",
-        "port": 8080,
+        "port": 8081,
         "ssl": False,
         "timeout": 3.0,
-        "protocolPath": "/protocol/manager",
+        "commandPath": "/command",
         "statusPath": "/status",
         "launchCommand": [],
         "launchWorkingDirectory": "",
@@ -61,7 +61,6 @@ DEFAULT_USER_CONFIG = {
         "startupWaitSeconds": 2.5,
         "bridgeTarget": "bridge",
         "hubTarget": "hub",
-        "suiteTarget": "suite",
     },
     "notifications": {
         "notificationsEnabled": True,
