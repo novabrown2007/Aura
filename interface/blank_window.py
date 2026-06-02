@@ -379,7 +379,7 @@ class BlankWindowApp:
             center_y + size // 2,
             10,
             fill="",
-            outline=self.theme.secondary_accent,
+            outline=self.theme.border,
             width=1,
             tags=(tag,),
         )
