@@ -14,6 +14,7 @@ class ChromeCallbacks:
     home: callable
     chat: callable
     media: callable
+    weather: callable
     window: callable
     close: callable
     close_sidebar: callable

@@ -13,7 +13,7 @@ class SidebarPanel:
         self.theme = theme
         self.width = int(width)
 
-    def render(self, canvas, width: int, height: int, visible: bool, on_close, on_settings, on_home, on_chat, on_media, current_page_name: str | None):
+    def render(self, canvas, width: int, height: int, visible: bool, on_close, on_settings, on_home, on_chat, on_media, on_weather, current_page_name: str | None):
         if not visible:
             return
 
@@ -27,6 +27,7 @@ class SidebarPanel:
         self._draw_sidebar_nav_item(canvas, x1 + 16, top + 56, "Home", on_home, active=current_page_name == "home")
         self._draw_sidebar_nav_item(canvas, x1 + 16, top + 92, "Chat", on_chat, active=current_page_name == "chat")
         self._draw_sidebar_nav_item(canvas, x1 + 16, top + 128, "Spotify", on_media, active=current_page_name == "media")
+        self._draw_sidebar_nav_item(canvas, x1 + 16, top + 164, "Weather", on_weather, active=current_page_name == "weather")
         canvas.create_line(x1 + 16, bottom - 56, x2 - 16, bottom - 56, fill=self.theme.border, width=1)
         self._draw_sidebar_button(canvas, x1 + 21, bottom - 34, on_settings)
 

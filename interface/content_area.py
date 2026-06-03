@@ -6,6 +6,7 @@ from .page_manager import PageManager
 from .pages.chat_page import ChatPage
 from .pages.home_page import HomePage
 from .pages.media_manager_page import MediaManagerPage
+from .pages.weather_page import WeatherPage
 
 
 class ContentArea:
@@ -17,6 +18,7 @@ class ContentArea:
                 "home": HomePage(),
                 "chat": ChatPage(context=context, post_ui_event=post_ui_event, thread_factory=thread_factory),
                 "media": MediaManagerPage(context=context),
+                "weather": WeatherPage(context=context),
             },
             initial_page="home",
         )
@@ -26,6 +28,8 @@ class ContentArea:
             self.page_manager.registerPage("chat", ChatPage(context=context, post_ui_event=post_ui_event, thread_factory=thread_factory))
         if "media" not in getattr(self.page_manager, "_pages", {}):
             self.page_manager.registerPage("media", MediaManagerPage(context=context))
+        if "weather" not in getattr(self.page_manager, "_pages", {}):
+            self.page_manager.registerPage("weather", WeatherPage(context=context))
         self.page_manager.setPage("home")
 
     def render(self, canvas, width: int, height: int, theme, sidebar_visible: bool):

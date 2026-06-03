@@ -2,5 +2,6 @@
 
 from .home_page import HomePage
 from .media_manager_page import MediaManagerPage
+from .weather_page import WeatherPage
 
-__all__ = ["HomePage", "MediaManagerPage"]
+__all__ = ["HomePage", "MediaManagerPage", "WeatherPage"]

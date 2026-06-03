@@ -208,6 +208,7 @@ class AuraWindowApp:
             home=self._set_home_page,
             chat=self._set_chat_page,
             media=self._set_media_page,
+            weather=self._set_weather_page,
             window=self._noop,
             close=self.close,
             submit_prompt=self._submit_prompt,
@@ -346,6 +347,12 @@ class AuraWindowApp:
         if self.shell is None:
             return
         self.shell.content_area.setPage("media")
+        self._render()
+
+    def _set_weather_page(self):
+        if self.shell is None:
+            return
+        self.shell.content_area.setPage("weather")
         self._render()
 
     def _noop(self):
