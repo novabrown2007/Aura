@@ -23,7 +23,10 @@ class SpotifyStateManager:
 
     def refresh(self):
         if self.provider is not None:
-            snapshot = self.provider.getCurrentPlayback()
+            try:
+                snapshot = self.provider.getCurrentPlayback()
+            except Exception:
+                return self.lastPlaybackState
             self.lastPlaybackState = snapshot if isinstance(snapshot, SpotifyPlaybackState) else SpotifyPlaybackState(**getattr(snapshot, "asDict", lambda: dict(snapshot))())
         return self.lastPlaybackState
 

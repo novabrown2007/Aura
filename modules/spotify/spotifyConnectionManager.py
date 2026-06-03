@@ -18,14 +18,20 @@ class SpotifyConnectionManager:
             self.context = context
         self.provider.initialize(self.context)
         self.lastConnectionState = self.provider.connect()
-        self._emit("spotify.connected", self.lastConnectionState.asDict())
-        self._notify("Spotify connected", "Spotify playback is available.", "LOW")
+        if self.lastConnectionState.isConnected():
+            self._emit("spotify.connected", self.lastConnectionState.asDict())
+            self._notify("Spotify connected", "Spotify playback is available.", "LOW")
+        else:
+            self._emit("spotify.disconnected", self.lastConnectionState.asDict())
         return self.lastConnectionState
 
-    def connect(self):
-        self.lastConnectionState = self.provider.connect()
-        self._emit("spotify.connected", self.lastConnectionState.asDict())
-        self._notify("Spotify connected", "Spotify playback is available.", "LOW")
+    def connect(self, interactive: bool = False):
+        self.lastConnectionState = self.provider.connect(interactive=interactive)
+        if self.lastConnectionState.isConnected():
+            self._emit("spotify.connected", self.lastConnectionState.asDict())
+            self._notify("Spotify connected", "Spotify playback is available.", "LOW")
+        else:
+            self._emit("spotify.disconnected", self.lastConnectionState.asDict())
         return self.lastConnectionState
 
     def disconnect(self, reason: str = ""):

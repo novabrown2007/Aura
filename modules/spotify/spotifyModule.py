@@ -63,6 +63,21 @@ class SpotifyModule(AuraModule):
         if self.manager is not None:
             self.manager.shutdown()
 
+    def connect(self, interactive: bool = False):
+        if self.manager is None:
+            return None
+        return self.manager.connectionManager.connect(interactive=interactive)
+
+    def disconnect(self, reason: str = ""):
+        if self.manager is None:
+            return None
+        return self.manager.connectionManager.disconnect(reason)
+
+    def getConnectionState(self):
+        if self.manager is None:
+            return {"status": "DISCONNECTED"}
+        return self.manager.getConnectionState()
+
     def startup(self):
         if self.manager is not None:
             self.manager.connectionManager.ensureConnected()

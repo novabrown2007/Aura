@@ -13,6 +13,7 @@ from modules.spotify.models import (
     SpotifySearchResult,
     SpotifyTrack,
 )
+from modules.spotify.providers.spotifyWebApiClient import SpotifyWebApiClient
 
 
 def _utcNow() -> str:
@@ -29,6 +30,7 @@ class SpotifyApiProvider:
         self.cacheStore = cacheStore
         self.connectionState = SpotifyConnectionState()
         self.playbackState = SpotifyPlaybackState()
+        self.webClient: SpotifyWebApiClient | None = None
         self.devices = self._seedDevices()
         self.playlists = self._seedPlaylists()
         self.tracks = self._seedTracks()
@@ -40,19 +42,46 @@ class SpotifyApiProvider:
     def initialize(self, context=None):
         if context is not None:
             self.context = context
-        self._demoMode = True
+        self.webClient = SpotifyWebApiClient(self.context).initialize(self.context)
+        self._demoMode = not self.webClient.isConfigured()
         self.connect()
         return self
 
     def isAvailable(self):
-        return bool(self._connected or self.connectionState.isConnected())
+        return bool(self._connected or self.connectionState.isConnected() or (self.webClient and self.webClient.tokens.is_valid()))
 
-    def connect(self):
+    def connect(self, interactive: bool = False):
+        if self.webClient is not None and self.webClient.isConfigured():
+            try:
+                remoteState = self.webClient.connect(interactive=bool(interactive))
+                self.connectionState = SpotifyConnectionState(
+                    status=str(remoteState.get("status") or "CONNECTED"),
+                    accessToken=str(remoteState.get("accessToken") or ""),
+                    refreshToken=str(remoteState.get("refreshToken") or ""),
+                    expiresAt=str(remoteState.get("expiresAt") or ""),
+                    connectedAt=str(remoteState.get("connectedAt") or _utcNow()),
+                    lastError=str(remoteState.get("lastError") or ""),
+                    userName=str(remoteState.get("userName") or ""),
+                    deviceName=str(remoteState.get("deviceName") or ""),
+                    metadata=dict(remoteState.get("metadata") or {}),
+                )
+                self._connected = self.connectionState.isConnected()
+                if self._connected:
+                    self._syncPlaybackFromRemote()
+                return self.connectionState
+            except Exception as error:
+                self.connectionState = SpotifyConnectionState(
+                    status="DISCONNECTED",
+                    lastError=str(error),
+                    metadata={"mode": "webapi"},
+                )
+                self._connected = False
+                return self.connectionState
+
         token = self._readConfig("spotify.api.accessToken", "") or self._readConfig("spotify.accessToken", "")
         refreshToken = self._readConfig("spotify.api.refreshToken", "") or self._readConfig("spotify.refreshToken", "")
         userName = self._readConfig("spotify.userName", "") or "Aura"
         deviceName = self._readConfig("spotify.defaultDevice", "") or "Desktop"
-        status = "CONNECTED"
         self.connectionState = SpotifyConnectionState.connected(
             accessToken=str(token or "demo-token"),
             refreshToken=str(refreshToken or "demo-refresh-token"),
@@ -65,6 +94,21 @@ class SpotifyApiProvider:
         return self.connectionState
 
     def disconnect(self, reason: str = ""):
+        if self.webClient is not None and self.webClient.isConfigured():
+            remoteState = self.webClient.disconnect(reason)
+            self.connectionState = SpotifyConnectionState(
+                status=str(remoteState.get("status") or "DISCONNECTED"),
+                accessToken=str(remoteState.get("accessToken") or ""),
+                refreshToken=str(remoteState.get("refreshToken") or ""),
+                expiresAt=str(remoteState.get("expiresAt") or ""),
+                connectedAt=str(remoteState.get("connectedAt") or ""),
+                lastError=str(remoteState.get("lastError") or reason or ""),
+                userName=str(remoteState.get("userName") or ""),
+                deviceName=str(remoteState.get("deviceName") or ""),
+                metadata=dict(remoteState.get("metadata") or {}),
+            )
+            self._connected = False
+            return self.connectionState
         self._connected = False
         self.connectionState = SpotifyConnectionState(
             status="DISCONNECTED",
@@ -74,6 +118,21 @@ class SpotifyApiProvider:
         return self.connectionState
 
     def refreshToken(self):
+        if self.webClient is not None and self.webClient.isConfigured():
+            remoteState = self.webClient.refreshToken()
+            self.connectionState = SpotifyConnectionState(
+                status=str(remoteState.get("status") or "CONNECTED"),
+                accessToken=str(remoteState.get("accessToken") or ""),
+                refreshToken=str(remoteState.get("refreshToken") or ""),
+                expiresAt=str(remoteState.get("expiresAt") or ""),
+                connectedAt=str(remoteState.get("connectedAt") or _utcNow()),
+                lastError=str(remoteState.get("lastError") or ""),
+                userName=str(remoteState.get("userName") or ""),
+                deviceName=str(remoteState.get("deviceName") or ""),
+                metadata=dict(remoteState.get("metadata") or {}),
+            )
+            self._connected = self.connectionState.isConnected()
+            return self.connectionState
         self.connectionState.expiresAt = _utcNow()
         self.connectionState.metadata["refreshed"] = True
         return self.connectionState
@@ -82,39 +141,76 @@ class SpotifyApiProvider:
         return SpotifyConnectionState(**self.connectionState.asDict())
 
     def getCurrentPlayback(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return SpotifyPlaybackState(**self.webClient.getCurrentPlayback())
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         return SpotifyPlaybackState(**self.playbackState.asDict())
 
     def getNowPlaying(self):
         return self.getCurrentPlayback()
 
     def searchTracks(self, query: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.searchTracks(query)
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         result = self._search(query, self.tracks)
         payload = SpotifySearchResult(query=query, tracks=[track.asDict() for track in result], source="mock")
         self._cacheSearch(f"tracks:{query.lower().strip()}", payload.asDict())
         return payload
 
     def searchPlaylists(self, query: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.searchPlaylists(query)
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         result = self._search(query, self.playlists)
         payload = SpotifySearchResult(query=query, playlists=[playlist.asDict() for playlist in result], source="mock")
         self._cacheSearch(f"playlists:{query.lower().strip()}", payload.asDict())
         return payload
 
     def searchArtists(self, query: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.searchArtists(query)
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         artists = [{"artistId": artist, "name": artist} for artist in self._matchArtists(query)]
         return SpotifySearchResult(query=query, artists=artists, source="mock")
 
     def searchAlbums(self, query: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.searchAlbums(query)
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         albums = [{"albumId": album, "name": album} for album in self._matchAlbums(query)]
         return SpotifySearchResult(query=query, albums=albums, source="mock")
 
     def listPlaylists(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            playlists = self.webClient.listPlaylists()
+            if self.cacheStore is not None:
+                self.cacheStore.savePlaylists(playlists)
+            return playlists
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         cached = self.cacheStore.loadPlaylists() if self.cacheStore else []
         return cached or [playlist.asDict() for playlist in self.playlists]
 
     def listDevices(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.listDevices()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         return [device.asDict() for device in self.devices]
 
     def setActiveDevice(self, deviceId: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.transferPlayback(deviceId)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.playbackState
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         selected = None
         for device in self.devices:
             device.isActive = device.deviceId == deviceId
@@ -128,6 +224,12 @@ class SpotifyApiProvider:
         return self.playbackState
 
     def playTrack(self, trackId: str = "", query: str = "", playlistId: str = "", artist: str = "", playNow: bool = True):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.playTrack(trackId=trackId, query=query, playlistId=playlistId, artist=artist, playNow=playNow)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         track = self._resolveTrack(trackId=trackId, query=query, playlistId=playlistId)
         if track is None:
             displayTitle = str(query or trackId or "Track")
@@ -155,6 +257,12 @@ class SpotifyApiProvider:
         return self.getCurrentPlayback()
 
     def playPlaylist(self, playlistId: str = "", query: str = "", shuffle: bool = False):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.playPlaylist(playlistId=playlistId, query=query, shuffle=shuffle)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         playlist = self._resolvePlaylist(playlistId=playlistId, query=query)
         if playlist is None:
             playlist = self.playlists[0]
@@ -170,18 +278,36 @@ class SpotifyApiProvider:
         return self.getCurrentPlayback()
 
     def pause(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.pause()
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         self.playbackState.isPlaying = False
         self.playbackState.timestamp = _utcNow()
         self._cachePlayback("current", self.playbackState.asDict())
         return self.getCurrentPlayback()
 
     def resume(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.resume()
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         self.playbackState.isPlaying = True
         self.playbackState.timestamp = _utcNow()
         self._cachePlayback("current", self.playbackState.asDict())
         return self.getCurrentPlayback()
 
     def nextTrack(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.nextTrack()
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         if not self._history:
             return self.playTrack()
         currentIndex = self._trackIndex(self._history[-1])
@@ -189,6 +315,12 @@ class SpotifyApiProvider:
         return self.playTrack(trackId=self.tracks[nextIndex].trackId, playlistId=self._currentPlaylistId)
 
     def previousTrack(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.previousTrack()
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         if not self._history:
             return self.playTrack()
         currentIndex = self._trackIndex(self._history[-1])
@@ -196,6 +328,12 @@ class SpotifyApiProvider:
         return self.playTrack(trackId=self.tracks[previousIndex].trackId, playlistId=self._currentPlaylistId)
 
     def seek(self, positionMs: int):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.seek(positionMs)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         positionMs = max(0, int(positionMs or 0))
         if self.playbackState.duration:
             positionMs = min(positionMs, int(self.playbackState.duration))
@@ -208,12 +346,22 @@ class SpotifyApiProvider:
         return self.seek(self.playbackState.progress + int(deltaMs or 0))
 
     def setVolume(self, volume: int):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.setVolume(volume)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         self.playbackState.volume = max(0, min(100, int(volume or 0)))
         self.playbackState.timestamp = _utcNow()
         self._cachePlayback("current", self.playbackState.asDict())
         return self.getCurrentPlayback()
 
     def setPlaybackSpeed(self, speed: float):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            raise NotImplementedError("Spotify Web API does not expose playback speed control.")
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         requested = float(speed or 1.0)
         nearest = min(self.SUPPORTED_SPEEDS, key=lambda item: abs(item - requested))
         supported = abs(nearest - requested) < 0.26
@@ -224,6 +372,12 @@ class SpotifyApiProvider:
         return self.getCurrentPlayback()
 
     def transferPlayback(self, deviceId: str):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            payload = self.webClient.transferPlayback(deviceId)
+            self.playbackState = SpotifyPlaybackState(**payload)
+            return self.getCurrentPlayback()
+        if self.webClient is not None and self.webClient.isConfigured():
+            raise RuntimeError("Spotify is not authenticated.")
         device = next((item for item in self.devices if item.deviceId == deviceId), None)
         if device is None:
             return self.getCurrentPlayback()
@@ -235,12 +389,30 @@ class SpotifyApiProvider:
         return self.getCurrentPlayback()
 
     def snapshot(self):
+        if self.webClient is not None and self.webClient.isConfigured() and self.webClient.tokens.is_valid():
+            return self.webClient.snapshot()
+        if self.webClient is not None and self.webClient.isConfigured():
+            return {
+                "connection": self.connectionState.asDict(),
+                "playback": self.playbackState.asDict(),
+                "devices": [],
+                "playlists": [],
+            }
         return {
             "connection": self.connectionState.asDict(),
             "playback": self.playbackState.asDict(),
             "devices": [device.asDict() for device in self.devices],
             "playlists": [playlist.asDict() for playlist in self.playlists],
         }
+
+    def _syncPlaybackFromRemote(self):
+        if self.webClient is None:
+            return
+        try:
+            payload = self.webClient.getCurrentPlayback()
+        except Exception:
+            return
+        self.playbackState = SpotifyPlaybackState(**payload)
 
     def shutdown(self):
         self.disconnect("shutdown")

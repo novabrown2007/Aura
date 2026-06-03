@@ -125,6 +125,22 @@ spotify:
   spotifyPollingIntervalSeconds: 2
   defaultDevice: Desktop
   cachePath: spotify_cache.sqlite3
+  api:
+    clientId: CHANGE_ME
+    redirectUri: http://127.0.0.1:53682/callback
+    scopes:
+      - user-read-playback-state
+      - user-modify-playback-state
+      - playlist-read-private
+      - playlist-modify-private
+      - playlist-modify-public
+      - user-read-private
+    tokenCachePath: spotify_auth.json
+    autoAuthorize: false
+    openBrowser: true
+    accessToken: ""
+    refreshToken: ""
+    expiresAt: 0
 
 email:
   emailEnabled: true

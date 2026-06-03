@@ -44,6 +44,31 @@ class FakeNotificationManager:
         return record
 
 
+class FakeSpotifyWebClient:
+    """Minimal web client stub for connection-path tests."""
+
+    def __init__(self):
+        self.calls = []
+        self.tokens = SimpleNamespace(is_valid=lambda: False)
+
+    def isConfigured(self):
+        return True
+
+    def connect(self, interactive: bool = False):
+        self.calls.append(bool(interactive))
+        return {
+            "status": "CONNECTED",
+            "accessToken": "token",
+            "refreshToken": "refresh",
+            "expiresAt": "123",
+            "connectedAt": "now",
+            "lastError": "",
+            "userName": "Aura",
+            "deviceName": "Desktop",
+            "metadata": {"mode": "webapi"},
+        }
+
+
 class SpotifyModuleTests(unittest.TestCase):
     """Validate the Spotify connection and controller module."""
 
@@ -188,6 +213,16 @@ class SpotifyModuleTests(unittest.TestCase):
 
         self.assertTrue(connection.isConnected())
         self.assertGreaterEqual(len(search.playlists), 1)
+
+    def test_api_provider_forwards_interactive_connect_to_web_client(self):
+        provider = SpotifyApiProvider(self.context)
+        provider.webClient = FakeSpotifyWebClient()
+        provider._demoMode = False
+
+        connection = provider.connect(interactive=True)
+
+        self.assertTrue(connection.isConnected())
+        self.assertEqual(provider.webClient.calls, [True])
 
     def _makeModule(self):
         return SpotifyModule(self.context)

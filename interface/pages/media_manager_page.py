@@ -18,6 +18,7 @@ class MediaManagerPage(Page):
         self._search_query = ""
         self._search_active = False
         self._status_text = "Use the search box to browse Spotify."
+        self._connection_text = "Disconnected"
         self._scroll_offset = 0
         self._max_scroll = 0
         self._volume_dragging = False
@@ -27,6 +28,7 @@ class MediaManagerPage(Page):
         self._playlist_results: list[dict[str, object]] = []
         self._search_bounds = (0, 0, 0, 0)
         self._search_button_bounds = (0, 0, 0, 0)
+        self._connect_bounds = (0, 0, 0, 0)
         self._results_bounds = (0, 0, 0, 0)
         self._volume_bounds = (0, 0, 0, 0)
         self._volume_minus_bounds = (0, 0, 0, 0)
@@ -54,7 +56,8 @@ class MediaManagerPage(Page):
         bottom = bounds["bottom"] - 18
 
         canvas.create_text(left, top, anchor="nw", text="Media Manager", fill=theme.text, font=("Segoe UI", 18, "bold"))
-        canvas.create_text(left, top + 28, anchor="nw", text="Playback controls, local state, and Spotify browsing", fill=theme.placeholder, font=("Segoe UI", 10))
+        canvas.create_text(left, top + 28, anchor="nw", text=f"Playback controls, local state, and Spotify browsing", fill=theme.placeholder, font=("Segoe UI", 10))
+        canvas.create_text(right - 20, top + 28, anchor="ne", text=self._connection_text, fill=theme.placeholder, font=("Segoe UI", 10, "bold"))
 
         split_x = left + max(320, int((right - left) * 0.36))
         split_x = min(split_x, right - 340)
@@ -76,6 +79,9 @@ class MediaManagerPage(Page):
     def handle_press(self, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
         if self._point_in_bounds(x, y, self._search_bounds):
             self._search_active = True
+            return True
+        if self._point_in_bounds(x, y, self._connect_bounds):
+            self._call_spotify("connect", True)
             return True
         if self._point_in_bounds(x, y, self._search_button_bounds):
             self._run_search()
@@ -172,7 +178,16 @@ class MediaManagerPage(Page):
             self._track_results = []
             self._playlist_results = []
             self._status_text = "Spotify is not available in this runtime."
+            self._connection_text = "Spotify unavailable"
             return
+
+        try:
+            connection = spotify.getConnectionState()
+        except Exception:
+            connection = {"status": "DISCONNECTED"}
+        self._connection_text = str(connection.get("status") or "DISCONNECTED")
+        if self._connection_text != "CONNECTED":
+            self._status_text = "Click Connect Spotify to authorize your account."
 
         try:
             state = spotify.getPlaybackState()
@@ -302,6 +317,7 @@ class MediaManagerPage(Page):
         search_right = right - 96
         self._search_bounds = (search_left, search_top, search_right, search_top + search_height)
         self._search_button_bounds = (search_right + 10, search_top, right - 20, search_top + search_height)
+        self._connect_bounds = (search_left, search_top - 40, search_left + 150, search_top - 10)
         search_fill = theme.background if self._search_active else theme.panel
         search_outline = theme.secondary_accent if self._search_active else theme.border
         shadow_round_rect(canvas, search_left, search_top, search_right, search_top + search_height, 10, fill=search_fill, outline=search_outline, width=1)
@@ -309,6 +325,8 @@ class MediaManagerPage(Page):
         placeholder_fill = theme.text if self._search_query else theme.placeholder
         canvas.create_text(search_left + 14, search_top + search_height / 2, anchor="w", text=placeholder, fill=placeholder_fill, font=("Segoe UI", 11))
         self._draw_button(canvas, theme, *self._search_button_bounds, "Search", accent=True)
+        if self._connection_text != "CONNECTED":
+            self._draw_button(canvas, theme, *self._connect_bounds, "Connect Spotify", accent=True)
 
         results_top = search_top + 50
         results_bottom = bottom - 18

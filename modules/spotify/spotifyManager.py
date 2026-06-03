@@ -59,6 +59,12 @@ class SpotifyManager:
     def shutdown(self):
         self.connectionManager.shutdown()
 
+    def connect(self, interactive: bool = False):
+        return self.connectionManager.connect(interactive=interactive)
+
+    def disconnect(self, reason: str = ""):
+        return self.connectionManager.disconnect(reason)
+
     def handleEvent(self, event):
         name = getattr(event, "name", "") if not isinstance(event, dict) else event.get("name", "")
         data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
@@ -161,11 +167,19 @@ class SpotifyManager:
         return payload
 
     def getDashboard(self):
+        try:
+            playlists = self.listPlaylists()
+        except Exception:
+            playlists = []
+        try:
+            devices = self.listDevices()
+        except Exception:
+            devices = []
         return {
             "connection": self.getConnectionState(),
             "playback": self.getPlaybackState(),
-            "devices": self.listDevices(),
-            "playlists": self.listPlaylists(),
+            "devices": devices,
+            "playlists": playlists,
             "queue": self.queueManager.listQueue(),
         }
 

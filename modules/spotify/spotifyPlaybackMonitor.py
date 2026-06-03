@@ -39,7 +39,10 @@ class SpotifyPlaybackMonitor:
         if self.stateManager is not None:
             return dict(self.stateManager.snapshot())
         if self.provider is not None:
-            state = self.provider.getCurrentPlayback()
+            try:
+                state = self.provider.getCurrentPlayback()
+            except Exception:
+                return {}
             return state.asDict() if hasattr(state, "asDict") else dict(state or {})
         return {}
 
