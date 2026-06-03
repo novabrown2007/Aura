@@ -41,6 +41,7 @@ class ApplicationShell:
             callbacks.settings,
             callbacks.home,
             callbacks.chat,
+            callbacks.media,
             self.content_area.currentPageName(),
         )
         self.footer_input.render(canvas, width, height, callbacks)

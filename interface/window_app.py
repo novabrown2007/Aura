@@ -110,6 +110,7 @@ class AuraWindowApp:
         root.bind("<MouseWheel>", self._on_canvas_scroll)
         root.bind("<Button-4>", self._on_canvas_scroll)
         root.bind("<Button-5>", self._on_canvas_scroll)
+        root.bind("<KeyPress>", self._on_key_press)
         self._bind_drag_targets(canvas)
         canvas.bind("<Motion>", self._on_canvas_motion)
         canvas.bind("<Leave>", self._on_canvas_leave)
@@ -206,6 +207,7 @@ class AuraWindowApp:
             toggle_sidebar=self._toggle_sidebar,
             home=self._set_home_page,
             chat=self._set_chat_page,
+            media=self._set_media_page,
             window=self._noop,
             close=self.close,
             submit_prompt=self._submit_prompt,
@@ -275,6 +277,8 @@ class AuraWindowApp:
         if self.shell.point_in_title_bar_control(event.x, event.y, width):
             return
         if self.shell.content_area.handle_press(event.x, event.y, width, height, self.sidebar_visible):
+            if self.root is not None:
+                self.root.focus_set()
             self._render()
 
     def _on_canvas_drag(self, event):
@@ -304,6 +308,12 @@ class AuraWindowApp:
         if self.shell.content_area.handle_scroll(delta, getattr(event, "x", 0), getattr(event, "y", 0), self.root.winfo_width(), self.root.winfo_height(), self.sidebar_visible):
             self._render()
 
+    def _on_key_press(self, event):
+        if self.root is None or self.shell is None:
+            return
+        if self.shell.content_area.handle_keypress(event):
+            self._render()
+
     def _toggle_sidebar(self):
         self.sidebar_visible = not self.sidebar_visible
         self._render()
@@ -330,6 +340,12 @@ class AuraWindowApp:
         if self.shell is None:
             return
         self.shell.content_area.setPage("chat")
+        self._render()
+
+    def _set_media_page(self):
+        if self.shell is None:
+            return
+        self.shell.content_area.setPage("media")
         self._render()
 
     def _noop(self):

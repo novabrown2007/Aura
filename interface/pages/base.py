@@ -23,6 +23,9 @@ class Page:
     def handle_scroll(self, delta: int, x: int, y: int, width: int, height: int, sidebar_visible: bool) -> bool:
         return False
 
+    def handle_keypress(self, event) -> bool:
+        return False
+
     def submit_prompt(self, prompt: str) -> bool:
         """Handle a text prompt submitted from the fixed footer."""
 

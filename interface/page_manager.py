@@ -56,6 +56,14 @@ class PageManager:
             return False
         return bool(handler(delta, x, y, width, height, sidebar_visible))
 
+    def handle_keypress(self, event) -> bool:
+        if self.currentPage is None:
+            return False
+        handler = getattr(self.currentPage, "handle_keypress", None)
+        if handler is None:
+            return False
+        return bool(handler(event))
+
     def submit_prompt(self, prompt: str) -> bool:
         if self.currentPage is None:
             return False

@@ -13,6 +13,7 @@ class ChromeCallbacks:
     toggle_sidebar: callable
     home: callable
     chat: callable
+    media: callable
     window: callable
     close: callable
     close_sidebar: callable
