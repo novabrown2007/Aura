@@ -53,6 +53,44 @@ class FakeWeather:
             "cache": {"enabled": True},
         }
 
+    def getDashboard(self):
+        return {
+            "current": {"location": "Toronto", "temperature": 21, "condition": "clear"},
+            "forecast": {"daily": [{"day": "Mon", "condition": "clear"}]},
+            "alerts": [{"title": "Heat warning"}],
+            "thresholds": [{"metric": "temperature", "operator": ">", "value": 30}],
+            "locations": [{"name": "Home", "locationId": "home"}],
+            "sensors": {"count": 1, "sensors": [{"name": "Living Room"}]},
+            "sourceSnapshot": {"provider": "SIMULATED"},
+        }
+
+    def getWeatherViewModel(self):
+        return {"location": "Toronto", "current": {"location": "Toronto", "temperature": 21, "condition": "clear"}}
+
+    def getForecastViewModel(self):
+        return {"location": "Toronto", "daily": [{"day": "Mon", "condition": "clear"}], "hourly": []}
+
+    def getCurrentWeather(self):
+        return {"location": "Toronto", "temperature": 21, "condition": "clear"}
+
+    def getHourlyForecast(self):
+        return {"location": "Toronto", "hourly": [{"hour": 1, "temperature": 21}], "source": "SIMULATED"}
+
+    def getWeeklyForecast(self):
+        return {"location": "Toronto", "daily": [{"day": "Mon", "condition": "clear"}], "source": "SIMULATED"}
+
+    def getIndoorTemperature(self):
+        return {"location": "Local", "temperature": 20.5, "source": "SIMULATED"}
+
+    def getAlerts(self):
+        return [{"title": "Heat warning"}]
+
+    def listLocations(self):
+        return [{"name": "Home", "locationId": "home"}]
+
+    def listThresholds(self):
+        return [{"metric": "temperature", "operator": ">", "value": 30}]
+
 
 class WeatherPageTests(unittest.TestCase):
     def test_renders_weather_snapshot(self):
@@ -73,6 +111,7 @@ class WeatherPageTests(unittest.TestCase):
         page.render(canvas, 1200, 800, theme, sidebar_visible=False)
 
         self.assertEqual(page._weather["currentWeather"]["location"], "Toronto")
+        self.assertIn("dashboard", page._weather)
         self.assertGreaterEqual(page._max_scroll, 0)
 
 

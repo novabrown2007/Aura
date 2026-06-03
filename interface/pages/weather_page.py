@@ -14,6 +14,7 @@ class WeatherPage(Page):
     def __init__(self, context=None):
         self.context = context
         self._weather = None
+        self._weather_loaded = False
         self._scroll_offset = 0
         self._max_scroll = 0
         self._sections_bounds = (0, 0, 0, 0)
@@ -22,6 +23,7 @@ class WeatherPage(Page):
     def set_context(self, context=None):
         self.context = context
         self._weather = None
+        self._weather_loaded = False
 
     def render(self, canvas, width: int, height: int, theme, sidebar_visible: bool):
         self._weather = self._resolve_weather()
@@ -105,20 +107,27 @@ class WeatherPage(Page):
 
     def _build_sections(self, weather: dict[str, object]):
         sections = []
+        snapshot = dict(weather.get("snapshot") or {})
+        dashboard = dict(weather.get("dashboard") or {})
+        current_view = dict(weather.get("currentView") or {})
+        forecast_view = dict(weather.get("forecastView") or {})
         sections.append(("Module Snapshot", {
-            "available": weather.get("available"),
-            "enabled": weather.get("enabled"),
-            "source": weather.get("source"),
+            "available": snapshot.get("available"),
+            "enabled": snapshot.get("enabled"),
+            "source": snapshot.get("source"),
         }))
-        sections.append(("Current Weather", weather.get("currentWeather") or {}))
-        sections.append(("Forecast", weather.get("forecast") or {}))
-        sections.append(("Alerts", weather.get("alerts") or []))
-        sections.append(("Thresholds", weather.get("thresholds") or []))
-        sections.append(("Locations", weather.get("locations") or []))
-        sections.append(("Sensors", weather.get("sensors") or {}))
-        sections.append(("Monitor", weather.get("monitor") or {}))
-        sections.append(("Alert State", weather.get("alertState") or {}))
-        sections.append(("Cache", weather.get("cache") or {}))
+        sections.append(("Current Weather", current_view or snapshot.get("currentWeather") or dashboard.get("current") or {}))
+        sections.append(("Forecast", forecast_view or dashboard.get("forecast") or snapshot.get("forecast") or {}))
+        sections.append(("Alerts", weather.get("alerts") or dashboard.get("alerts") or snapshot.get("alerts") or []))
+        sections.append(("Thresholds", weather.get("thresholds") or dashboard.get("thresholds") or snapshot.get("thresholds") or []))
+        sections.append(("Locations", weather.get("locations") or dashboard.get("locations") or snapshot.get("locations") or []))
+        sections.append(("Sensors", weather.get("sensors") or dashboard.get("sensors") or snapshot.get("sensors") or {}))
+        sections.append(("Indoor Temperature", weather.get("indoorTemperature") or {}))
+        sections.append(("Hourly Forecast", weather.get("hourlyForecast") or {}))
+        sections.append(("Weekly Forecast", weather.get("weeklyForecast") or {}))
+        sections.append(("Monitor", snapshot.get("monitor") or {}))
+        sections.append(("Alert State", snapshot.get("alertState") or {}))
+        sections.append(("Cache", snapshot.get("cache") or {}))
         return sections
 
     def _resolve_weather(self):
@@ -136,10 +145,42 @@ class WeatherPage(Page):
         if weather is None:
             return {}
         try:
-            snapshot = weather.snapshot()
+            snapshot = dict(weather.snapshot() or {})
         except Exception:
             snapshot = {}
-        return dict(snapshot or {})
+
+        result = {"snapshot": snapshot}
+        if self._weather_loaded and snapshot.get("currentWeather"):
+            result["currentView"] = snapshot.get("currentWeather") or {}
+            result["dashboard"] = snapshot.get("dashboard") or {}
+            return result
+
+        try:
+            if hasattr(weather, "getDashboard"):
+                result["dashboard"] = dict(weather.getDashboard() or {})
+            if hasattr(weather, "getWeatherViewModel"):
+                result["currentView"] = dict(weather.getWeatherViewModel() or {})
+            if hasattr(weather, "getForecastViewModel"):
+                result["forecastView"] = dict(weather.getForecastViewModel() or {})
+            if hasattr(weather, "getCurrentWeather"):
+                result["currentWeather"] = dict(weather.getCurrentWeather() or {})
+            if hasattr(weather, "getHourlyForecast"):
+                result["hourlyForecast"] = dict(weather.getHourlyForecast() or {})
+            if hasattr(weather, "getWeeklyForecast"):
+                result["weeklyForecast"] = dict(weather.getWeeklyForecast() or {})
+            if hasattr(weather, "getIndoorTemperature"):
+                result["indoorTemperature"] = dict(weather.getIndoorTemperature() or {})
+            if hasattr(weather, "getAlerts"):
+                result["alerts"] = list(weather.getAlerts() or [])
+            if hasattr(weather, "listLocations"):
+                result["locations"] = list(weather.listLocations() or [])
+            if hasattr(weather, "listThresholds"):
+                result["thresholds"] = list(weather.listThresholds() or [])
+        except Exception:
+            pass
+
+        self._weather_loaded = True
+        return result if any(result.get(key) for key in result if key != "snapshot") else {"snapshot": snapshot}
 
     def _draw_scrollbar(self, canvas, theme, track_x: int, top: int, bottom: int, scroll_offset: int, max_scroll: int):
         track_left = track_x - 8
